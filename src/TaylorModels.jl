@@ -7,7 +7,8 @@ const Interval = IntervalArithmetic.Interval
 
 import Base: exp, sin, inv, cos, identity, +, *, /, ^
 
-export TaylorModel, compute_bound, make_Taylor_model, TMcomposition, taylor_var
+export TaylorModel, bound, make_Taylor_model, TMcomposition, taylor_var,
+        integrate
 
 struct TaylorModel{T}
     n::Int      # degre
@@ -20,7 +21,7 @@ end
 doc"""
 Compute a rigorous bound for a polynomial over an interval.
 """
-function compute_bound(p::Poly{Interval{T}}, x0, I) where {T<:AbstractFloat}
+function bound(p::Poly{Interval{T}}, x0, I) where {T<:AbstractFloat}
     B = Interval{T}(0)
     n = degree(p)
 
@@ -34,8 +35,9 @@ end
 doc"""
 Compute a rigorous bound for a TaylorModel.
 """
-compute_bound(f::TaylorModel{T}) where {T<:AbstractFloat} = compute_bound(f.p, f.x0, f.I)
+bound(f::TaylorModel{T}) where {T<:AbstractFloat} = bound(f.p, f.x0, f.I)
 
+bound(x::Interval) = x
 
 # TaylorModel for a constant:
 TaylorModel(n::Int, x0, I, c::T) where {T<:AbstractFloat} = TaylorModel{T}(n, x0, I, Poly{Interval{T}}(c), Interval{T}(0))
@@ -73,9 +75,9 @@ taylor_var(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Poly{Interval{Float64
 #         lo = Interval(inf(I))
 #         hi = Interval(sup(I))
 #
-#         Δlo = sin(lo) - compute_bound(Poly(a), x0, lo)
-#         Δhi = sin(hi) - compute_bound(Poly(a), x0, hi)
-#         Δx0 = sin(x0) - compute_bound(Poly(a), x0, x0)
+#         Δlo = sin(lo) - bound(Poly(a), x0, lo)
+#         Δhi = sin(hi) - bound(Poly(a), x0, hi)
+#         Δx0 = sin(x0) - bound(Poly(a), x0, x0)
 #         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
 #
 #     else
@@ -100,9 +102,9 @@ taylor_var(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Poly{Interval{Float64
 #         lo = Interval(inf(I))
 #         hi = Interval(sup(I))
 #
-#         Δlo = exp(lo) - compute_bound(Poly(a), x0, lo)
-#         Δhi = exp(hi) - compute_bound(Poly(a), x0, hi)
-#         Δx0 = exp(x0) - compute_bound(Poly(a), x0, x0)
+#         Δlo = exp(lo) - bound(Poly(a), x0, lo)
+#         Δhi = exp(hi) - bound(Poly(a), x0, hi)
+#         Δx0 = exp(x0) - bound(Poly(a), x0, x0)
 #         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
 #
 #     else
@@ -160,9 +162,9 @@ function make_Taylor_model(f, n, x0, I::Interval{T}) where T
         lo = Interval(inf(I))
         hi = Interval(sup(I))
 
-        Δlo = f(lo) - compute_bound(p, x0, lo)
-        Δhi = f(hi) - compute_bound(p, x0, hi)
-        Δx0 = f(x0) - compute_bound(p, x0, x0)
+        Δlo = f(lo) - bound(p, x0, lo)
+        Δhi = f(hi) - bound(p, x0, hi)
+        Δx0 = f(x0) - bound(p, x0, x0)
         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
 
     else
@@ -196,9 +198,9 @@ function *(f::TaylorModel{T}, g::TaylorModel{T}) where {T<:AbstractFloat}
 
     d[n+2:end] = c[n+2:end]
 
-    B = compute_bound(Poly(d), x0, I)
-    Bf = compute_bound(a, x0, I)
-    Bg = compute_bound(b, x0, I)
+    B = bound(Poly(d), x0, I)
+    Bf = bound(a, x0, I)
+    Bg = bound(b, x0, I)
 
     Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
 
@@ -234,7 +236,7 @@ Calculate the TaylorModel of `(g∘f)` given a function `g` and a TaylorModel `f
 function TMcomposition(g, f::TaylorModel{T}) where {T<:AbstractFloat}
     x0, I, n = f.x0, f.I, f.n
 
-    Bf = compute_bound(f.p, x0, I)
+    Bf = bound(f.p, x0, I)
     a, Δf = f.p, f.Δ
 
     Mg = make_Taylor_model(g, n, a[0], Bf + Δf)
@@ -264,6 +266,34 @@ function /(f::TaylorModel, g::TaylorModel)
 
     M = f * inv(g)
 end
+
+doc"""
+Integrate a Polynomial.
+Returns a Polynomial of the *same* order by discarding the highest-order term
+"""
+function integrate(p::Poly)
+    p2 = Poly(p)
+
+    for i in degree(p2)-1:-1:0
+        p2[i+1] = p[i] / (i+1)
+    end
+    p2[0] = 0
+
+    return p2
+end
+
+function integrate(f::TaylorModel)
+
+    p2 = integrate(f.p)
+
+    high_order_term = f.p[end]
+    Δ = (bound(high_order_term) + f.Δ) * f.I
+
+    return TaylorModel(f.n, f.x0, f.I, p2, Δ)
+
+end
+
+
 
 
 # evaluate a TaylorModel at a point:
