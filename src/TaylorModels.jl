@@ -17,11 +17,11 @@ import Base: setindex!
 degree(f::Taylor1) = f.order
 setindex!(f::Taylor1, i, x) = f.coeffs[i+1] = x
 
-struct TaylorModel{T}
+struct TaylorModel{T,S}
     n::Int      # degree
     x0::Interval{T}  # expansion point
     I::Interval{T}   # interval over which the Taylor model is valid
-    p::Taylor1{Interval{T}}  # Taylor Taylor1nomial
+    p::Taylor1{S}  # Taylor Taylor1nomial
     Δ::Interval{T}   # interval remainder bound
 end
 
@@ -42,7 +42,7 @@ end
 doc"""
 Compute a rigorous bound for a TaylorModel.
 """
-bound(f::TaylorModel{T}) where {T<:AbstractFloat} = bound(f.p, f.x0, f.I)
+bound(f::TaylorModel) = bound(f.p, f.x0, f.I)
 
 bound(x::Interval) = x
 
@@ -52,8 +52,10 @@ TaylorModel(n::Int, x0, I, c::T) where {T<:AbstractFloat} = TaylorModel{T}(n, x0
 # TaylorModel(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Taylor1{Interval{Float64}}([0.0, 1.0]), Interval{Float64}(0.0))
 #
 
+#TaylorModel(n::Int, x0::Interval{T}, I::Interval{T}, p::Taylor1{S}, Δ::Interval{T}) where {T, S} = TaylorModel{T, S}(n, x0, I, p, Δ)
+
 # TaylorModel for a variable:
-taylor_var(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Taylor1{Interval{Float64}}(Interval{Float64}[0.0, 1.0], n), Interval{Float64}(0.0))
+taylor_var(n::Int, x0, I) = TaylorModel(n, Interval(x0), I, Taylor1{Interval{Float64}}(Interval{Float64}[0.0, 1.0], n), Interval{Float64}(0.0))
 
 
 #
@@ -179,10 +181,10 @@ function make_Taylor_model(f, n, x0, I::Interval{T}) where T
         Δ = V * Γ
     end
 
-    return TaylorModel{T}(n, x0, I, p, Δ)
+    return TaylorModel(n, x0, I, p, Δ)
 end
 
-function *(f::TaylorModel{T}, g::TaylorModel{T}) where {T<:AbstractFloat}
+function *(f::TaylorModel, g::TaylorModel)
     @assert f.n == g.n
     @assert f.x0 == g.x0
     @assert f.I == g.I
@@ -211,13 +213,13 @@ function *(f::TaylorModel{T}, g::TaylorModel{T}) where {T<:AbstractFloat}
 
     Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
 
-    return TaylorModel{T}(n, f.x0, f.I, Taylor1(c[1:n+1]), Δ)
+    return TaylorModel(n, f.x0, f.I, Taylor1(c[1:n+1]), Δ)
 
 end
 
 
 import Base.zero
-zero(::Type{TaylorModel{T}}, n, x0, I::Interval{T}) where {T<:AbstractFloat} = TaylorModel{T}(n, x0, I, Taylor1(zeros(n+1)), Interval{T}(0))
+zero(::Type{TaylorModel{T}}, n, x0, I::Interval{T}) where {T<:AbstractFloat} = TaylorModel(n, x0, I, Taylor1{Interval{Float64}}(zeros(n+1)), Interval{T}(0))
 
 
 doc"""
@@ -252,12 +254,12 @@ function TMcomposition(g, f::TaylorModel{T}) where {T<:AbstractFloat}
 
     a[0] = 0  # zero out first element
 
-    M1 = TaylorModel{T}(n, x0, I, a, Δf)
+    M1 = TaylorModel(n, x0, I, a, Δf)
     M = poly_eval_of_TM(b, M1, I, x0, n)
 
     c, Δ = M.p, M.Δ
 
-    return TaylorModel{T}(n, x0, I, c, Δ+Δg)
+    return TaylorModel(n, x0, I, c, Δ+Δg)
 end
 
 
