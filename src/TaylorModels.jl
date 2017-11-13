@@ -308,7 +308,7 @@ end
 
 # evaluate a TaylorModel at a point:
 # (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
-(f::TaylorModel)(x) = (f.p)(x) + f.Δ
+(f::TaylorModel)(x) = (f.p)(Interval(x)) + f.Δ
 
 
 # plot recipe for plotting TaylorModels
