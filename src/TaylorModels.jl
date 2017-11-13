@@ -242,7 +242,7 @@ end
 doc"""
 Calculate the TaylorModel of `(g∘f)` given a function `g` and a TaylorModel `f`.
 """
-function TMcomposition(g, f::TaylorModel{T}) where {T<:AbstractFloat}
+function TMcomposition(g, f::TaylorModel)
     x0, I, n = f.x0, f.I, f.n
 
     Bf = bound(f.p, x0, I)
@@ -307,7 +307,8 @@ end
 
 
 # evaluate a TaylorModel at a point:
-(f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
+# (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
+(f::TaylorModel)(x) = (f.p)(x) + f.Δ
 
 
 # plot recipe for plotting TaylorModels
