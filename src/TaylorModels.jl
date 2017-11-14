@@ -210,6 +210,9 @@ function make_Taylor_model(f, n, x0, I::Interval{T}, bounds) where T
     return TaylorModel(n, x0, I, p, Δ, bounds)
 end
 
+*(α::Real, f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, Taylor1(α*f.p), α*Δ, f.bounds)
+
+
 function *(f::TaylorModel, g::TaylorModel)
     @assert f.n == g.n
     @assert f.x0 == g.x0
@@ -305,15 +308,19 @@ end
 
 doc"""
 Integrate a TaylorModel.
+`x0` is optional constant to add.
 """
-function integrate(f::TaylorModel)
+function integrate(f::TaylorModel, x0=0)
 
     p2 = integrate(f.p)
 
     high_order_term = f.p[end]
     Δ = (bound(high_order_term, f.bounds) + f.Δ) * f.I
 
-    return TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
+    t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
+    t.p[0] = x0  # constant term
+
+    return t
 
 end
 
