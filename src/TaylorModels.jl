@@ -111,7 +111,8 @@ function +(α::Real, f::TaylorModel)
     return g
 end
 
--(α::Real, f::TaylorModel) = α + ((-1) * f)
+-(f::TaylorModel) = (-1 * f)
+-(α::Real, f::TaylorModel) = α + (-f)
 
 
 ## Taylor coeffcients of different functions

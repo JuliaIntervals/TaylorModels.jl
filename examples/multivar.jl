@@ -90,7 +90,7 @@ v_new = v0
 
 for i in 1:n+1   # how many iterations are required?
     u_new = u0 + ∫(   2  * u * (1 - v) )
-    v_new = v0 + ∫( (-1) * v * (1 - u) )
+    v_new = v0 + ∫(       -v * (1 - u) )
 
     u, v = u_new, v_new
 end
