@@ -5,7 +5,7 @@ using RecipesBase
 
 const Interval = IntervalArithmetic.Interval
 
-import Base: exp, sin, inv, cos, identity, +, *, /, ^
+import Base: exp, sin, inv, cos, identity, +, *, /, ^, -
 
 export TaylorModel, bound, make_Taylor_model, TMcomposition, taylor_var,
         integrate, degree
@@ -82,77 +82,11 @@ bound(x::Interval, bounds) = x
 # TaylorModel for a variable:
 taylor_var(n::Int, x0, I) = TaylorModel(n, Interval(x0), I, Taylor1{Interval{Float64}}(Interval{Float64}[0.0, 1.0], n), Interval{Float64}(0.0), Interval{Float64}[])
 
-
-#
-# function TMsin(I, x0, n)
-#     a = zeros(Interval{Float64}, n+1)
-#
-#     for i in 0:n
-#         j = i % 4
-#
-#         (j == 0) && (a[i+1] = sin(x0) / factorial(i))
-#         (j == 1) && (a[i+1] = cos(x0) / factorial(i))
-#         (j == 2) && (a[i+1] = -sin(x0) / factorial(i))
-#         (j == 3) && (a[i+1] = -cos(x0) / factorial(i))
-#
-#     end
-#
-#     i = n + 1
-#     j = i % 4
-#
-#     (j == 0) && (Γ = sin(I) / factorial(i))
-#     (j == 1) && (Γ = cos(I) / factorial(i))
-#     (j == 2) && (Γ = -sin(I) / factorial(i))
-#     (j == 3) && (Γ = -cos(I) / factorial(i))
-#
-#     if sup(Γ) ≤ 0 || inf(Γ) ≥ 0
-#         lo = Interval(inf(I))
-#         hi = Interval(sup(I))
-#
-#         Δlo = sin(lo) - bound(Taylor1(a), x0, lo)
-#         Δhi = sin(hi) - bound(Taylor1(a), x0, hi)
-#         Δx0 = sin(x0) - bound(Taylor1(a), x0, x0)
-#         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
-#
-#     else
-#         V = (I - x0)^(n+1)
-#         Δ = V * Γ
-#     end
-#
-#     return TaylorModel{Float64}(n, x0, I, Taylor1(a), Δ)
-#
-# end
-#
-# function TMexp(I, x0, n)
-#     a = zeros(Interval{Float64}, n+1)
-#     for i in 0:n
-#         a[i+1] = exp(x0) / factorial(i)
-#     end
-#
-#     i = n + 1
-#     Γ = exp(I) / factorial(i)
-#
-#     if sup(Γ) ≤ 0 || inf(Γ) ≥ 0
-#         lo = Interval(inf(I))
-#         hi = Interval(sup(I))
-#
-#         Δlo = exp(lo) - bound(Taylor1(a), x0, lo)
-#         Δhi = exp(hi) - bound(Taylor1(a), x0, hi)
-#         Δx0 = exp(x0) - bound(Taylor1(a), x0, x0)
-#         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
-#
-#     else
-#         V = (I - x0)^(n+1)
-#         Δ = V * Γ
-#     end
-#
-#     return TaylorModel{Float64}(n, x0, I, Taylor1(a), Δ)
-#
-# end
-#
-
-
 # assumes f and g are expansions around the same point x0 with the same order
+
+import Base.copy
+copy(f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, copy(f.p), f.Δ, f.bounds)
+
 function +(f::TaylorModel, g::TaylorModel)
     @assert f.n == g.n
     @assert f.x0 == g.x0
@@ -160,6 +94,24 @@ function +(f::TaylorModel, g::TaylorModel)
 
     return TaylorModel(f.n, f.x0, f.I, f.p + g.p, f.Δ + g.Δ, f.bounds)
 end
+
+function -(f::TaylorModel, g::TaylorModel)
+    @assert f.n == g.n
+    @assert f.x0 == g.x0
+    @assert f.I == g.I
+
+    return TaylorModel(f.n, f.x0, f.I, f.p - g.p, f.Δ + g.Δ, f.bounds)
+end
+
+function +(α::Real, f::TaylorModel)
+    g = copy(f)
+
+    g.p[0] += (α..α)
+
+    return g
+end
+
+-(α::Real, f::TaylorModel) = α + ((-1) * f)
 
 
 ## Taylor coeffcients of different functions
@@ -210,7 +162,9 @@ function make_Taylor_model(f, n, x0, I::Interval{T}, bounds) where T
     return TaylorModel(n, x0, I, p, Δ, bounds)
 end
 
-*(α::Real, f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, Taylor1(α*f.p), α*Δ, f.bounds)
+*(α::Real, f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, Taylor1(α*f.p), (abs(α)..abs(α))*f.Δ, f.bounds)
+
+
 
 
 function *(f::TaylorModel, g::TaylorModel)
