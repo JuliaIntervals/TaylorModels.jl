@@ -100,7 +100,7 @@ function -(f::TaylorModel, g::TaylorModel)
     @assert f.x0 == g.x0
     @assert f.I == g.I
 
-    return TaylorModel(f.n, f.x0, f.I, f.p - g.p, f.Δ + g.Δ, f.bounds)
+    return TaylorModel(f.n, f.x0, f.I, f.p - g.p, f.Δ - g.Δ, f.bounds)
 end
 
 function +(α::Real, f::TaylorModel)
@@ -163,7 +163,7 @@ function make_Taylor_model(f, n, x0, I::Interval{T}, bounds) where T
     return TaylorModel(n, x0, I, p, Δ, bounds)
 end
 
-*(α::Real, f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, Taylor1(α*f.p), (abs(α)..abs(α))*f.Δ, f.bounds)
+*(α::Real, f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, Taylor1(α*f.p), (α..α)*f.Δ, f.bounds)
 
 
 
