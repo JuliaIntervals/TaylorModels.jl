@@ -13,7 +13,7 @@ bound(t)
 
 using TaylorModels, IntervalArithmetic, TaylorSeries
 
-n = 10  # order
+n = 4  # order
 a, b = set_variables("a b", order=n)
 bounds = [-0.05..0.05, -0.05..0.05]  # bounds on a and b
 
@@ -104,3 +104,30 @@ vv = TaylorModel(n, 0..0, t_interval, v, 0..0, bounds)
 
 uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
 vv_new = ∫(    -vv * (1 - uu), v0[0] )
+
+uu, vv = uu_new, vv_new
+
+uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
+vv_new = ∫(    -vv * (1 - uu), v0[0] )
+
+# repeat the following, doubling each time
+uu = TaylorModel(n, 0..0, t_interval, u, 2*uu_new.Δ, bounds)
+vv = TaylorModel(n, 0..0, t_interval, u, 2*vv_new.Δ, bounds)
+
+# only need to bound the integral, not actually carry out
+# the whole integral
+
+uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
+vv_new = ∫(    -vv * (1 - uu), v0[0] )
+
+
+uu_new.Δ ⊆ uu.Δ, vv_new.Δ ⊆ vv.Δ
+
+for i in 1:10
+       uu, vv = uu_new, vv_new
+       uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
+       vv_new = ∫(    -vv * (1 - uu), v0[0] )
+       @show uu_new.Δ, vv_new.Δ
+       @show uu_new.Δ ⊆ uu.Δ, vv_new.Δ ⊆ vv.Δ
+
+       end
