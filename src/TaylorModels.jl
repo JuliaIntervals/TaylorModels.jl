@@ -60,6 +60,18 @@ function bound(p::Taylor1, x0, I)
     return B
 end
 
+function bound(p::Taylor1, x0, I, bounds)
+
+    B = zero(I)
+    n = degree(p)
+
+    for i = n:-1:0
+        B = B * (I - x0) + bound(p[i], bounds)
+    end
+
+    return B
+end
+
 
 bound(f::TaylorN, bounds) = evaluate(f, bounds)  # can replace by better polynomial bounder
 
@@ -172,11 +184,12 @@ function *(f::TaylorModel, g::TaylorModel)
     @assert f.n == g.n
     @assert f.x0 == g.x0
     @assert f.I == g.I
+    @assert f.bounds == g.bounds
 
     n, x0, I = f.n, f.x0, f.I
 
 
-    c = zeros(typeof(g.I), 2n+1)
+    c = zeros(eltype(g.p), 2n+1)
 
     a = f.p
     b = g.p
@@ -187,13 +200,13 @@ function *(f::TaylorModel, g::TaylorModel)
         end
     end
 
-    d = zeros(typeof(g.I), 2n+1)
+    d = zeros(eltype(g.p), 2n+1)
 
     d[n+2:end] = c[n+2:end]
 
-    B = bound(Taylor1(d), x0, I)
-    Bf = bound(a, x0, I)
-    Bg = bound(b, x0, I)
+    B = bound(Taylor1(d), x0, I, f.bounds)
+    Bf = bound(a, x0, I, f.bounds)
+    Bg = bound(b, x0, I, f.bounds)   # assuming g.bounds == f.bounds
 
     Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
 

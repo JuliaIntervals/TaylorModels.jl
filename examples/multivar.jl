@@ -75,12 +75,14 @@ U1 = t_new(tf)  # start from initial
 
 using TaylorModels, IntervalArithmetic, TaylorSeries
 
-n = 10  # order
+n = 6  # order
 a, b = set_variables("a b", order=n)
-bounds = [-0.05..0.05, -0.05..0.05]  # bounds on a and b
 
-u0 = Taylor1([1 + a], n)   # initial condition as function of a, b
-v0 = Taylor1([3 + b], n)   # initial condition as function of a, b
+h = 0.01
+bounds = (-h..h) * ones(2)  # bounds on a and b
+
+u0 = Taylor1([(1..1) + (1..1)*a], n)   # initial condition as function of a, b
+v0 = Taylor1([(3..3) + (3..3)*b], n)   # initial condition as function of a, b
 
 ∫ = integrate
 u = u0
@@ -94,3 +96,11 @@ for i in 1:n+1   # how many iterations are required?
 
     u, v = u_new, v_new
 end
+
+
+t_interval = 0..0.01
+uu = TaylorModel(n, 0..0, t_interval, u, 0..0, bounds)
+vv = TaylorModel(n, 0..0, t_interval, v, 0..0, bounds)
+
+uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
+vv_new = ∫(    -vv * (1 - uu), v0[0] )
