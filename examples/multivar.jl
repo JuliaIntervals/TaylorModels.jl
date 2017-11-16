@@ -98,7 +98,7 @@ for i in 1:n+1   # how many iterations are required?
 end
 
 
-t_interval = 0..0.01
+t_interval = 0..0.1
 uu = TaylorModel(n, 0..0, t_interval, u, 0..0, bounds)
 vv = TaylorModel(n, 0..0, t_interval, v, 0..0, bounds)
 

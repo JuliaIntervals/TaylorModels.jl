@@ -1,17 +1,16 @@
 module TaylorModels
 
-using Polynomials, IntervalArithmetic
+using IntervalArithmetic, TaylorSeries
 using RecipesBase
 
 const Interval = IntervalArithmetic.Interval
+import TaylorSeries.integrate
 
 import Base: exp, sin, inv, cos, identity, +, *, /, ^, -
 
 export TaylorModel, bound, make_Taylor_model, TMcomposition, taylor_var,
         integrate, degree
 
-using TaylorSeries
-import TaylorSeries.integrate
 
 import Base: setindex!
 
@@ -283,7 +282,7 @@ function integrate(f::TaylorModel, x0=0)
     p2 = integrate(f.p)
 
     high_order_term = f.p[end]
-    Δ = (bound(high_order_term, f.bounds) + f.Δ) * f.I
+    Δ = integral_bound(f)
 
     t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
     t.p[0] = x0  # constant term
@@ -292,6 +291,15 @@ function integrate(f::TaylorModel, x0=0)
 
 end
 
+function integral_bound(f::TaylorModel)
+    n = degree(f.p)
+    high_order_term = f.p[n]
+
+    coeff = bound(high_order_term, f.bounds)
+    power = (f.I - f.x0)^n
+
+    (coeff * power + f.Δ) * diam(f.I)
+end
 
 # evaluate a TaylorModel at a point:
 # (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
