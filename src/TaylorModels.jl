@@ -303,9 +303,9 @@ end
 
 # evaluate a TaylorModel at a point:
 # (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
-function (f::TaylorModel)(x)
-    if x in f.I
-        return (f.p)(Interval(x)) + f.Δ
+function (f::TaylorModel)(t)
+    if t in f.I
+        return (f.p)(t - f.x0) + f.Δ
     else
         throw(ArgumentError("Cannot evaluate TaylorModel at point $x outside interval of definition $(f.I)"))
     end
