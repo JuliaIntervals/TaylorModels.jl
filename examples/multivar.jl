@@ -82,7 +82,7 @@ h = 0.01
 bounds = (-h..h) * ones(2)  # bounds on a and b
 
 u0 = Taylor1([(1..1) + (1..1)*a], n)   # initial condition as function of a, b
-v0 = Taylor1([(3..3) + (3..3)*b], n)   # initial condition as function of a, b
+v0 = Taylor1([(3..3) + (1..1)*b], n)   # initial condition as function of a, b
 
 ∫ = integrate
 u = u0
@@ -111,23 +111,77 @@ uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
 vv_new = ∫(    -vv * (1 - uu), v0[0] )
 
 # repeat the following, doubling each time
-uu = TaylorModel(n, 0..0, t_interval, u, 2*uu_new.Δ, bounds)
-vv = TaylorModel(n, 0..0, t_interval, u, 2*vv_new.Δ, bounds)
 
-# only need to bound the integral, not actually carry out
-# the whole integral
+
+
+uu = TaylorModel(n, 0..0, t_interval, u, uu_new.Δ, bounds)
+vv = TaylorModel(n, 0..0, t_interval, u, vv_new.Δ, bounds)
 
 uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
 vv_new = ∫(    -vv * (1 - uu), v0[0] )
 
+while ! ((uu_new.Δ ⊆ uu.Δ) && (vv_new.Δ ⊆ vv.Δ))
+    uu = TaylorModel(n, 0..0, t_interval, u, 2*uu_new.Δ, bounds)
+    vv = TaylorModel(n, 0..0, t_interval, u, 2*vv_new.Δ, bounds)
 
-uu_new.Δ ⊆ uu.Δ, vv_new.Δ ⊆ vv.Δ
+    uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
+    vv_new = ∫(    -vv * (1 - uu), v0[0] )
+end
+
+
+
+# only need to bound the integral, not actually carry out
+# the whole integral
+
+# contract:
 
 for i in 1:10
-       uu, vv = uu_new, vv_new
-       uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
-       vv_new = ∫(    -vv * (1 - uu), v0[0] )
-       @show uu_new.Δ, vv_new.Δ
-       @show uu_new.Δ ⊆ uu.Δ, vv_new.Δ ⊆ vv.Δ
+   uu, vv = uu_new, vv_new
+   uu_new = ∫( 2 * uu * (1 - vv), u0[0] )
+   vv_new = ∫(    -vv * (1 - uu), v0[0] )
+   @show uu_new.Δ, vv_new.Δ
+   @show uu_new.Δ ⊆ uu.Δ, vv_new.Δ ⊆ vv.Δ
 
-       end
+end
+
+U = uu_new(t_interval.hi)
+V = vv_new(t_interval.hi)
+
+
+function calculate_set(U::TaylorN, V::TaylorN, bounds)
+
+    xs = []
+    ys = []
+
+    # iterate over 4 sides of initial box
+
+    num_points = 50
+
+    b = bounds[2].lo
+    for a in linspace(bounds[1].lo, bounds[2].hi, num_points)
+        push!(xs, U([a, b]))
+        push!(ys, V([a, b]))
+    end
+
+    a = bounds[1].hi
+    for b in linspace(bounds[2].lo, bounds[2].hi, num_points)
+        push!(xs, U([a, b]))
+        push!(ys, V([a, b]))
+    end
+
+    b = bounds[2].hi
+    for a in linspace(bounds[2].hi, bounds[2].lo, num_points)
+        push!(xs, U([a, b]))
+        push!(ys, V([a, b]))
+    end
+
+    a = bounds[1].lo
+    for b in linspace(bounds[2].hi, bounds[2].lo, num_points)
+        push!(xs, U([a, b]))
+        push!(ys, V([a, b]))
+    end
+
+    return mid.(xs), mid.(ys)
+
+
+end
