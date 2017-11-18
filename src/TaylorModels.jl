@@ -1,28 +1,55 @@
 module TaylorModels
 
-using Polynomials, IntervalArithmetic
+using IntervalArithmetic, TaylorSeries
 using RecipesBase
 
 const Interval = IntervalArithmetic.Interval
+import TaylorSeries.integrate
 
-import Base: exp, sin, inv, cos, identity, +, *, /, ^
+import Base: exp, sin, inv, cos, identity, +, *, /, ^, -
 
 export TaylorModel, bound, make_Taylor_model, TMcomposition, taylor_var,
-        integrate
+        integrate, degree
 
-struct TaylorModel{T}
-    n::Int      # degre
+
+import Base: setindex!
+
+degree(f::Taylor1) = f.order
+setindex!(f::Taylor1, i, x) = f.coeffs[i+1] = x
+
+abstract type AbstractTaylorModel end
+
+# the bounds field contains interval bounds for variables in Taylor model whose
+# cofficients are multivar polynomials
+struct TaylorModel{T,S} <: AbstractTaylorModel
+    n::Int      # degree
     x0::Interval{T}  # expansion point
     I::Interval{T}   # interval over which the Taylor model is valid
-    p::Poly{Interval{T}}  # Taylor polynomial
+    p::Taylor1{S}  # Taylor Taylor1nomial
     Δ::Interval{T}   # interval remainder bound
+    bounds::Vector{Interval{T}}
 end
+
 
 doc"""
 Compute a rigorous bound for a polynomial over an interval.
 """
-function bound(p::Poly{Interval{T}}, x0, I) where {T<:AbstractFloat}
-    B = Interval{T}(0)
+function bound(f::TaylorModel)
+    x0, I, p = f.x0, f.I, f.p
+
+    B = zero(I)
+    n = degree(p)
+
+    for i = n:-1:0
+        B = B * (I - x0) + bound(p[i], f.bounds)
+    end
+
+    return B
+end
+
+function bound(p::Taylor1, x0, I)
+
+    B = zero(I)
     n = degree(p)
 
     for i = n:-1:0
@@ -32,103 +59,75 @@ function bound(p::Poly{Interval{T}}, x0, I) where {T<:AbstractFloat}
     return B
 end
 
+function bound(p::Taylor1, x0, I, bounds)
+
+    B = zero(I)
+    n = degree(p)
+
+    for i = n:-1:0
+        B = B * (I - x0) + bound(p[i], bounds)
+    end
+
+    return B
+end
+
+
+bound(f::TaylorN, bounds) = evaluate(f, bounds)  # can replace by better polynomial bounder
+
+
 doc"""
 Compute a rigorous bound for a TaylorModel.
 """
-bound(f::TaylorModel{T}) where {T<:AbstractFloat} = bound(f.p, f.x0, f.I)
+# bound(f::TaylorModel) = bound(f.p, f.x0, f.I)
 
-bound(x::Interval) = x
+bound(x::Interval, bounds) = x
 
 # TaylorModel for a constant:
-TaylorModel(n::Int, x0, I, c::T) where {T<:AbstractFloat} = TaylorModel{T}(n, x0, I, Poly{Interval{T}}(c), Interval{T}(0))
+# TaylorModel(n::Int, x0, I, c::T) where {T<:AbstractFloat} = TaylorModel{T}(n, x0, I, Taylor1{Interval{T}}(c), Interval{T}(0), [])
 #
-# TaylorModel(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Poly{Interval{Float64}}([0.0, 1.0]), Interval{Float64}(0.0))
+# TaylorModel(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Taylor1{Interval{Float64}}([0.0, 1.0]), Interval{Float64}(0.0))
 #
+
+#TaylorModel(n::Int, x0::Interval{T}, I::Interval{T}, p::Taylor1{S}, Δ::Interval{T}) where {T, S} = TaylorModel{T, S}(n, x0, I, p, Δ)
 
 # TaylorModel for a variable:
-taylor_var(n::Int, x0, I) = TaylorModel{Float64}(n, x0, I, Poly{Interval{Float64}}([0.0, 1.0]), Interval{Float64}(0.0))
-
-
-#
-# function TMsin(I, x0, n)
-#     a = zeros(Interval{Float64}, n+1)
-#
-#     for i in 0:n
-#         j = i % 4
-#
-#         (j == 0) && (a[i+1] = sin(x0) / factorial(i))
-#         (j == 1) && (a[i+1] = cos(x0) / factorial(i))
-#         (j == 2) && (a[i+1] = -sin(x0) / factorial(i))
-#         (j == 3) && (a[i+1] = -cos(x0) / factorial(i))
-#
-#     end
-#
-#     i = n + 1
-#     j = i % 4
-#
-#     (j == 0) && (Γ = sin(I) / factorial(i))
-#     (j == 1) && (Γ = cos(I) / factorial(i))
-#     (j == 2) && (Γ = -sin(I) / factorial(i))
-#     (j == 3) && (Γ = -cos(I) / factorial(i))
-#
-#     if sup(Γ) ≤ 0 || inf(Γ) ≥ 0
-#         lo = Interval(inf(I))
-#         hi = Interval(sup(I))
-#
-#         Δlo = sin(lo) - bound(Poly(a), x0, lo)
-#         Δhi = sin(hi) - bound(Poly(a), x0, hi)
-#         Δx0 = sin(x0) - bound(Poly(a), x0, x0)
-#         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
-#
-#     else
-#         V = (I - x0)^(n+1)
-#         Δ = V * Γ
-#     end
-#
-#     return TaylorModel{Float64}(n, x0, I, Poly(a), Δ)
-#
-# end
-#
-# function TMexp(I, x0, n)
-#     a = zeros(Interval{Float64}, n+1)
-#     for i in 0:n
-#         a[i+1] = exp(x0) / factorial(i)
-#     end
-#
-#     i = n + 1
-#     Γ = exp(I) / factorial(i)
-#
-#     if sup(Γ) ≤ 0 || inf(Γ) ≥ 0
-#         lo = Interval(inf(I))
-#         hi = Interval(sup(I))
-#
-#         Δlo = exp(lo) - bound(Poly(a), x0, lo)
-#         Δhi = exp(hi) - bound(Poly(a), x0, hi)
-#         Δx0 = exp(x0) - bound(Poly(a), x0, x0)
-#         Δ = Interval(min(inf(Δlo), inf(Δx0), inf(Δhi)), max(sup(Δlo), sup(Δx0), sup(Δhi)))
-#
-#     else
-#         V = (I - x0)^(n+1)
-#         Δ = V * Γ
-#     end
-#
-#     return TaylorModel{Float64}(n, x0, I, Poly(a), Δ)
-#
-# end
-#
-
+taylor_var(n::Int, x0, I) = TaylorModel(n, Interval(x0), I, Taylor1{Interval{Float64}}(Interval{Float64}[0.0, 1.0], n), Interval{Float64}(0.0), Interval{Float64}[])
 
 # assumes f and g are expansions around the same point x0 with the same order
+
+import Base.copy
+copy(f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, copy(f.p), f.Δ, f.bounds)
+
 function +(f::TaylorModel, g::TaylorModel)
     @assert f.n == g.n
     @assert f.x0 == g.x0
     @assert f.I == g.I
 
-    return TaylorModel(f.n, f.x0, f.I, f.p + g.p, f.Δ + g.Δ)
+    return TaylorModel(f.n, f.x0, f.I, f.p + g.p, f.Δ + g.Δ, f.bounds)
 end
 
+function -(f::TaylorModel, g::TaylorModel)
+    @assert f.n == g.n
+    @assert f.x0 == g.x0
+    @assert f.I == g.I
 
-## nth derivs of different functions
+    return TaylorModel(f.n, f.x0, f.I, f.p - g.p, f.Δ - g.Δ, f.bounds)
+end
+
+function +(α::Real, f::TaylorModel)
+    g = copy(f)
+
+    g.p[0] += (α..α)
+
+    return g
+end
+
+-(f::TaylorModel) = (-1 * f)
+-(α::Real, f::TaylorModel) = α + (-f)
+
+
+## Taylor coeffcients of different functions
+## TODO: Change nth_deriv -> taylor_coeff
 nth_deriv(::typeof(exp), i, x) = exp(x) / factorial(i)
 
 function nth_deriv(::typeof(sin), i, x)
@@ -145,7 +144,7 @@ nth_deriv(::typeof(inv), i, x) = (-1)^i / (x^(i+1))
 doc"""
 Make a TaylorModel for a given function over a given domain.
 """
-function make_Taylor_model(f, n, x0, I::Interval{T}) where T
+function make_Taylor_model(f, n, x0, I::Interval{T}, bounds) where T
 
     a = zeros(typeof(I), n+1)
 
@@ -153,7 +152,7 @@ function make_Taylor_model(f, n, x0, I::Interval{T}) where T
         a[i+1] = nth_deriv(f, i, x0)
     end
 
-    p = Poly(a)
+    p = Taylor1(a)
 
     Γ = nth_deriv(f, n+1, I)
 
@@ -172,18 +171,24 @@ function make_Taylor_model(f, n, x0, I::Interval{T}) where T
         Δ = V * Γ
     end
 
-    return TaylorModel{T}(n, x0, I, p, Δ)
+    return TaylorModel(n, x0, I, p, Δ, bounds)
 end
 
-function *(f::TaylorModel{T}, g::TaylorModel{T}) where {T<:AbstractFloat}
+*(α::Real, f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, Taylor1(α*f.p), (α..α)*f.Δ, f.bounds)
+
+
+
+
+function *(f::TaylorModel, g::TaylorModel)
     @assert f.n == g.n
     @assert f.x0 == g.x0
     @assert f.I == g.I
+    @assert f.bounds == g.bounds
 
     n, x0, I = f.n, f.x0, f.I
 
 
-    c = zeros(typeof(g.I), 2n+1)
+    c = zeros(eltype(g.p), 2n+1)
 
     a = f.p
     b = g.p
@@ -194,33 +199,33 @@ function *(f::TaylorModel{T}, g::TaylorModel{T}) where {T<:AbstractFloat}
         end
     end
 
-    d = zeros(typeof(g.I), 2n+1)
+    d = zeros(eltype(g.p), 2n+1)
 
     d[n+2:end] = c[n+2:end]
 
-    B = bound(Poly(d), x0, I)
-    Bf = bound(a, x0, I)
-    Bg = bound(b, x0, I)
+    B = bound(Taylor1(d), x0, I, f.bounds)
+    Bf = bound(a, x0, I, f.bounds)
+    Bg = bound(b, x0, I, f.bounds)   # assuming g.bounds == f.bounds
 
     Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
 
-    return TaylorModel{T}(n, f.x0, f.I, Poly(c), Δ)
+    return TaylorModel(n, f.x0, f.I, Taylor1(c[1:n+1]), Δ, f.bounds)
 
 end
 
 
 import Base.zero
-zero(::Type{TaylorModel{T}}, n, x0, I::Interval{T}) where {T<:AbstractFloat} = TaylorModel{T}(n, x0, I, Poly(zeros(n+1)), Interval{T}(0))
+zero(::Type{TaylorModel{T}}, n, x0, I::Interval{T}, bounds) where {T<:AbstractFloat} = TaylorModel(n, x0, I, Taylor1{Interval{Float64}}(zeros(n+1)), Interval{T}(0), bounds)
 
 
 doc"""
 Evaluate a polynomial of a TaylorModel.
-`b` are the coefficients of the polynomial.
+`b` are the coefficients of the Taylor1nomial.
 """
-function poly_eval_of_TM(b, f, I::Interval{T}, x0, n) where {T<:AbstractFloat}
+function poly_eval_of_TM(b, f, I::Interval{T}, x0, n, bounds) where {T<:AbstractFloat}
 
-    #M = TaylorModel{T}(n, x0, I, Poly(zeros(n+1)), Interval{T}(0))
-    M = zero(TaylorModel{T}, n, x0, I)
+    #M = TaylorModel{T}(n, x0, I, Taylor1(zeros(n+1)), Interval{T}(0))
+    M = zero(TaylorModel{T}, n, x0, I, bounds)
 
     for i in n:-1:0
         M *= f
@@ -233,23 +238,24 @@ end
 doc"""
 Calculate the TaylorModel of `(g∘f)` given a function `g` and a TaylorModel `f`.
 """
-function TMcomposition(g, f::TaylorModel{T}) where {T<:AbstractFloat}
+function TMcomposition(g, f::TaylorModel)
     x0, I, n = f.x0, f.I, f.n
 
     Bf = bound(f.p, x0, I)
     a, Δf = f.p, f.Δ
 
-    Mg = make_Taylor_model(g, n, a[0], Bf + Δf)
+    Mg = make_Taylor_model(g, n, a[0], Bf + Δf, f.bounds)
 
     b, Δg = Mg.p, Mg.Δ
-    a[0] = 0
 
-    M1 = TaylorModel{T}(n, x0, I, a, Δf)
-    M = poly_eval_of_TM(b, M1, I, x0, n)
+    a[0] = 0  # zero out first element
+
+    M1 = TaylorModel(n, x0, I, a, Δf, f.bounds)
+    M = poly_eval_of_TM(b, M1, I, x0, n, f.bounds)
 
     c, Δ = M.p, M.Δ
 
-    return TaylorModel{T}(n, x0, I, c, Δ+Δg)
+    return TaylorModel(n, x0, I, c, Δ+Δg, f.bounds)
 end
 
 
@@ -268,39 +274,45 @@ function /(f::TaylorModel, g::TaylorModel)
 end
 
 doc"""
-Integrate a Polynomial.
-Returns a Polynomial of the *same* order by discarding the highest-order term
+Integrate a TaylorModel.
+`x0` is optional constant to add.
 """
-function integrate(p::Poly)
-    p2 = Poly(p)
-
-    for i in degree(p2)-1:-1:0
-        p2[i+1] = p[i] / (i+1)
-    end
-    p2[0] = 0
-
-    return p2
-end
-
-function integrate(f::TaylorModel)
+function integrate(f::TaylorModel, x0=0)
 
     p2 = integrate(f.p)
 
     high_order_term = f.p[end]
-    Δ = (bound(high_order_term) + f.Δ) * f.I
+    Δ = integral_bound(f)
 
-    return TaylorModel(f.n, f.x0, f.I, p2, Δ)
+    t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
+    t.p[0] = x0  # constant term
+
+    return t
 
 end
 
+function integral_bound(f::TaylorModel)
+    n = degree(f.p)
+    high_order_term = f.p[n]
 
+    coeff = bound(high_order_term, f.bounds)
+    power = (f.I - f.x0)^n
 
+    (coeff * power + f.Δ) * diam(f.I)
+end
 
 # evaluate a TaylorModel at a point:
-(f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
+# (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
+function (f::TaylorModel)(x)
+    if x in f.I
+        return (f.p)(Interval(x)) + f.Δ
+    else
+        throw(ArgumentError("Cannot evaluate TaylorModel at point $x outside interval of definition $(f.I)"))
+    end
+end
 
 
-# plot recipe for plotting TaylorModels
+# plot recipe for plotting 1D TaylorModels
 @recipe function g(f::TaylorModel)
 
     x0, I, n, p, Δ = f.x0, f.I, f.n, f.p, f.Δ
