@@ -8,8 +8,9 @@ import TaylorSeries.integrate
 
 import Base: exp, sin, inv, cos, identity, +, *, /, ^, -
 
-export TaylorModel, bound, make_Taylor_model, TMcomposition, taylor_var,
-        integrate, degree
+export TaylorModel, bound, make_Taylor_model, TMcomposition,
+        taylor_var, integrate, degree,
+        calculate_set, Taylor_step
 
 
 import Base: setindex!
@@ -32,6 +33,10 @@ end
 
 include("arithmetic.jl")
 include("functions.jl")
+
+include("integrate.jl")
+include("draw.jl")
+
 
 
 doc"""
