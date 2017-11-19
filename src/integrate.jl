@@ -1,5 +1,35 @@
 const ∫ = integrate
 
+
+doc"""
+Integrate a TaylorModel.
+`x0` is optional constant to add.
+"""
+function integrate(f::TaylorModel, x0=0)
+
+    p2 = integrate(f.p)
+
+    high_order_term = f.p[end]
+    Δ = integral_bound(f)
+
+    t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
+    t.p[0] = x0  # constant term
+
+    return t
+
+end
+
+function integral_bound(f::TaylorModel)
+    n = degree(f.p)
+    high_order_term = f.p[n]
+
+    coeff = bound(high_order_term, f.bounds)
+    power = (f.I - f.x0)^n
+
+    ((coeff * power) + f.Δ) * diam(f.I)
+end
+
+
 function Taylor_step(fs, n, u0, v0, t_interval, bounds)
 
     u = u0
