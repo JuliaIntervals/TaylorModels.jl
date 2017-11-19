@@ -18,11 +18,19 @@ import Base: setindex!
 degree(f::Taylor1) = f.order
 setindex!(f::Taylor1, i, x) = f.coeffs[i+1] = x
 
-abstract type AbstractTaylorModel end
+doc"""
+A `TaylorModel` represents a (single-variable) polynomial approximation to a function $f(t)$. The coefficients of the polynomial
+may be `TaylorN`.
 
-# the bounds field contains interval bounds for variables in Taylor model whose
-# cofficients are multivar polynomials
-struct TaylorModel{T,S} <: AbstractTaylorModel
+The fields are:
+- `n`: degree of the polynomial
+- `x0`: expansion point
+- `I`: interval over which the Taylor model is defined / valid
+- `p`: the polynomial, represented as `TaylorSeries.Taylor1`
+- `Δ`: the interval bound
+- `bounds`: an array of intervals representing the bounds of the variables that occur in the coefficients.
+"""
+struct TaylorModel{T,S}
     n::Int      # degree
     x0::Interval{T}  # expansion point
     I::Interval{T}   # interval over which the Taylor model is valid
@@ -40,7 +48,7 @@ include("draw.jl")
 
 
 doc"""
-Compute a rigorous bound for a polynomial over an interval.
+Compute a rigorous bound for a TaylorModel.
 """
 function bound(f::TaylorModel)
     x0, I, p = f.x0, f.I, f.p
@@ -83,9 +91,6 @@ end
 bound(f::TaylorN, bounds) = evaluate(f, bounds)  # can replace by better polynomial bounder
 
 
-doc"""
-Compute a rigorous bound for a TaylorModel.
-"""
 # bound(f::TaylorModel) = bound(f.p, f.x0, f.I)
 
 bound(x::Interval, bounds) = x
@@ -106,37 +111,9 @@ taylor_var(n::Int, x0, I) = TaylorModel(n, Interval(x0), I, Taylor1{Interval{Flo
 import Base.copy
 copy(f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, copy(f.p), f.Δ, f.bounds)
 
-
-doc"""
-Integrate a TaylorModel.
-`x0` is optional constant to add.
 """
-function integrate(f::TaylorModel, x0=0)
-
-    p2 = integrate(f.p)
-
-    high_order_term = f.p[end]
-    Δ = integral_bound(f)
-
-    t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
-    t.p[0] = x0  # constant term
-
-    return t
-
-end
-
-function integral_bound(f::TaylorModel)
-    n = degree(f.p)
-    high_order_term = f.p[n]
-
-    coeff = bound(high_order_term, f.bounds)
-    power = (f.I - f.x0)^n
-
-    (coeff * power + f.Δ) * diam(f.I)
-end
-
-# evaluate a TaylorModel at a point:
-# (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
+Evaluate a TaylorModel at a point
+"""
 function (f::TaylorModel)(t)
     if t in f.I
         return (f.p)(t - f.x0) + f.Δ
