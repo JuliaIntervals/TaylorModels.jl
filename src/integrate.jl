@@ -9,15 +9,15 @@ function integrate(f::TaylorModel, x0=0)
 
     p2 = integrate(f.p)
 
-    high_order_term = f.p[end]
     Δ = integral_bound(f)
 
-    t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
-    t.p[0] = x0  # constant term
+    g = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
+    g.p[0] = x0  # constant term
 
-    return t
+    return g
 
 end
+
 
 function integral_bound(f::TaylorModel)
     n = degree(f.p)
@@ -26,7 +26,7 @@ function integral_bound(f::TaylorModel)
     coeff = bound(high_order_term, f.bounds)
     power = (f.I - f.x0)^n
 
-    ((coeff * power) + f.Δ) * diam(f.I)
+    return ((coeff * power) + f.Δ) * diam(f.I)
 end
 
 
