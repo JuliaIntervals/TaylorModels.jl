@@ -49,11 +49,8 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
     uu = TaylorModel(n, Interval(t_interval.lo), t_interval, u, 0..0, bounds)
     vv = TaylorModel(n, Interval(t_interval.lo), t_interval, v, 0..0, bounds)
 
-    uu_new = ∫( fs[1](uu, vv), u0[0] )
-    vv_new = ∫( fs[2](uu, vv), v0[0] )
-
-    uΔ = uu_new.Δ
-    vΔ = vv_new.Δ
+    uΔ = integral_bound(fs[1](uu, vv))
+    vΔ = integral_bound(fs[2](uu, vv))
 
     # make sure the intervals contain 0:
     m = mag(uΔ)
@@ -64,7 +61,13 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
 
     @show uΔ, vΔ
 
-     while ! ((uu_new.Δ ⊆ uu.Δ) && (vv_new.Δ ⊆ vv.Δ))
+    uu = TaylorModel(n, Interval(t_interval.lo), t_interval, u, uΔ, bounds)
+    vv = TaylorModel(n, Interval(t_interval.lo), t_interval, v, vΔ, bounds)
+
+    integ_u_bound = uΔ
+    integ_v_bound = vΔ
+
+    while ! ((integ_u_bound ⊆ uu.Δ) && (integ_v_bound ⊆ vv.Δ))
         uΔ *= 2
         vΔ *= 2
 
@@ -73,8 +76,8 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
         uu = TaylorModel(n, Interval(t_interval.lo), t_interval, u, uΔ, bounds)
         vv = TaylorModel(n, Interval(t_interval.lo), t_interval, v, vΔ, bounds)
 
-        uu_new = ∫( fs[1](uu, vv), u0[0] )
-        vv_new = ∫( fs[2](uu, vv), v0[0] )
+        integ_u_bound = integral_bound(fs[1](uu, vv))
+        integ_v_bound = integral_bound(fs[2](uu, vv))
 
     end
 
@@ -83,6 +86,9 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
     # the whole integral
 
     # contract:
+
+    uu_new = ∫( fs[1](uu, vv), u0[0] )
+    vv_new = ∫( fs[2](uu, vv), v0[0] )
 
     for i in 1:10
        uu, vv = uu_new, vv_new
