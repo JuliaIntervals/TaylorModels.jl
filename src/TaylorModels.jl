@@ -8,8 +8,9 @@ import TaylorSeries.integrate
 
 import Base: exp, sin, inv, cos, identity, +, *, /, ^, -
 
-export TaylorModel, bound, make_Taylor_model, TMcomposition, taylor_var,
-        integrate, degree
+export TaylorModel, bound, make_Taylor_model, TMcomposition,
+        taylor_var, integrate, degree,
+        calculate_set, Taylor_step
 
 
 import Base: setindex!
@@ -17,11 +18,19 @@ import Base: setindex!
 degree(f::Taylor1) = f.order
 setindex!(f::Taylor1, i, x) = f.coeffs[i+1] = x
 
-abstract type AbstractTaylorModel end
+doc"""
+A `TaylorModel` represents a (single-variable) polynomial approximation to a function $f(t)$. The coefficients of the polynomial
+may be `TaylorN`.
 
-# the bounds field contains interval bounds for variables in Taylor model whose
-# cofficients are multivar polynomials
-struct TaylorModel{T,S} <: AbstractTaylorModel
+The fields are:
+- `n`: degree of the polynomial
+- `x0`: expansion point
+- `I`: interval over which the Taylor model is defined / valid
+- `p`: the polynomial, represented as `TaylorSeries.Taylor1`
+- `Δ`: the interval bound
+- `bounds`: an array of intervals representing the bounds of the variables that occur in the coefficients.
+"""
+struct TaylorModel{T,S}
     n::Int      # degree
     x0::Interval{T}  # expansion point
     I::Interval{T}   # interval over which the Taylor model is valid
@@ -32,58 +41,12 @@ end
 
 include("arithmetic.jl")
 include("functions.jl")
+include("bound.jl")
+
+include("integrate.jl")
+include("draw.jl")
 
 
-doc"""
-Compute a rigorous bound for a polynomial over an interval.
-"""
-function bound(f::TaylorModel)
-    x0, I, p = f.x0, f.I, f.p
-
-    B = zero(I)
-    n = degree(p)
-
-    for i = n:-1:0
-        B = B * (I - x0) + bound(p[i], f.bounds)
-    end
-
-    return B
-end
-
-function bound(p::Taylor1, x0, I)
-
-    B = zero(I)
-    n = degree(p)
-
-    for i = n:-1:0
-        B = B * (I - x0) + p[i]
-    end
-
-    return B
-end
-
-function bound(p::Taylor1, x0, I, bounds)
-
-    B = zero(I)
-    n = degree(p)
-
-    for i = n:-1:0
-        B = B * (I - x0) + bound(p[i], bounds)
-    end
-
-    return B
-end
-
-
-bound(f::TaylorN, bounds) = evaluate(f, bounds)  # can replace by better polynomial bounder
-
-
-doc"""
-Compute a rigorous bound for a TaylorModel.
-"""
-# bound(f::TaylorModel) = bound(f.p, f.x0, f.I)
-
-bound(x::Interval, bounds) = x
 
 # TaylorModel for a constant:
 # TaylorModel(n::Int, x0, I, c::T) where {T<:AbstractFloat} = TaylorModel{T}(n, x0, I, Taylor1{Interval{T}}(c), Interval{T}(0), [])
@@ -101,37 +64,9 @@ taylor_var(n::Int, x0, I) = TaylorModel(n, Interval(x0), I, Taylor1{Interval{Flo
 import Base.copy
 copy(f::TaylorModel) = TaylorModel(f.n, f.x0, f.I, copy(f.p), f.Δ, f.bounds)
 
-
-doc"""
-Integrate a TaylorModel.
-`x0` is optional constant to add.
 """
-function integrate(f::TaylorModel, x0=0)
-
-    p2 = integrate(f.p)
-
-    high_order_term = f.p[end]
-    Δ = integral_bound(f)
-
-    t = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
-    t.p[0] = x0  # constant term
-
-    return t
-
-end
-
-function integral_bound(f::TaylorModel)
-    n = degree(f.p)
-    high_order_term = f.p[n]
-
-    coeff = bound(high_order_term, f.bounds)
-    power = (f.I - f.x0)^n
-
-    (coeff * power + f.Δ) * diam(f.I)
-end
-
-# evaluate a TaylorModel at a point:
-# (f::TaylorModel{T})(x) where {T<:AbstractFloat} = (f.p)(Interval{T}(x)) + f.Δ
+Evaluate a TaylorModel at a point
+"""
 function (f::TaylorModel)(t)
     if t in f.I
         return (f.p)(t - f.x0) + f.Δ
