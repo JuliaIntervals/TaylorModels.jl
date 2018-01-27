@@ -25,14 +25,14 @@ end
 TMAbsRem(pol::Taylor1{Interval{T}}, arem::Interval{T},
     x0::Interval{T}, iI::Interval{T}) where {T} = TMAbsRem{T}(pol, arem, x0, iI)
 
-# short-cuts for independent variable
+# Short-cut for independent variable
 TMAbsRem(ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
     TMAbsRem(Taylor1(Interval{T}, ord), zero(iI), x0, iI)
 
 # TMAbsRem(T::Type, ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
 #     TMAbsRem(Taylor1(Interval{T}, ord), zero(iI), x0, iI)
 
-# short-cut for a constant
+# Short-cut for a constant
 TMAbsRem(a::Interval{T}, ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
     TMAbsRem(Taylor1([a], ord), zero(iI), x0, iI)
 

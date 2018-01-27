@@ -17,23 +17,25 @@ function rpa(f::Function, x0::Interval{T}, ii::Interval{T}, _order::Int) where {
 end
 
 function rpa(g::Function, tmf::TMAbsRem)
+    _order = get_order(tmf)
+
+    # Do not overestimate if `tmf` is the independent variable
+    tmf == TMAbsRem(_order, tmf.x0, tmf.iI) && return rpa(g, tmf.x0, tmf.iI, _order)
+
     f_pol = tmf.pol
     Δf = remainder(tmf)
     x0 = tmf.x0
     iI = tmf.iI
-    _order = get_order(f_pol)
 
-    # f(x)-f(x0), Δf
-    tm1 = TMAbsRem(f_pol-f_pol[0], Δf, x0, iI)
+    # Range of tmf including remainder (Δf)
+    range_tmf = bound_taylor1(f_pol, iI-x0) + Δf
 
-    # Compute RPA for `g`, around u0, over remf+Δf
-    u0 = f_pol[0]
-    # remf = f_pol(iI-x0)
-    remf = bound_taylor1(f_pol, iI-x0)
-    # @show(u0, remf, f_pol(iI-x0), remf+Δf)
-    tmg = rpa(g, u0, remf+Δf, _order)
-    tmres = evaluate(tmg, tm1)
-    return TMAbsRem(tmres.pol, tmres.arem+tmg.arem, x0, iI)
+    # Compute RPA for `g`, around f_pol[0], over range_tmf
+    tmg = rpa(g, f_pol[0], range_tmf, _order)
+    tm1 = tmf - f_pol[0]
+    tmres = tmg( tm1 )
+    Δ = remainder(tmres) + remainder(tmg)
+    return TMAbsRem(tmres.pol, Δ, x0, iI)
 end
 
 
@@ -45,7 +47,8 @@ function evaluate(tmg::TMAbsRem, tmf::TMAbsRem)
     # R = typeof(tmg.pol[0] * tmf.pol[0])
     tmres = TMAbsRem(tmg.pol[_order], _order, tmf.x0, tmf.iI)
     @inbounds for k = _order-1:-1:0
-        tmres = tmres*tmf + tmg.pol[k]
+        tmres = tmres * tmf
+        tmres = tmres + TMAbsRem(tmg.pol[k], _order, tmf.x0, tmf.iI)
     end
     return tmres
 end

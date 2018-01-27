@@ -1,8 +1,5 @@
 # bounds.jl
 
-using IntervalRootFinding
-
-
 """
    bound_arem(f::Function, polf::Taylor1, fTIend::Interval, x0::Interval, ii::Interval)
 
@@ -23,7 +20,7 @@ function bound_arem(f::Function, polf::Taylor1, fTIend::Interval,
         Δhi = f(interval(ii.hi)) - polf(interval(ii.hi)-x0)
         Δx0 = f(x0) - polf[0]
         Δ = interval( min(inf(Δlo), inf(Δx0), inf(Δhi)),
-                      max(sup(Δlo), sup(Δx0), sup(Δhi)))
+                      max(sup(Δlo), sup(Δx0), sup(Δhi)) )
     else
         # Laplace bound
         Δ = fTIend * (ii-x0)^(polf.order+1)

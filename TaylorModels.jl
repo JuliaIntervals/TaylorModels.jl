@@ -2,6 +2,7 @@ module TaylorModels
 
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
+using IntervalRootFinding
 
 const Interval = IntervalArithmetic.Interval
 setformat(:full)
@@ -13,7 +14,7 @@ import Base: ==, +, -, *, /, ^,
 
 import TaylorSeries: get_order, evaluate
 
-export TMAbsRem, Interval, rpa, fprpa, bound_arem, remainder
+export TMAbsRem, Interval, rpa, rpafp, bound_arem, remainder
 
 include("constructors.jl")
 include("bounds.jl")
