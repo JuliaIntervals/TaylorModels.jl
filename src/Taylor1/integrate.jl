@@ -2,16 +2,16 @@ const ∫ = integrate
 
 
 doc"""
-Integrate a TaylorModel.
+Integrate a Taylor1Model.
 `x0` is optional constant to add.
 """
-function integrate(f::TaylorModel, x0=0)
+function integrate(f::Taylor1Model, x0=0)
 
     p2 = integrate(f.p)
 
     Δ = integral_bound(f)
 
-    g = TaylorModel(f.n, f.x0, f.I, p2, Δ, f.bounds)
+    g = Taylor1Model(f.n, f.x0, f.I, p2, Δ)
     g.p[0] = x0  # constant term
 
     return g
@@ -19,18 +19,18 @@ function integrate(f::TaylorModel, x0=0)
 end
 
 
-function integral_bound(f::TaylorModel)
+function integral_bound(f::Taylor1Model)
     n = degree(f.p)
     high_order_term = f.p[n]
 
-    coeff = bound(high_order_term, f.bounds)
+    coeff = bound(high_order_term)
     power = (f.I - f.x0)^n
 
     return ((coeff * power) + f.Δ) * diam(f.I)
 end
 
 
-function Taylor_step(fs, n, u0, v0, t_interval, bounds)
+function Taylor_step(fs, n, u0, v0, t_interval)
 
     u = u0
     v = v0
@@ -46,8 +46,8 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
     end
 
     # prepare Taylor Model:
-    uu = TaylorModel(n, Interval(t_interval.lo), t_interval, u, 0..0, bounds)
-    vv = TaylorModel(n, Interval(t_interval.lo), t_interval, v, 0..0, bounds)
+    uu = Taylor1Model(n, Interval(t_interval.lo), t_interval, u, 0..0)
+    vv = Taylor1Model(n, Interval(t_interval.lo), t_interval, v, 0..0)
 
     uΔ = integral_bound(fs[1](uu, vv))
     vΔ = integral_bound(fs[2](uu, vv))
@@ -61,8 +61,8 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
 
     @show uΔ, vΔ
 
-    uu = TaylorModel(n, Interval(t_interval.lo), t_interval, u, uΔ, bounds)
-    vv = TaylorModel(n, Interval(t_interval.lo), t_interval, v, vΔ, bounds)
+    uu = Taylor1Model(n, Interval(t_interval.lo), t_interval, u, uΔ)
+    vv = Taylor1Model(n, Interval(t_interval.lo), t_interval, v, vΔ)
 
     integ_u_bound = uΔ
     integ_v_bound = vΔ
@@ -73,8 +73,8 @@ function Taylor_step(fs, n, u0, v0, t_interval, bounds)
 
         @show uΔ, vΔ
 
-        uu = TaylorModel(n, Interval(t_interval.lo), t_interval, u, uΔ, bounds)
-        vv = TaylorModel(n, Interval(t_interval.lo), t_interval, v, vΔ, bounds)
+        uu = Taylor1Model(n, Interval(t_interval.lo), t_interval, u, uΔ)
+        vv = Taylor1Model(n, Interval(t_interval.lo), t_interval, v, vΔ)
 
         integ_u_bound = integral_bound(fs[1](uu, vv))
         integ_v_bound = integral_bound(fs[2](uu, vv))
