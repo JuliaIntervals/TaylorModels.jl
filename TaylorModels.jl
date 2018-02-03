@@ -14,7 +14,8 @@ import Base: ==, +, -, *, /, ^,
 
 import TaylorSeries: get_order, evaluate
 
-export TMAbsRem, Interval, rpa, rpafp, bound_arem, remainder
+export TMAbsRem, TMRelRem, Interval, remainder,
+    rpa, rpafp, bound_arem, bound_rrem
 
 include("constructors.jl")
 include("bounds.jl")
