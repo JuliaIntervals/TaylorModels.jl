@@ -60,7 +60,7 @@ function boundrrem(f::Function, polf::Taylor1, polfI::Taylor1,
         Δ = interval( min(inf(Δlo), inf(Δhi)), max(sup(Δlo), sup(Δhi)) )
     else
         # Laplace coefficient
-        Δ = fTIend[_order]
+        Δ = polfI[_order]
     end
     return Δ
 end

@@ -115,19 +115,42 @@ end
 # Division
 function /(a::TMAbsRem, b::TMAbsRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
-    return basediv(a,b)
+    return basediv(a, b)
 end
-function /(a::TMAbsRem, b::TMAbsRem)
+function /(a::TMRelRem, b::TMRelRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
 
     # DetermineRootOrderUpperBound seems equivalent (optimized?) to `findfirst`
     bk = findfirst(b)
-    bk ≤ 0 && return basediv(a,b)
+    bk ≤ 0 && return basediv(a, b)
+
+    # In 2.3.12, `a` and `b` are now extended in order by `bk`,
+    # but how can we do this without knowing the explicit function
+    # that created them?
+    #
+    # Below we reduce the original order by bk.
+    #
+    order = get_order(a)
+    ared = reducetoorder(
+        TMRelRem(Taylor1(a.pol.coeffs[bk+1:order+1]), a.rem, a.x0, a.iI), order-bk)
+    order = get_order(b)
+    bred = reducetoorder(
+        TMRelRem(Taylor1(b.pol.coeffs[bk+1:order+1]), b.rem, b.x0, b.iI), order-bk)
+
+    return basediv( ared, bred )
+end
 
 
-    # TMRelRem
-    # TMReduceOrder
-    # TMBaseDiv
-    invb = rpa(x->inv(x), b)
-    return a * invb
+function reducetoorder(a::TMRelRem, m::Int)
+    order = get_order(a)
+    @assert order ≥ m ≥ 0
+
+    bpol = Taylor1(copy(a.pol.coeffs))
+    zz = zero(bpol[0])
+    for ind in 0:m
+        bpol[ind] = zz
+    end
+    bf = bpol(a.iI-a.x0)
+    Δ = bf + a.rem * (a.iI-a.x0)^(order-m)
+    return TMRelRem( Taylor1(copy(a.pol.coeffs[1:m+1])), Δ, a.x0, a.iI )
 end

@@ -94,12 +94,11 @@ function rpa(g::Function, tmf::TMRelRem)
     tmg = _rparr(g, f_pol[0], range_tmf, _order)
     tm1 = tmf - f_pol[0]
     tmres = tmg( tm1 )
-    ###
-    tmn = copy(tm1)
+
+    tmn = TMRelRem(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.iI)
     for i = 1:_order
         tmn = tmn * tm1
     end
-    ###
     Δ = remainder(tmres) + remainder(tmn) * remainder(tmg)
     return TMRelRem(tmres.pol, Δ, x0, iI)
 end
@@ -114,7 +113,7 @@ for TM in tupleTMs
         tmres = $TM(tmg.pol[_order], _order, tmf.x0, tmf.iI)
         @inbounds for k = _order-1:-1:0
             tmres = tmres * tmf
-            tmres = tmres + tmg.pol[k]#$TM(tmg.pol[k], _order, tmf.x0, tmf.iI)
+            tmres = tmres + tmg.pol[k]
         end
         return tmres
     end
