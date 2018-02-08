@@ -106,7 +106,7 @@ end
 
 
 # evaluate, and function-like evaluation for TMAbsRem
-for TM in (:TMAbsRem, :TMRelRem)
+for TM in tupleTMs
     @eval function evaluate(tmg::$TM, tmf::$TM)
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
@@ -165,6 +165,8 @@ end
 fnlist = (:inv, :sqrt, :exp, :log, :sin, :cos, :tan,
     :asin, :acos, :atan, :sinh, :cosh, :tanh)
 
-for fn in fnlist
-    @eval $fn(tm::TMAbsRem) = rpa($fn, tm)
+for TM in tupleTMs
+    for fn in fnlist
+        @eval $fn(tm::$TM) = rpa($fn, tm)
+    end
 end

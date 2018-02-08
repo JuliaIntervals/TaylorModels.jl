@@ -1,10 +1,11 @@
 # constructors.jl
 
+const tupleTMs = (:TMAbsRem, :TMRelRem)
 #=
 Types `TMAbsRem{T}` and `TMRelRem{T}` are identical, except the way the
 remainder is computed.
 =#
-for TM in (:TMAbsRem, :TMRelRem)
+for TM in tupleTMs
 
     @eval struct $(TM){T}
         pol  :: Taylor1{Interval{T}}    # polynomial approx (of order `ord`)

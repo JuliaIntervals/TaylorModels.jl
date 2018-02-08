@@ -1,6 +1,6 @@
 # arithmetic.jl
 
-for TM in (:TMAbsRem, :TMRelRem)
+for TM in tupleTMs
     @eval begin
         zero(a::$TM) = $TM(zero(a.pol), zero(a.rem), a.x0, a.iI)
 
@@ -87,7 +87,7 @@ function *(a::TMRelRem, b::TMRelRem)
     return TMRelRem(polret, Δ, a.x0, a.iI)
 end
 
-for TM in (:TMAbsRem, :TMRelRem)
+for TM in tupleTMs
     @eval *(a::$TM, b::T) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
     @eval *(b::T, a::$TM) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
 end
