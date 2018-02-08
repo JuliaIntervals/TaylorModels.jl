@@ -114,7 +114,7 @@ for TM in tupleTMs
         tmres = $TM(tmg.pol[_order], _order, tmf.x0, tmf.iI)
         @inbounds for k = _order-1:-1:0
             tmres = tmres * tmf
-            tmres = tmres + tmg.pol[k]#TMAbsRem(tmg.pol[k], _order, tmf.x0, tmf.iI)
+            tmres = tmres + tmg.pol[k]#$TM(tmg.pol[k], _order, tmf.x0, tmf.iI)
         end
         return tmres
     end
@@ -124,19 +124,26 @@ end
 
 
 """
-    rpafp(tm::TMAbsRem{T,S})
+    rpafp(tm::TMAbsRem{T})
+    rpafp(tm::TMRelRem{T})
 
-Convert a `tm::TMAbsRem{T,S}` to a T-type RPA. It returns the `Taylor1{T}`
-polynomial, the accumulated absolute error `Δ::Interval{S}`, and `ξ0` which is
+Convert a `tm` TaylorModel to a T-type RPA. It returns the `Taylor1{T}`
+polynomial, the accumulated (absolute or relative) error `Δ::Interval{S}`,
+and `ξ0` which is
 the mid point about which the expansion is obtained. If ξ0 is not exactly
 representable, it returns *preferentiably* a rounded-down value.
 This function is primarily used for plotting.
 
 """
-rpafp(tm::TMAbsRem{T}) where {T} = _rpafp(tm.pol, tm.rem, tm.x0, tm.iI)
+rpafp(tm::TMAbsRem{T}) where {T} =
+    _rpafp( Val(TMAbsRem{T}), tm.pol, tm.rem, tm.x0, tm.iI )
 
-function _rpafp(fT::Taylor1{Interval{T}}, Δ::Interval{S},
-        x0::Interval{S}, ii::Interval{S}) where {T,S}
+rpafp(tm::TMRelRem{T}) where {T} =
+    _rpafp( Val(TMRelRem{T}), tm.pol, tm.rem, tm.x0, tm.iI )
+
+function _rpafp(::Val{TMAbsRem{T}}, fT::Taylor1{Interval{T}}, Δ::Interval{T},
+        x0::Interval{T}, ii::Interval{T}) where {T}
+
     order = fT.order
     # α=0.484375 is used to get preferentially round-down of the mid point
     # when the mid point is not exactly representable
@@ -149,15 +156,28 @@ function _rpafp(fT::Taylor1{Interval{T}}, Δ::Interval{S},
         t[ind] = mid(fT[ind], α)
         b[ind] = fT[ind] - Interval(t[ind])
     end
-    # if norm(b, Inf) < eps()
-    #     δ = b(ii-x0)
-    # else
-    #     δ = bound_taylor1(b, ii-x0)   ## Used alone may yield problems
-    # end
     δ = b(ii-x0)
     Δ = Δ + δ
-    # return TMAbsRem(t, Δ, interval(ξ0), ii)
     return t, Δ, ξ0
+end
+function _rpafp(::Val{TMRelRem{T}}, fT::Taylor1{Interval{T}}, Δ::Interval{T},
+        x0::Interval{T}, ii::Interval{T}) where {T}
+
+    order = fT.order
+    # α=0.484375 is used to get preferentially round-down of the mid point
+    # when the mid point is not exactly representable
+    α = 0.484375
+    ξ0 = mid(x0, α)
+
+    b = Taylor1(Interval{T}, order)
+    t = Taylor1(T, order)
+    for ind=0:order
+        t[ind] = mid(fT[ind], α)
+        b[ind] = fT[ind] - Interval(t[ind])
+    end
+    δ = b(ii-x0)
+    # Is the following correct for TMRelRem?
+    return t, Δ, ξ0, δ
 end
 
 
