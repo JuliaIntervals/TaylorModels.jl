@@ -8,7 +8,7 @@ const Interval = IntervalArithmetic.Interval
 setformat(:full)
 
 import Base: ==, +, -, *, /, ^,
-    zero, #iszero,
+    zero, findfirst, #iszero,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 

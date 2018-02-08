@@ -6,8 +6,10 @@ for TM in tupleTMs
 
         # iszero(a::$TM) = iszero(a.pol) && iszero(zero(a.rem))
 
+        findfirst(a::$TM) = findfirst(a.pol)
+
         ==(a::$TM, b::$TM) =
-        a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
+            a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
 
 
         # Addition
@@ -32,6 +34,28 @@ for TM in tupleTMs
 
         -(a::$TM, b::T) where {T} = $TM(a.pol-b, a.rem, a.x0, a.iI)
         -(b::T, a::$TM) where {T} = $TM(b-a.pol, -a.rem, a.x0, a.iI)
+
+
+        # Base div
+        function basediv(a::$TM, b::$TM)
+            invb = rpa(x->inv(x), b)
+            return a * invb
+        end
+
+
+        # Multiplication by numbers
+        *(a::$TM, b::T) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+        *(b::T, a::$TM) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+
+
+        # Division by numbers
+        /(a::$TM, b::T) where {T} = a * inv(b)
+        /(b::T, a::$TM) where {T} = b * inv(a)
+
+
+        # Power
+        ^(a::$TM, r) = rpa(x->x^r, a)
+        ^(a::$TM, n::Integer) = rpa(x->x^n, a)
     end
 end
 
@@ -87,22 +111,23 @@ function *(a::TMRelRem, b::TMRelRem)
     return TMRelRem(polret, Δ, a.x0, a.iI)
 end
 
-for TM in tupleTMs
-    @eval *(a::$TM, b::T) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
-    @eval *(b::T, a::$TM) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
-end
 
 # Division
 function /(a::TMAbsRem, b::TMAbsRem)
+    @assert a.x0 == b.x0 && a.iI == b.iI
+    return basediv(a,b)
+end
+function /(a::TMAbsRem, b::TMAbsRem)
+    @assert a.x0 == b.x0 && a.iI == b.iI
+
+    # DetermineRootOrderUpperBound seems equivalent (optimized?) to `findfirst`
+    bk = findfirst(b)
+    bk ≤ 0 && return basediv(a,b)
+
+
+    # TMRelRem
+    # TMReduceOrder
+    # TMBaseDiv
     invb = rpa(x->inv(x), b)
     return a * invb
 end
-
-/(a::TMAbsRem, b::T) where {T} = a * inv(b)
-
-/(b::T, a::TMAbsRem) where {T} = b * inv(a)
-
-
-# Power
-^(a::TMAbsRem, r) = rpa(x->x^r, a)
-^(a::TMAbsRem, n::Integer) = rpa(x->x^n, a)
