@@ -1,79 +1,55 @@
 # constructors.jl
 
-"""
-    TMAbsRem{T,S}
+#=
+Types `TMAbsRem{T}` and `TMRelRem{T}` are identical, except the way the
+remainder is computed.
+=#
+for TM in (:TMAbsRem, :TMRelRem)
+
+    @eval struct $(TM){T}
+        pol  :: Taylor1{Interval{T}}    # polynomial approx (of order `ord`)
+        rem  :: Interval{T}             # remainder
+        x0   :: Interval{T}             # expansion point
+        iI   :: Interval{T}             # interval of interest
+
+        # Inner constructor
+        function $(TM){T}(pol::Taylor1{Interval{T}}, rem::Interval{T},
+                x0::Interval{T}, iI::Interval{T}) where {T}
+            $(TM) == TMAbsRem && @assert zero(T) ∈ rem && x0 ⊆ iI
+            return new{T}(pol, rem, x0, iI)
+        end
+    end
+
+    # Outer constructors
+     @eval $(TM)(pol::Taylor1{Interval{T}}, rem::Interval{T},
+        x0::Interval{T}, iI::Interval{T}) where {T} = $(TM){T}(pol, rem, x0, iI)
+
+    # Short-cut for independent variable
+    @eval $(TM)(ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
+        $(TM)(x0 + Taylor1(Interval{T}, ord), zero(iI), x0, iI)
+
+    # Short-cut for a constant
+    @eval $(TM)(a::Interval{T}, ord::Int, x0::Interval{T},
+        iI::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(iI), x0, iI)
+
+    # Functions to retrieve the order and remainder
+    @eval get_order(tm::$TM) = tm.pol.order
+    @eval remainder(tm::$TM) = tm.rem
+end
+
+
+@doc """
+    TMAbsRem{T}
 
 Taylor Models with Absolute Remainder. Corresponds to definition 2.1.3
 (Mioara Joldes thesis).
 
-"""
-struct TMAbsRem{T}
-    pol  :: Taylor1{Interval{T}}    # polynomial approx (of order `ord`)
-    arem :: Interval{T}             # absolute remainder
-    x0   :: Interval{T}             # expansion point
-    iI   :: Interval{T}             # interval of interest
+""" TMAbsRem
 
-    # Inner constructor
-    function TMAbsRem{T}(pol::Taylor1{Interval{T}}, arem::Interval{T},
-            x0::Interval{T}, iI::Interval{T}) where {T}
-        @assert zero(T) ∈ arem && x0 ⊆ iI
-        return new{T}(pol, arem, x0, iI)
-    end
-end
+@doc """
+    TMRelRem{T}
 
-# Outer constructors
-TMAbsRem(pol::Taylor1{Interval{T}}, arem::Interval{T},
-    x0::Interval{T}, iI::Interval{T}) where {T} = TMAbsRem{T}(pol, arem, x0, iI)
-
-# Short-cut for independent variable
-TMAbsRem(ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
-    TMAbsRem(x0 + Taylor1(Interval{T}, ord), zero(iI), x0, iI)
-
-# Short-cut for a constant
-TMAbsRem(a::Interval{T}, ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
-    TMAbsRem(Taylor1([a], ord), zero(iI), x0, iI)
-
-
-
-"""
-    TMRelRem{T,S}
-
-Taylor Models with Relative Remainder. Corresponds to definition 2.1.3
+Taylor Models with Relative Remainder. Corresponds to definition 2.3.2
 (Mioara Joldes thesis).
 
-"""
-struct TMRelRem{T}
-    pol  :: Taylor1{Interval{T}}    # polynomial approx (of order `ord+1`)
-    # rrem :: Interval{T}             # relative remainder
-    x0   :: Interval{T}             # expansion point
-    iI   :: Interval{T}             # interval of interest
-
-    # Inner constructor
-    function TMRelRem{T}(pol::Taylor1{Interval{T}}, # rrem::Interval{T},
-            x0::Interval{T}, iI::Interval{T}) where {T}
-        @assert zero(T) ∈ pol[end] && x0 ⊆ iI
-        return new{T}(pol, x0, iI)
-    end
-end
-
-# Outer constructors
-TMRelRem(pol::Taylor1{Interval{T}}, # rrem::Interval{T},
-    x0::Interval{T}, iI::Interval{T}) where {T} = TMRelRem{T}(pol, x0, iI)
-
-# Short-cut for independent variable
-function TMRelRem(ord::Int, x0::Interval{T}, iI::Interval{T}) where {T}
-    TMRelRem(x0 + Taylor1(Interval{T}, ord+1), x0, iI)
-end
-
-# Short-cut for a constant
-TMRelRem(a::Interval{T}, ord::Int, x0::Interval{T}, iI::Interval{T}) where {T} =
-    TMRelRem(Taylor1([a], ord+1), x0, iI)
-
-
-
-# Functions to inspect the entities of `TMAbsRem` and `TMRelRem`
-get_order(tm::TMAbsRem) = tm.pol.order
-get_order(tm::TMRelRem) = tm.pol.order-1
-
-remainder(tm::TMAbsRem) = tm.arem
-remainder(tm::TMRelRem) = tm.pol[end]
+""" TMRelRem
