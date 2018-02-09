@@ -21,6 +21,7 @@ include("constructors.jl")
 include("bounds.jl")
 include("rpa_functions.jl")
 include("arithmetic.jl")
+include("recipe.jl")
 
 
 end # module
