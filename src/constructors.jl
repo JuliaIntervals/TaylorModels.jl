@@ -2,8 +2,9 @@
 
 const tupleTMs = (:TMAbsRem, :TMRelRem)
 #=
-Types `TMAbsRem{T}` and `TMRelRem{T}` are identical, except the way the
-remainder is computed.
+Structs `TMAbsRem{T}` and `TMRelRem{T}` are essentially identical, except
+the way the remainder is computed and that the remainder for `TMAbsRem{T}`
+must contain 0.
 =#
 for TM in tupleTMs
 

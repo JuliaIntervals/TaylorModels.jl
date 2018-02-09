@@ -1,5 +1,6 @@
 # arithmetic.jl
 
+# Addition, substraction and other functions
 for TM in tupleTMs
     @eval begin
         zero(a::$TM) = $TM(zero(a.pol), zero(a.rem), a.x0, a.iI)
@@ -36,7 +37,7 @@ for TM in tupleTMs
         -(b::T, a::$TM) where {T} = $TM(b-a.pol, -a.rem, a.x0, a.iI)
 
 
-        # Base div
+        # Basic division
         function basediv(a::$TM, b::$TM)
             invb = rpa(x->inv(x), b)
             return a * invb
@@ -141,6 +142,13 @@ function /(a::TMRelRem, b::TMRelRem)
 end
 
 
+"""
+    reducetoorder(a::TMRelRem, m::Int)
+
+From `a:TMRelRem`, it returns a Taylor Model of relative
+remainder of order `m`.
+
+"""
 function reducetoorder(a::TMRelRem, m::Int)
     order = get_order(a)
     @assert order ≥ m ≥ 0
