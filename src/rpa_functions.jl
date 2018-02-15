@@ -60,8 +60,12 @@ function rpa(g::Function, tmf::TMAbsRem)
 
     # Compute RPA for `g`, around f_pol[0], over range_tmf
     tmg = _rpaar(g, f_pol[0], range_tmf, _order)
+
+    # Use original independent variable
     tm1 = tmf - f_pol[0]
     tmres = tmg( tm1 )
+
+    # Final remainder
     Δ = remainder(tmres) + remainder(tmg)
     return TMAbsRem(tmres.pol, Δ, x0, iI)
 end
@@ -110,8 +114,8 @@ for TM in tupleTMs
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
 
-        tmres = $TM(tmg.pol[_order], _order, tmf.x0, tmf.iI)
-        @inbounds for k = _order-1:-1:0
+        tmres = $TM(zero(tmg.pol[0]), _order, tmf.x0, tmf.iI)
+        @inbounds for k = _order:-1:0
             tmres = tmres * tmf
             tmres = tmres + tmg.pol[k]
         end
@@ -134,16 +138,13 @@ representable, it returns *preferentiably* a rounded-down value.
 This function is primarily used for plotting.
 
 """
-rpafp(tm::TMAbsRem{T}) where {T} =
-    _rpafp( Val(TMAbsRem{T}), tm.pol, tm.rem, tm.x0, tm.iI )
+function rpafp(tm::TMAbsRem{T}) where {T}
+    fT = tm.pol
+    Δ = remainder(tm)
+    x0 = tm.x0
+    ii = tm.iI
+    order = get_order(tm)
 
-rpafp(tm::TMRelRem{T}) where {T} =
-    _rpafp( Val(TMRelRem{T}), tm.pol, tm.rem, tm.x0, tm.iI )
-
-function _rpafp(::Val{TMAbsRem{T}}, fT::Taylor1{Interval{T}}, Δ::Interval{T},
-        x0::Interval{T}, ii::Interval{T}) where {T}
-
-    order = fT.order
     # α=0.484375 is used to get preferentially round-down of the mid point
     # when the mid point is not exactly representable
     α = 0.484375
@@ -159,10 +160,14 @@ function _rpafp(::Val{TMAbsRem{T}}, fT::Taylor1{Interval{T}}, Δ::Interval{T},
     Δ = Δ + δ
     return t, Δ, ξ0
 end
-function _rpafp(::Val{TMRelRem{T}}, fT::Taylor1{Interval{T}}, Δ::Interval{T},
-        x0::Interval{T}, ii::Interval{T}) where {T}
 
-    order = fT.order
+function rpafp(tm::TMRelRem{T}) where {T}
+    fT = tm.pol
+    Δ = remainder(tm)
+    x0 = tm.x0
+    ii = tm.iI
+    order = get_order(tm)
+
     # α=0.484375 is used to get preferentially round-down of the mid point
     # when the mid point is not exactly representable
     α = 0.484375
