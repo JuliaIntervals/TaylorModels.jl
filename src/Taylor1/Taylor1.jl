@@ -42,6 +42,8 @@ include("draw.jl")
 # Taylor1Model for a variable:
 taylor1_var(n::Int, x0, I::T) where {T} = Taylor1Model(n, Interval(x0), I, Taylor1([T(0.0), T(1.0)], n), oftype(I, 0))
 
+taylor1_var(n::Int, I::T) where {T} = Taylor1Model(n, Interval(mid(I)), I, Taylor1([T(0.0), T(1.0)], n), oftype(I, 0))
+
 # assumes f and g are expansions around the same point x0 with the same order
 
 import Base.copy
