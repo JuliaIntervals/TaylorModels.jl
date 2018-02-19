@@ -33,9 +33,30 @@ end
 *(α::Real, f::TaylorNModel) = TaylorNModel(f.n, f.x0, f.I, α*f.p, (α..α)*f.Δ,
 α .* f.order_bounds)
 
+*(α::Interval, f::TaylorNModel) = TaylorNModel(f.n, f.x0, f.I, α*f.p, α*f.Δ,
+α .* f.order_bounds)
 
-function *(f::TaylorNModel, g::Taylor1nomialModel)
-    @assert f.n == g.n
+
+"""
+Truncate a TaylorNModel to order n
+"""
+function truncate(f::TaylorNModel, n)
+    if n >= f.n  # nothing to do
+        return f
+    end
+
+    coeffs = f.p.coeffs[1:n+1]
+    order_bounds = f.order_bounds[1:n+1]
+
+    # add in order_bounds to remainder:
+    Δ = f.Δ + sum(f.order_bounds[n+2:end])
+
+    TaylorNModel(n, f.x0, f.I, coeffs, Δ, order_bounds)
+end
+
+
+function *(f::TaylorNModel, g::TaylorNModel)
+    @assert f.n == g.n  # not necessary
     @assert f.x0 == g.x0
     @assert f.I == g.I
 
@@ -43,29 +64,18 @@ function *(f::TaylorNModel, g::Taylor1nomialModel)
 
     # TODO
 
-    #
-    # c = zeros(eltype(g.p), 2n+1)
-    #
-    # a = f.p
-    # b = g.p
-    #
-    # for i in 0:n
-    #     for j in 0:n
-    #         c[i+j+1] += a[i] * b[j]
-    #     end
-    # end
-    #
-    # d = zeros(eltype(g.p), 2n+1)
-    #
-    # d[n+2:end] = c[n+2:end]
-    #
-    # B = bound(Taylor1(d), x0, I)
-    # Bf = bound(a, x0, I)
-    # Bg = bound(b, x0, I)
-    #
-    # Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
-    #
-    # return Taylor1Model(n, f.x0, f.I, Taylor1(c[1:n+1]), Δ)
-    
+    product_series = f.p * g.p
 
+    Δ = f.Δ * g.Δ
+
+    for i in 0:n
+        for j in (n-i+1):n  # j + k > n
+            Δ += f.order_bounds[i] * g.order_bounds[j]
+        end
+    end
+
+    Δ += (sum(f.order_bounds) * g.Δ)
+    Δ += (sum(g.order_bounds) * f.Δ)
+
+    return TaylorNModel(n, x0, I, product_series, Δ)
 end

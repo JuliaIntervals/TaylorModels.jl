@@ -32,7 +32,7 @@ end
 
 
 function *(f::Taylor1Model, g::Taylor1Model)
-    @assert f.n == g.n
+    @assert f.n == g.n  # unnecessary -- truncate instead
     @assert f.x0 == g.x0
     @assert f.I == g.I
 
@@ -56,7 +56,7 @@ function *(f::Taylor1Model, g::Taylor1Model)
 
     B = bound(Taylor1(d), x0, I)
     Bf = bound(a, x0, I)
-    Bg = bound(b, x0, I)   
+    Bg = bound(b, x0, I)
 
     Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
 
