@@ -28,7 +28,7 @@ Taylor1Model(n, x0, I::Interval{T}, p, Δ) where{T} = Taylor1Model(n, interval(x
 
 # convenience constructors with same n, x0, I:
 Taylor1Model(f, p, Δ) = Taylor1Model(f.n, f.x0, f.I, p, Δ)
-Taylor1Model(f, Δ) = Taylor1Model(f.n, f.x0, f.I, f.p, Δ)
+Taylor1Model(f, Δ) = Taylor1Model(f, f.p, Δ)
 
 
 include("arithmetic.jl")
