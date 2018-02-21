@@ -10,9 +10,9 @@ A `Taylor1Model` represents a polynomial approximation to a function $f(t)$ of a
 
 The fields are:
 - `n`: degree of the polynomial
-- `x0`: expansion point
-- `I`: interval over which the Taylor model is defined / valid
-- `p`: the polynomial, represented as `TaylorSeries.Taylor1`
+- `x0`: expansion point as IntervalBox
+- `I`: IntervalBox over which the Taylor model is defined / valid
+- `p`: the polynomial, of type `TaylorSeries.TaylorN`
 - `Δ`: the interval bound
 """
 struct TaylorNModel{N,T,S}
@@ -37,7 +37,7 @@ include("arithmetic.jl")
 # include("functions.jl")
 # include("bound.jl")
 #
-# include("integrate.jl")
+include("integrate.jl")
 # include("draw.jl")
 
 import Base.copy
