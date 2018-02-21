@@ -46,7 +46,7 @@ exploiting monotonicity if possible, otherwise, it uses Laplace bound.
 function rpa(g::Function, tmf::TMAbsRem)
     _order = get_order(tmf)
 
-    # Do not overestimate if `tmf` is the independent variable
+    # Short-cut if `tmf` is the independent variable
     tmf == TMAbsRem(_order, tmf.x0, tmf.iI) &&
         return _rpaar(g, tmf.x0, tmf.iI, _order)
 

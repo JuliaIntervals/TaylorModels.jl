@@ -8,7 +8,7 @@ using RecipesBase
 @recipe function g(f::TMAbsRem)
     fT, Δ, ξ0 = rpafp(f)
 
-    alpha --> 0.5
+    alpha --> 0.3
     seriestype := :shape
 
     xs = linspace(f.iI.lo, f.iI.hi, 100)

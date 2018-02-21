@@ -72,19 +72,19 @@ function *(a::TMAbsRem, b::TMAbsRem)
     res = aext * bext
 
     # Neglected polynomial resulting from the product
-    polnegl = Taylor1(zero(eltype(res)), 2*order)
-    polnegl.coeffs[order+1:2order] .= res.coeffs[order+1:2order]
+    aext[:] .= zero(eltype(res))
+    aext[order+1:2order] .= res[order+1:2order]
 
     # Remainder of the product
-    Δnegl = polnegl(a.iI-a.x0)
+    Δnegl = aext(a.iI-a.x0)
     Δa = a.pol(a.iI-a.x0)
     Δb = b.pol(a.iI-a.x0)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
 
     # Returned polynomial
-    polret = Taylor1( copy(res.coeffs[1:order+1]) )
+    bext = Taylor1( res.coeffs[1:order+1] )
 
-    return TMAbsRem(polret, Δ, a.x0, a.iI)
+    return TMAbsRem(bext, Δ, a.x0, a.iI)
 end
 function *(a::TMRelRem, b::TMRelRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
