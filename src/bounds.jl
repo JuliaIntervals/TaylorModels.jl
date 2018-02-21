@@ -5,7 +5,7 @@
 
 Bound the absoulte remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `ii`.
-It requires an interval bound `fTIend` for the coefficient of Laplace bound. If
+It requires an interval bound `fTIend` for the coefficient of Lagrange bound. If
 `fTIend` has a definite sign, then it is monotonic in the intervals [ii.lo, x0]
 and [x0.hi, ii.hi], which is exploited; otherwise, it is used as the returned
 value.
@@ -25,7 +25,7 @@ function boundarem(f::Function, polf::Taylor1, polfI::Taylor1,
         Δ = interval( min(inf(Δlo), inf(Δx0), inf(Δhi)),
                       max(sup(Δlo), sup(Δx0), sup(Δhi)) )
     else
-        # Laplace bound
+        # Lagrange bound
         Δ = fTIend * (ii-x0)^(polf.order+1)
     end
     return Δ
@@ -37,7 +37,7 @@ end
 
 Bound the relative remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `ii`.
-It requires an interval bound `fTIend` for the coefficient of Laplace bound. If
+It requires an interval bound `fTIend` for the coefficient of Lagrange bound. If
 `fTIend` has a definite sign, then it is monotonic in the interval `ii`,
 which is exploited; otherwise, it is used as the returned value.
 
@@ -59,7 +59,7 @@ function boundrrem(f::Function, polf::Taylor1, polfI::Taylor1,
         Δhi = Δhi / hidenom
         Δ = interval( min(inf(Δlo), inf(Δhi)), max(sup(Δlo), sup(Δhi)) )
     else
-        # Laplace coefficient
+        # Lagrange coefficient
         Δ = polfI[_order]
     end
     return Δ

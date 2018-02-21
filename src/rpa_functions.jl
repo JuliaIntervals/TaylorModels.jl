@@ -6,7 +6,7 @@
 Rigurous polynomial approximation (RPA) with absolute remainder
 for the function `f` on the interval `ii`,  using a Taylor expansion
 around the *interval* `x0` of order `_order`. The bound is computed
-exploiting monotonicity if possible, otherwise, it uses Laplace bound.
+exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 
 """
 function _rpaar(f::Function, x0::Interval{T}, ii::Interval{T}, _order::Int) where {T}
@@ -23,7 +23,7 @@ end
 Rigurous polynomial approximation (RPA) with relative remainder
 for the function `f` on the interval `ii`,  using a Taylor expansion
 around the *interval* `x0` of order `_order`. The bound is computed
-exploiting monotonicity if possible, otherwise, it uses the Laplace
+exploiting monotonicity if possible, otherwise, it uses the Lagrange
 coefficient.
 
 """
@@ -40,7 +40,7 @@ end
 
 Rigurous polynomial approximation (RPA) for the function `g` using the
 Taylor Model with absolute remainder `tmf`. The bound is computed
-exploiting monotonicity if possible, otherwise, it uses Laplace bound.
+exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 
 """
 function rpa(g::Function, tmf::TMAbsRem)
@@ -76,7 +76,7 @@ end
 
 Rigurous polynomial approximation (RPA) for the function `g` using the
 Taylor Model with absolute remainder `tmf`. The bound is computed
-exploiting monotonicity if possible, otherwise, it uses Laplace bound.
+exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 
 """
 function rpa(g::Function, tmf::TMRelRem)
