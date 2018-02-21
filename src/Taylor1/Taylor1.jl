@@ -2,7 +2,7 @@
 # missing methods in TaylorSeries.jl:
 
 degree(f::Taylor1) = f.order
-setindex!(f::Taylor1, i, x) = f.coeffs[i+1] = x
+setindex!(f::Taylor1, x, i) = f.coeffs[i+1] = x
 
 doc"""
 A `Taylor1Model` represents a polynomial approximation to a function $f(t)$ of a single variable.
