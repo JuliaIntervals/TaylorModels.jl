@@ -96,8 +96,8 @@ function *(a::TMRelRem, b::TMRelRem)
     res = aext * bext
 
     # Neglected polynomial resulting from the product
-    polnegl = Taylor1(zero(eltype(res)), 2*order)
-    polnegl.coeffs[order+1:2order] .= res.coeffs[order+1:2order]
+    aext[:] .= zero(eltype(res))
+    aext[order+1:2order] .= res[order+1:2order]
 
     # Remainder of the product
     Δnegl = polnegl(a.iI-a.x0)
@@ -107,9 +107,9 @@ function *(a::TMRelRem, b::TMRelRem)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
 
     # Returned polynomial
-    polret = Taylor1( copy(res.coeffs[1:order+1]) )
+    bext = Taylor1( copy(res.coeffs[1:order+1]) )
 
-    return TMRelRem(polret, Δ, a.x0, a.iI)
+    return TMRelRem(bext, Δ, a.x0, a.iI)
 end
 
 
