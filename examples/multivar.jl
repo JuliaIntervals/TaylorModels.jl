@@ -5,15 +5,20 @@ t, a, b = set_variables(Interval{Float64}, "t a b", order=3)
 u00 = 1+a   # initial condition
 
 II = -0.1..0.1
-u0 = TaylorNModel(3, IntervalBox(0..0, 0..0, 0..0), IntervalBox(II, II, II), u00, 0..0)
+IIbox = IntervalBox(II, II, II)
+
+u0 = TaylorNModel(3, IntervalBox(0..0, 0..0, 0..0), IIbox, u00, 0..0)
 
 
-# SOLVE ODE  ẋ = x:
+# SOLVE ODE  ẋ = f(x):
+
+f(x) = x
+
 n = 3
 ∫ = integrate
 u = u0
 for i in 1:n+5   # how many iterations are required?
-    u = u0 + ∫(u, 1)
+    u = u0 + ∫(f(u), 1)
 end
 
 u
@@ -34,7 +39,7 @@ w_new = ∫(w, 1)  # just so that t_new exists outside the loop
 
 for i in 1:10
     w_new = u0 + ∫(w, 1)
-    @show w.Δ, w_new.Δ, w_new.Δ ⊆ t.Δ
+    @show w.Δ, w_new.Δ, w_new.Δ ⊆ w.Δ
 
     (w_new.Δ ⊆ w.Δ) && break  # if this happens, then have found contraction
 
@@ -42,7 +47,8 @@ for i in 1:10
     w = TaylorNModel(w.n, w.x0, w.I, w.p, Δ)
 end
 
-w
+w.Δ
+w_new.Δ
 
 w.p
 
@@ -57,14 +63,21 @@ for i in 1:20
 end
 
 w
-
+w.Δ
 w.p([t_interval.hi..t_interval.hi, a, b]) + w.Δ
 
 (1+a)*exp(0.1..0.1)
 
+all( ((1+a)*exp(tt..tt))([IIbox...]) ⊆ ( w.p([tt..tt, IIbox[2], IIbox[3]]) + w.Δ ) for tt in 0:0.01:0.1 )
 
+for tt in 0:0.01:0.1
+    println(((1+a)*exp(tt..tt))([IIbox...]), "\t", ( w.p([tt..tt, IIbox[2], IIbox[3]]) + w.Δ ))
+end
+
+(1+a)*exp(0.01)
+w.p([0.01, a, b]) + w.Δ
 # Find initial set for next step:
-tf = (t_interval.hi)..(t_interval.hi)
+tf = (t_interval.hi)..(t_interval.hi)d
 U1 = t_new(tf)  # start from initial
 
 
