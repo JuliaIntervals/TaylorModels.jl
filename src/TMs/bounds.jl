@@ -1,14 +1,15 @@
 # bounds.jl
 
 """
-   boundarem(f::Function, polf::Taylor1, fTIend::Interval, x0::Interval, ii::Interval)
+   boundarem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, ii::Interval)
 
-Bound the absoulte remainder of the polynomial approximation of `f` given
-by the Taylor polynomial `polf` around `x0` on the interval `ii`.
-It requires an interval bound `fTIend` for the coefficient of Lagrange bound. If
-`fTIend` has a definite sign, then it is monotonic in the intervals [ii.lo, x0]
-and [x0.hi, ii.hi], which is exploited; otherwise, it is used as the returned
-value.
+Bound the absolute remainder of the polynomial approximation of `f` given
+by the Taylor polynomial `polf` around `x0` on the interval `ii`. It requires
+an the interval extension `polfI` of a polynomial that approximates `f` for
+the whole interval `ii`, in order to compute the Lagrange remainder. If
+`polfI[end]` has a definite sign, then it is monotonic in the intervals
+[ii.lo, x0] and [x0.hi, ii.hi], which is exploited; otherwise, it is used
+to compute the Lagrange remainder.
 
 """
 function boundarem(f::Function, polf::Taylor1, polfI::Taylor1,
@@ -33,13 +34,15 @@ end
 
 
 """
-   boundrrem(f::Function, polf::Taylor1, fTIend::Interval, x0::Interval, ii::Interval)
+   boundrrem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, ii::Interval)
 
 Bound the relative remainder of the polynomial approximation of `f` given
-by the Taylor polynomial `polf` around `x0` on the interval `ii`.
-It requires an interval bound `fTIend` for the coefficient of Lagrange bound. If
-`fTIend` has a definite sign, then it is monotonic in the interval `ii`,
-which is exploited; otherwise, it is used as the returned value.
+by the Taylor polynomial `polf` around `x0` on the interval `ii`. It requires
+an the interval extension `polfI` of a polynomial that approximates `f` for
+the whole interval `ii`, in order to compute the Lagrange remainder. If
+`polfI[end]` has a definite sign, then it is monotonic in the interval `ii`,
+which is exploited; otherwise, the last coefficients bounds the relative
+remainder.
 
 """
 function boundrrem(f::Function, polf::Taylor1, polfI::Taylor1,
