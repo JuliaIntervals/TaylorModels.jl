@@ -27,7 +27,7 @@ function +(α::Real, f::TaylorNModel)
 end
 
 -(f::TaylorNModel) = (-1 * f)
--(α::Real, f::Taylor1Model) = α + (-f)
+-(α::Real, f::TaylorNModel) = α + (-f)
 
 
 *(α::Real, f::TaylorNModel) = TaylorNModel(f.n, f.x0, f.I, α*f.p, (α..α)*f.Δ,
