@@ -44,6 +44,21 @@ end
             Interval(0.9180799999999999, 1.0)
     end
 
+    @testset "Arithmetic operations" begin
+        Δ = interval(-0.25, 0.25)
+        a = TMAbsRem(x1+Taylor1(5), Δ, x1, ii1)
+        tv = TMAbsRem(5, x1, ii1)
+        @test a+x1 == TMAbsRem(2*x1+Taylor1(5), Δ, x1, ii1)
+        @test a+a == TMAbsRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
+        @test a-x1 == TMAbsRem(zero(x1)+Taylor1(5), Δ, x1, ii1)
+        @test a-a == TMAbsRem(zero(a.pol), 2*Δ, x1, ii1)
+        b = a * tv
+        @test b == TMAbsRem(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
+        @test b/tv == TMAbsRem(a.pol, Interval(-0.78125, 0.84375), x1, ii1)
+        b = a * a.pol[0]
+        @test b == a
+    end
+
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), TMAbsRem(4, x0, ii0)) ==
             TMAbsRem(interval(5.0), 4, x0, ii0)
