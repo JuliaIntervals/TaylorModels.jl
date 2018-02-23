@@ -15,10 +15,10 @@ u0 = TaylorNModel(3, IntervalBox(0..0, 0..0, 0..0), IIbox, u00, 0..0)
 f(x) = x
 
 n = 3
-∫ = integrate
+∫_dt = u -> integrate(u, 1)
 u = u0
 for i in 1:n+5   # how many iterations are required?
-    u = u0 + ∫(f(u), 1)
+    u = u0 + ∫_dt(f(u))
 end
 
 u
@@ -38,7 +38,7 @@ w_new = ∫(w, 1)  # just so that t_new exists outside the loop
 # Search for interval giving contraction, and hence rigorous Picard iteration
 
 for i in 1:10
-    w_new = u0 + ∫(w, 1)
+    w_new = u0 + ∫_dt(w)
     @show w.Δ, w_new.Δ, w_new.Δ ⊆ w.Δ
 
     (w_new.Δ ⊆ w.Δ) && break  # if this happens, then have found contraction
@@ -55,7 +55,7 @@ w.p
 evaluate # Iterate contraction until reach fixed point:
 
 for i in 1:20
-    w_new = u0 + ∫(w, 1)
+    w_new = u0 + ∫_dt(w)
     @show w.Δ, w_new.Δ, w_new.Δ ⊆ w.Δ, w_new.Δ == w.Δ
 
     Δ = w_new.Δ

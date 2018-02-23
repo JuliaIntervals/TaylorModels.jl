@@ -6,16 +6,25 @@ function integrate(f::TaylorNModel, which=1, x0=0)
 
     p = integrate(f.p, which)  # not necessary if an already complete Taylor series, in which case p2 == f.p
 
-    n = degree(f.p)
-    high_order_term = f.p[n]  # a HomogeneousPolynomial
-
-    Δ = ( bound(high_order_term, f.x0, f.I) + f.Δ ) * diam(f.I[which])
+    Δ = integral_bound(f, which)
 
     g = TaylorNModel(f.n, f.x0, f.I, p, Δ)
     g.p[0] += x0  # constant term
 
     return g
 
+end
+
+doc"""
+Bound the integral of a `TaylorNModel` `f` with respect to the variable `which`.
+"""
+function integral_bound(f::TaylorNModel, which)
+
+    high_order_term = f.p[end]  # a HomogeneousPolynomial
+
+    Δ = ( bound(high_order_term, f.x0, f.I) + f.Δ ) * diam(f.I[which])
+
+    return Δ
 end
 
 
