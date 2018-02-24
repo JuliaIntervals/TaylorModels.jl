@@ -9,7 +9,12 @@ function integrate(f::TaylorNModel, which=1, x0=0)
     Δ = integral_bound(f, which)
 
     g = TaylorNModel(f.n, f.x0, f.I, p, Δ)
-    g.p[0] += x0  # constant term
+
+    # g.p[0] += x0  # constant term
+
+    for k in 0:(x0.order)
+        TaylorSeries.add!(g.p, g.p, x0, k)
+    end
 
     return g
 
