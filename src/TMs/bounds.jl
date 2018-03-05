@@ -88,7 +88,7 @@ function bound_taylor1(fT::Taylor1, ii::Interval)
 
     # Compute roots of the derivative using the second derivative
     fTd2 = TaylorSeries.derivative(fTd)
-    rootsder = find_roots(x->fTd(x), x->fTd2(x), ii)
+    rootsder = IntervalRootFinding.find_roots(x->fTd(x), x->fTd2(x), ii)
 
     num_roots = length(rootsder)
     # num_roots == 0 && return bound_taylor1(fT, fTd, ii)
