@@ -17,7 +17,11 @@ for TM in tupleTMs
         # Inner constructor
         function $(TM){T}(pol::Taylor1{Interval{T}}, rem::Interval{T},
                 x0::Interval{T}, iI::Interval{T}) where {T}
-            $(TM) == TM1AbsRem && @assert zero(T) ∈ rem && x0 ⊆ iI
+            if $(TM) == TM1AbsRem
+                @assert zero(T) ∈ rem && x0 ⊆ iI
+            else
+                @assert x0 ⊆ iI
+            end
             return new{T}(pol, rem, x0, iI)
         end
     end

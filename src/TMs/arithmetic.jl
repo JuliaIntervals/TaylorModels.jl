@@ -100,7 +100,7 @@ function *(a::TM1RelRem, b::TM1RelRem)
     aext[order+1:2order] .= res[order+1:2order]
 
     # Remainder of the product
-    Δnegl = polnegl(a.iI-a.x0)
+    Δnegl = aext(a.iI-a.x0)
     Δa = a.pol(a.iI-a.x0)
     Δb = b.pol(a.iI-a.x0)
     V = (a.iI-a.x0)^(order+1)
