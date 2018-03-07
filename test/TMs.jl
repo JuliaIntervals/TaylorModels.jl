@@ -126,4 +126,51 @@ end
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
     end
 
+    @testset "Composition of functions and their inverses" begin
+        tv = TMAbsRem(2, x0, ii0)
+
+        tma = exp(tv)
+        tmb = log(tma)
+        @test tmb == log(exp(tv))
+        @test tmb.pol == tv.pol
+
+        tma = sin(tv)
+        tmb = asin(tma)
+        @test tmb == asin(sin(tv))
+        @test tmb.pol == tv.pol
+
+        tma = asin(tv)
+        tmb = sin(tma)
+        @test tmb == sin(asin(tv))
+        @test tmb.pol == tv.pol
+
+        tma = acos(tv)
+        tmb = cos(tma)
+        @test tmb == cos(acos(tv))
+        @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-16
+
+        tma = tan(tv)
+        tmb = atan(tma)
+        @test tmb == atan(tan(tv))
+        @test tmb.pol == tv.pol
+
+        tma = atan(tv)
+        tmb = tan(tma)
+        @test tmb == tan(atan(tv))
+        @test tmb.pol == tv.pol
+
+
+        ####
+        tv = TMAbsRem(2, x1, ii1)
+
+        tma = log(tv)
+        tmb = exp(tma)
+        @test tmb == exp(log(tv))
+        @test tmb.pol == tv.pol
+
+        tma = cos(tv)
+        tmb = acos(tma)
+        @test tmb == acos(cos(tv))
+        @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-15
+    end
 end
