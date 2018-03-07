@@ -62,7 +62,7 @@ end
 
 
 # Multiplication
-function *(a::TMAbsRem, b::TMAbsRem)
+function *(a::TM1AbsRem, b::TM1AbsRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
 
     # Polynomial product with extended order
@@ -84,9 +84,9 @@ function *(a::TMAbsRem, b::TMAbsRem)
     # Returned polynomial
     bext = Taylor1( res.coeffs[1:order+1] )
 
-    return TMAbsRem(bext, Δ, a.x0, a.iI)
+    return TM1AbsRem(bext, Δ, a.x0, a.iI)
 end
-function *(a::TMRelRem, b::TMRelRem)
+function *(a::TM1RelRem, b::TM1RelRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
 
     # Polynomial product with extended order
@@ -109,16 +109,16 @@ function *(a::TMRelRem, b::TMRelRem)
     # Returned polynomial
     bext = Taylor1( copy(res.coeffs[1:order+1]) )
 
-    return TMRelRem(bext, Δ, a.x0, a.iI)
+    return TM1RelRem(bext, Δ, a.x0, a.iI)
 end
 
 
 # Division
-function /(a::TMAbsRem, b::TMAbsRem)
+function /(a::TM1AbsRem, b::TM1AbsRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
     return basediv(a, b)
 end
-function /(a::TMRelRem, b::TMRelRem)
+function /(a::TM1RelRem, b::TM1RelRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
 
     # DetermineRootOrderUpperBound seems equivalent (optimized?) to `findfirst`
@@ -133,23 +133,23 @@ function /(a::TMRelRem, b::TMRelRem)
     #
     order = get_order(a)
     ared = reducetoorder(
-        TMRelRem(Taylor1(a.pol.coeffs[bk+1:order+1]), a.rem, a.x0, a.iI), order-bk)
+        TM1RelRem(Taylor1(a.pol.coeffs[bk+1:order+1]), a.rem, a.x0, a.iI), order-bk)
     order = get_order(b)
     bred = reducetoorder(
-        TMRelRem(Taylor1(b.pol.coeffs[bk+1:order+1]), b.rem, b.x0, b.iI), order-bk)
+        TM1RelRem(Taylor1(b.pol.coeffs[bk+1:order+1]), b.rem, b.x0, b.iI), order-bk)
 
     return basediv( ared, bred )
 end
 
 
 """
-    reducetoorder(a::TMRelRem, m::Int)
+    reducetoorder(a::TM1RelRem, m::Int)
 
-From `a:TMRelRem`, it returns a Taylor Model of relative
+From `a:TM1RelRem`, it returns a Taylor Model of relative
 remainder of order `m`.
 
 """
-function reducetoorder(a::TMRelRem, m::Int)
+function reducetoorder(a::TM1RelRem, m::Int)
     order = get_order(a)
     @assert order ≥ m ≥ 0
 
@@ -160,5 +160,5 @@ function reducetoorder(a::TMRelRem, m::Int)
     end
     bf = bpol(a.iI-a.x0)
     Δ = bf + a.rem * (a.iI-a.x0)^(order-m)
-    return TMRelRem( Taylor1(copy(a.pol.coeffs[1:m+1])), Δ, a.x0, a.iI )
+    return TM1RelRem( Taylor1(copy(a.pol.coeffs[1:m+1])), Δ, a.x0, a.iI )
 end

@@ -1,9 +1,9 @@
 # constructors.jl
 
-const tupleTMs = (:TMAbsRem, :TMRelRem)
+const tupleTMs = (:TM1AbsRem, :TM1RelRem)
 #=
-Structs `TMAbsRem{T}` and `TMRelRem{T}` are essentially identical, except
-the way the remainder is computed and that the remainder for `TMAbsRem{T}`
+Structs `TM1AbsRem{T}` and `TM1RelRem{T}` are essentially identical, except
+the way the remainder is computed and that the remainder for `TM1AbsRem{T}`
 must contain 0.
 =#
 for TM in tupleTMs
@@ -17,7 +17,7 @@ for TM in tupleTMs
         # Inner constructor
         function $(TM){T}(pol::Taylor1{Interval{T}}, rem::Interval{T},
                 x0::Interval{T}, iI::Interval{T}) where {T}
-            $(TM) == TMAbsRem && @assert zero(T) ∈ rem && x0 ⊆ iI
+            $(TM) == TM1AbsRem && @assert zero(T) ∈ rem && x0 ⊆ iI
             return new{T}(pol, rem, x0, iI)
         end
     end
@@ -41,17 +41,17 @@ end
 
 
 @doc """
-    TMAbsRem{T}
+    TM1AbsRem{T}
 
 Taylor Models with Absolute Remainder. Corresponds to definition 2.1.3
 (Mioara Joldes thesis).
 
-""" TMAbsRem
+""" TM1AbsRem
 
 @doc """
-    TMRelRem{T}
+    TM1RelRem{T}
 
 Taylor Models with Relative Remainder. Corresponds to definition 2.3.2
 (Mioara Joldes thesis).
 
-""" TMRelRem
+""" TM1RelRem
