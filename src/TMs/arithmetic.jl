@@ -60,6 +60,11 @@ for TM in tupleTMs
     end
 end
 
+# In TaylorSeries v0.7.3, a^n, a::Taylor1 and n::Integer,
+# in general use pow!, which yields [-∞,∞] if the interval
+# contains zero; the following uses power_by_squaring
+^(a::Taylor1{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a,n)
+
 
 # Multiplication
 function *(a::TM1AbsRem, b::TM1AbsRem)
