@@ -6,7 +6,6 @@ using IntervalRootFinding
 using RecipesBase
 
 
-const Interval = IntervalArithmetic.Interval
 setformat(:full)
 
 import Base: setindex!,
@@ -22,16 +21,17 @@ export Taylor1Model, bound, make_Taylor_model, TMcomposition,
         taylor1_var, integrate, degree,
         calculate_set, Taylor_step
 
-export TM1AbsRem, TM1RelRem, Interval, remainder,
+export TM1AbsRem, TM1RelRem, remainder,
     rpa, rpafp, boundarem, boundrrem
 
 
-include("Taylor1/Taylor1.jl")
 include("TMs/constructors.jl")
 include("TMs/bounds.jl")
 include("TMs/rpa_functions.jl")
 include("TMs/arithmetic.jl")
 include("TMs/recipe.jl")
+
+include("Taylor1/Taylor1.jl")
 
 
 end # module
