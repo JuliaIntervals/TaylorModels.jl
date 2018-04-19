@@ -6,6 +6,7 @@
 Rigurous polynomial approximation (RPA) with absolute remainder
 for the function `f` on the interval `ii`,  using a Taylor expansion
 around the *interval* `x0` of order `_order`. The bound is computed
+by `boundarem`(@ref)
 exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 
 """
@@ -23,6 +24,7 @@ end
 Rigurous polynomial approximation (RPA) with relative remainder
 for the function `f` on the interval `ii`,  using a Taylor expansion
 around the *interval* `x0` of order `_order`. The bound is computed
+by `boundrrem`(@ref)
 exploiting monotonicity if possible, otherwise, it uses the Lagrange
 coefficient.
 
