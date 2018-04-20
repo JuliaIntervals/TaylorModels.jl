@@ -76,18 +76,18 @@ function *(a::TM1AbsRem, b::TM1AbsRem)
     bext = Taylor1(copy(b.pol.coeffs), 2*order)
     res = aext * bext
 
-    # Neglected polynomial resulting from the product
-    aext[:] .= zero(eltype(res))
-    aext[order+1:2order] .= res[order+1:2order]
+    # Returned polynomial
+    bext = Taylor1( copy(res.coeffs[1:order+1]) )
+
+    # Bound for the neglected part of the product of polynomials
+    res[0:order] .= zero(eltype(res))
+    aux = a.iI - a.x0
+    Δnegl = res(aux)
 
     # Remainder of the product
-    Δnegl = aext(a.iI-a.x0)
-    Δa = a.pol(a.iI-a.x0)
-    Δb = b.pol(a.iI-a.x0)
+    Δa = a.pol(aux)
+    Δb = b.pol(aux)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
-
-    # Returned polynomial
-    bext = Taylor1( res.coeffs[1:order+1] )
 
     return TM1AbsRem(bext, Δ, a.x0, a.iI)
 end
@@ -100,19 +100,19 @@ function *(a::TM1RelRem, b::TM1RelRem)
     bext = Taylor1(copy(b.pol.coeffs), 2*order)
     res = aext * bext
 
-    # Neglected polynomial resulting from the product
-    aext[:] .= zero(eltype(res))
-    aext[order+1:2order] .= res[order+1:2order]
-
-    # Remainder of the product
-    Δnegl = aext(a.iI-a.x0)
-    Δa = a.pol(a.iI-a.x0)
-    Δb = b.pol(a.iI-a.x0)
-    V = (a.iI-a.x0)^(order+1)
-    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
-
     # Returned polynomial
     bext = Taylor1( copy(res.coeffs[1:order+1]) )
+
+    # Bound for the neglected part of the product (properly factorized)
+    res = Taylor1(copy(res.coeffs[order+2:2*order+1]), order-1)
+    aux = a.iI - a.x0
+    Δnegl = res(aux)
+
+    # Remainder of the product
+    Δa = a.pol(aux)
+    Δb = b.pol(aux)
+    V = aux^(order+1)
+    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
 
     return TM1RelRem(bext, Δ, a.x0, a.iI)
 end

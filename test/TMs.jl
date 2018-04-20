@@ -73,11 +73,12 @@ end
             TM1AbsRem( Taylor1(x0, 3), 5*ii0^4, x0, ii0)
 
         # Testing remainders of an RPA
+        order = 2
         ii = ii0
         xx = x0
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, TM1AbsRem(2, xx, ii))
-        tmb = ftest(TM1AbsRem(2, xx, ii))
+        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
+        tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
@@ -86,11 +87,12 @@ end
         @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
 
+        order = 2
         ii = ii1
         xx = x1
         ftest = x -> exp(x)
-        tma = rpa(ftest, TM1AbsRem(2, xx, ii))
-        tmb = ftest(TM1AbsRem(2, xx, ii))
+        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
+        tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
@@ -99,11 +101,12 @@ end
         @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
 
+        order = 3
         ii = ii0
         xx = x0
         ftest = x -> sin(x)
-        tma = rpa(ftest, TM1AbsRem(3, xx, ii))
-        tmb = ftest(TM1AbsRem(3, xx, ii))
+        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
+        tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
@@ -112,11 +115,12 @@ end
         @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
 
+        order = 2
         ii = ii1
         xx = x1
         ftest = x -> sqrt(x)
-        tma = rpa(ftest, TM1AbsRem(2, xx, ii))
-        tmb = ftest(TM1AbsRem(2, xx, ii))
+        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
+        tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
@@ -125,11 +129,12 @@ end
         @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
 
+        order = 5
         ii = ii1
         xx = x1
         ftest = x -> inv(x)
-        tma = rpa(ftest, TM1AbsRem(5, xx, ii))
-        tmb = ftest(TM1AbsRem(5, xx, ii))
+        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
+        tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
@@ -137,6 +142,21 @@ end
         x = radius(ii)*rand() + ξ0/2
         @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+
+        # Example of Makino's thesis (page 98 and fig 4.2)
+        order = 8
+        ii = interval(-0.5, 1.0)
+        xx = interval(mid(ii))
+        ftest = x -> x*(x-1.1)*(x+2)*(x+2.2)*(x+2.5)*(x+3)*sin(1.7*x+0.5)
+        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
+        tmb = ftest(TM1AbsRem(order, xx, ii))
+        @test remainder(tmb) ⊆ remainder(tma)
+        for ind = 1:10
+            fT, Δ, ξ0 = rpafp(tma)
+            x = radius(ii)*rand() + ξ0/2
+            @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
+            @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+        end
     end
 
     @testset "Composition of functions and their inverses" begin
@@ -200,6 +220,9 @@ end
         @test tv == TM1RelRem(5, x0, ii0)
         @test TM1RelRem(x1, 5, x0, ii0) == TM1RelRem(Taylor1(x1, 5), x0, x0, ii0)
 
+        # Zero may not be contained in the remainder of a TM1RelRem
+        @test 0 ∉ remainder(TM1RelRem(Taylor1(Interval{Float64},5), x1, x0, ii0))
+
         # Test errors in construction
         @test_throws AssertionError TM1RelRem(5, x1, ii0)
 
@@ -219,7 +242,7 @@ end
         @test a-a == TM1RelRem(zero(a.pol), 2*Δ, x1, ii1)
         b = a * tv
         @test b == TM1RelRem(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
-        @test b/tv == TM1RelRem(a.pol, Interval(-1.2734375, 5.2734375), x1, ii1)
+        @test b/tv == TM1RelRem(a.pol, Interval(-2.75, 4.75), x1, ii1)
         b = a * a.pol[0]
         @test b == a
     end
@@ -235,75 +258,96 @@ end
             TM1RelRem( Taylor1(x0, 3), interval(5), x0, ii0)
 
         # Testing remainders of an RPA
+        order = 2
         ii = ii0
         xx = x0
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, TM1RelRem(2, xx, ii))
-        tmb = ftest(TM1RelRem(2, xx, ii))
+        tma = rpa(ftest, TM1RelRem(order, xx, ii))
+        tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^3
         x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^3
+        Δrel = Δ*(x-ξ0)^(order+1)
         @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
 
+        order = 2
         ii = ii1
         xx = x1
         ftest = x -> exp(x)
-        tma = rpa(ftest, TM1RelRem(2, xx, ii))
-        tmb = ftest(TM1RelRem(2, xx, ii))
+        tma = rpa(ftest, TM1RelRem(order, xx, ii))
+        tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^3
         x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^3
+        Δrel = Δ*(x-ξ0)^(order+1)
         @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
 
+        order = 3
         ii = ii0
         xx = x0
         ftest = x -> sin(x)
-        tma = rpa(ftest, TM1RelRem(3, xx, ii))
-        tmb = ftest(TM1RelRem(3, xx, ii))
+        tma = rpa(ftest, TM1RelRem(order, xx, ii))
+        tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^4
         x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^4
+        Δrel = Δ*(x-ξ0)^(order+1)
         @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
 
+        order = 2
         ii = ii1
         xx = x1
         ftest = x -> sqrt(x)
-        tma = rpa(ftest, TM1RelRem(2, xx, ii))
-        tmb = ftest(TM1RelRem(2, xx, ii))
+        tma = rpa(ftest, TM1RelRem(order, xx, ii))
+        tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^3
         x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^3
+        Δrel = Δ*(x-ξ0)^(order+1)
         @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
 
+        order = 5
         ii = ii1
         xx = x1
         ftest = x -> inv(x)
-        tma = rpa(ftest, TM1RelRem(5, xx, ii))
-        tmb = ftest(TM1RelRem(5, xx, ii))
+        tma = rpa(ftest, TM1RelRem(order, xx, ii))
+        tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
+        fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
                         ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^6
         x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^6
+        Δrel = Δ*(x-ξ0)^(order+1)
         @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
         @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+
+        # Example of Makino's thesis (page 98 and fig 4.2)
+        order = 8
+        ii = interval(-0.5, 1.0)
+        xx = interval(mid(ii))
+        ftest = x -> x*(x-1.1)*(x+2)*(x+2.2)*(x+2.5)*(x+3)*sin(1.7*x+0.5)
+        tma = rpa(ftest, TM1RelRem(order, xx, ii))
+        tmb = ftest(TM1RelRem(order, xx, ii))
+        @test remainder(tmb) ⊆ remainder(tma)
+        for ind = 1:10
+            fT, Δ, ξ0, δ = rpafp(tma)
+            x = radius(ii)*rand() + ξ0/2
+            Δrel = δ + Δ*(x-ξ0)^(order+1)
+            @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
+            @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+        end
     end
 
     @testset "Composition of functions and their inverses" begin
