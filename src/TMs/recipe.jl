@@ -12,10 +12,10 @@ using RecipesBase
     seriestype := :shape
 
     xs = linspace(f.iI.lo, f.iI.hi, 100)
-    evals = fT.(xs.-ξ0)
+    evals = fT.(xs .- ξ0)
 
     xs = [xs; reverse(xs); xs[1]]
-    ys = [evals.+inf(Δ); reverse(evals.+sup(Δ)); evals[1]+inf(Δ)]
+    ys = [evals .+ inf(Δ); reverse(evals .+ sup(Δ)); evals[1]+inf(Δ)]
 
     xs, ys
 end
@@ -29,7 +29,7 @@ end
 
     xs = linspace(f.iI.lo, f.iI.hi, 100)
     evals = fT.(xs .- ξ0)
-    corrs = (xs .- ξ0).^order
+    corrs = (xs .- ξ0) .^ order
     evalslo = evals .+ inf.( Δ .* corrs )
     evalshi = evals .+ sup.( Δ .* corrs )
 
