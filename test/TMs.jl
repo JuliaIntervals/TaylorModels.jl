@@ -22,8 +22,7 @@ end
 
     # An uncomfortable example from Makino
     t = Taylor1(5)
-    @test TaylorModels.bound_taylor1(1.0-t^4+t^5, interval(0,1)) ==
-        Interval(0.9180799999999999, 1.0)
+    @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(1-t^4+t^5, 0..1)
 end
 
 @testset "Tests for TM1AbsRem" begin
