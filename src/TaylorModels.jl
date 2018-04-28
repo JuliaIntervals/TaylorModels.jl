@@ -29,6 +29,7 @@ include("TMs/constructors.jl")
 include("TMs/bounds.jl")
 include("TMs/rpa_functions.jl")
 include("TMs/arithmetic.jl")
+include("TMs/integration.jl")
 include("TMs/recipe.jl")
 
 include("Taylor1/Taylor1.jl")

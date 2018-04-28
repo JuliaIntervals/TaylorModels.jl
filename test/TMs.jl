@@ -212,6 +212,31 @@ end
         @test tmb == acos(cos(tv))
         @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-15
     end
+
+    @testset "Tests for integrate" begin
+        order = 4
+        tm = TM1AbsRem(order, x0, ii0)
+
+        integ_res = integrate(exp(tm), 1..1)
+        orig_res = exp(tm)
+        @test orig_res.pol ⊆ integ_res.pol
+        @test orig_res.rem ⊆ integ_res.rem
+
+        integ_res = integrate(cos(tm))
+        orig_res = sin(tm)
+        @test orig_res.pol ⊆ integ_res.pol
+        @test orig_res.rem ⊆ integ_res.rem
+
+        integ_res = integrate(-sin(tm), 1..1)
+        orig_res = cos(tm)
+        @test orig_res.pol ⊆ integ_res.pol
+        @test orig_res.rem ⊆ integ_res.rem
+
+        integ_res = integrate(1/(1+tm^2))
+        orig_res = atan(tm)
+        @test orig_res.pol ⊆ integ_res.pol
+        @test orig_res.rem ⊆ integ_res.rem
+    end
 end
 
 @testset "Tests for TM1RelRem" begin
