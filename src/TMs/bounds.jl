@@ -93,7 +93,9 @@ function bound_taylor1(fT::Taylor1, ii::Interval)
 
     # Compute roots of the derivative using the second derivative
     fTd2 = TaylorSeries.derivative(fTd)
-    rootsder = IntervalRootFinding.find_roots(x->fTd(x), x->fTd2(x), ii)
+    # rootsder = IntervalRootFinding.find_roots(x->fTd(x), x->fTd2(x), ii)
+    rootsder = roots(x->fTd(x), ii, Newton, eps(); deriv = x->fTd2(x))
+    rootsder = IntervalRootFinding.clean_roots(x->fTd(x), rootsder)
 
     num_roots = length(rootsder)
     num_roots == 0 && return fT(ii)
@@ -112,9 +114,11 @@ function bound_taylor1(fT::Taylor1, ii::Interval)
 
         # Exploit monotonicity
         if fTd(iit) ≥ 0.0           # fT is increasing
-            push!(vi, @interval(fT(iit.lo), fT(iit.hi)))
+            # push!(vi, @interval(fT(iit.lo), fT(iit.hi)))
+            push!(vi, @interval fT(iit) )
         elseif fTd(iit) ≤ 0.0       # fT is decreasing
-            push!(vi, @interval(fT(iit.hi), fT(iit.lo)))
+            # push!(vi, @interval(fT(iit.hi), fT(iit.lo)))
+            push!(vi, @interval fT(iit) )
         end
     end
 
