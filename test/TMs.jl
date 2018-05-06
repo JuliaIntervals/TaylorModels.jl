@@ -10,6 +10,27 @@ else
     eeuler = Base.MathConstants.e
 end
 
+function check_inclusion(ftest, tma::TM1AbsRem)
+    ii = tma.iI
+    fT, Δ, ξ0 = rpafp(tma)
+    xfp = diam(ii)*(rand()-0.5) + ξ0
+    xbf = big(xfp)
+    bb = ftest(xbf) ∈ fT(xfp-ξ0) + Δ
+    bb || @show(xfp)
+    return bb
+end
+function check_inclusion(ftest, tma::TM1RelRem)
+    ii = tma.iI
+    order = get_order(tma)
+    fT, Δ, ξ0, δ = rpafp(tma)
+    xfp = diam(ii)*(rand()-0.5) + ξ0
+    xbf = big(xfp)
+    Δrel = δ + Δ*(xfp-ξ0)^(order+1)
+    bb = ftest(xbf) ∈ fT(xfp-ξ0) + Δrel
+    bb || @show(xfp)
+    return bb
+end
+
 @testset "Test `bound_taylor1`" begin
     x0 = Interval(0.0)
     ii0 = Interval(-0.5, 0.5)
@@ -89,9 +110,9 @@ end
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
-        x = radius(ii)*rand() + ξ0/2
-        @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 2
         ii = ii1
@@ -103,9 +124,9 @@ end
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
-        x = radius(ii)*rand() + ξ0/2
-        @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 3
         ii = ii0
@@ -117,9 +138,9 @@ end
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
-        x = radius(ii)*rand() + ξ0/2
-        @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 2
         ii = ii1
@@ -131,9 +152,9 @@ end
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
-        x = radius(ii)*rand() + ξ0/2
-        @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 5
         ii = ii1
@@ -145,9 +166,9 @@ end
         fT, Δ, ξ0 = rpafp(tma)
         @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
                         ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)
-        x = radius(ii)*rand() + ξ0/2
-        @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8
@@ -158,10 +179,7 @@ end
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:10
-            fT, Δ, ξ0 = rpafp(tma)
-            x = radius(ii)*rand() + ξ0/2
-            @test fT(x-ξ0)+sup(Δ) ≥ ftest(x)
-            @test ftest(x) ≥ fT(x-ξ0)+inf(Δ)
+            @test check_inclusion(ftest, tma)
         end
     end
 
@@ -218,24 +236,36 @@ end
         tm = TM1AbsRem(order, x0, ii0)
 
         integ_res = integrate(exp(tm), 1..1)
-        orig_res = exp(tm)
-        @test orig_res.pol ⊆ integ_res.pol
-        @test orig_res.rem ⊆ integ_res.rem
+        exact_res = exp(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem ⊆ integ_res.rem
+        for ind = 1:10
+            @test check_inclusion(exp, integ_res)
+        end
 
         integ_res = integrate(cos(tm))
-        orig_res = sin(tm)
-        @test orig_res.pol ⊆ integ_res.pol
-        @test orig_res.rem ⊆ integ_res.rem
+        exact_res = sin(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem ⊆ integ_res.rem
+        for ind = 1:10
+            @test check_inclusion(sin, integ_res)
+        end
 
         integ_res = integrate(-sin(tm), 1..1)
-        orig_res = cos(tm)
-        @test orig_res.pol ⊆ integ_res.pol
-        @test orig_res.rem ⊆ integ_res.rem
+        exact_res = cos(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem ⊆ integ_res.rem
+        for ind = 1:10
+            @test check_inclusion(cos, integ_res)
+        end
 
         integ_res = integrate(1/(1+tm^2))
-        orig_res = atan(tm)
-        @test orig_res.pol ⊆ integ_res.pol
-        @test orig_res.rem ⊆ integ_res.rem
+        exact_res = atan(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem ⊆ integ_res.rem
+        for ind = 1:10
+            @test check_inclusion(atan, integ_res)
+        end
     end
 end
 
@@ -306,10 +336,9 @@ end
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^3
-        x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^(order+1)
-        @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 2
         ii = ii1
@@ -321,10 +350,9 @@ end
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^3
-        x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^(order+1)
-        @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 3
         ii = ii0
@@ -336,10 +364,9 @@ end
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^4
-        x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^(order+1)
-        @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 2
         ii = ii1
@@ -351,10 +378,9 @@ end
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^3
-        x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^(order+1)
-        @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         order = 5
         ii = ii1
@@ -366,10 +392,9 @@ end
         fT, Δ, ξ0, δ = rpafp(tma)
         @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
                         ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^6
-        x = radius(ii)*rand() + ξ0/2
-        Δrel = Δ*(x-ξ0)^(order+1)
-        @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
-        @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+        for ind = 1:10
+            @test check_inclusion(ftest, tma)
+        end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8
@@ -380,11 +405,7 @@ end
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:10
-            fT, Δ, ξ0, δ = rpafp(tma)
-            x = radius(ii)*rand() + ξ0/2
-            Δrel = δ + Δ*(x-ξ0)^(order+1)
-            @test fT(x-ξ0)+sup(Δrel) ≥ ftest(x)
-            @test ftest(x) ≥ fT(x-ξ0)+inf(Δrel)
+            @test check_inclusion(ftest, tma)
         end
     end
 
