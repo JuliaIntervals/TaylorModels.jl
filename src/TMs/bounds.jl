@@ -93,7 +93,7 @@ function bound_taylor1(fT::Taylor1, ii::Interval)
 
     # Compute roots of the derivative using the second derivative
     fTd2 = TaylorSeries.derivative(fTd)
-    rootsder = IntervalRootFinding.roots(x->fTd(x), x->fTd2(x), ii, IntervalRootFinding.Newton, eps())
+    rootsder = roots(x->fTd(x), x->fTd2(x), ii, Newton, eps())
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
