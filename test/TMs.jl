@@ -456,4 +456,41 @@ end
         @test tmb == acos(cos(tv))
         @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-15
     end
+
+    @testset "Tests for integrate" begin
+        order = 4
+        tm = TM1RelRem(order, x0, ii0)
+
+        integ_res = integrate(exp(tm), 1..1)
+        exact_res = exp(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        for ind = 1:10
+            @test check_inclusion(exp, integ_res)
+        end
+
+        integ_res = integrate(cos(tm))
+        exact_res = sin(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        for ind = 1:10
+            @test check_inclusion(sin, integ_res)
+        end
+
+        integ_res = integrate(-sin(tm), 1..1)
+        exact_res = cos(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        for ind = 1:10
+            @test check_inclusion(cos, integ_res)
+        end
+
+        integ_res = integrate(1/(1+tm^2))
+        exact_res = atan(tm)
+        @test exact_res.pol ⊆ integ_res.pol
+        # @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        for ind = 1:10
+            @test check_inclusion(atan, integ_res)
+        end
+    end
 end
