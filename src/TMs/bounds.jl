@@ -93,39 +93,14 @@ function bound_taylor1(fT::Taylor1, ii::Interval)
 
     # Compute roots of the derivative using the second derivative
     fTd2 = TaylorSeries.derivative(fTd)
-    # rootsder = IntervalRootFinding.find_roots(x->fTd(x), x->fTd2(x), ii)
-    rootsder = roots(x->fTd(x), ii, Newton, eps(); deriv = x->fTd2(x))
-    rootsder = IntervalRootFinding.clean_roots(x->fTd(x), rootsder)
+    rootsder = IntervalRootFinding.roots(x->fTd(x), x->fTd2(x), ii, IntervalRootFinding.Newton, eps())
 
+    # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
     num_roots == 0 && return fT(ii)
-
-    # Obtain the range exploiting monotonicity in the intervals between the roots
-    vi = typeof(rootsder[end].interval)[]
-    for ind in 1:num_roots+1
-        # Define the interval of interest
-        if ind == 1
-            iit = interval(ii.lo, inf(rootsder[1].interval))
-        elseif ind == num_roots+1
-            iit = interval(sup(rootsder[num_roots].interval), ii.hi)
-        else
-            iit = interval(sup(rootsder[ind-1].interval), inf(rootsder[ind].interval))
-        end
-
-        # Exploit monotonicity
-        if fTd(iit) ≥ 0.0           # fT is increasing
-            # push!(vi, @interval(fT(iit.lo), fT(iit.hi)))
-            push!(vi, @interval fT(iit) )
-        elseif fTd(iit) ≤ 0.0       # fT is decreasing
-            # push!(vi, @interval(fT(iit.hi), fT(iit.lo)))
-            push!(vi, @interval fT(iit) )
-        end
-    end
-
-    # Compute the hull of all elements in `vi`
-    rangepoly = vi[end]
-    for ind in eachindex(rootsder)
-        rangepoly = hull(rangepoly, vi[ind])
+    rangepoly = hull( fT(interval(ii.lo)), fT(interval(ii.hi)) )
+    for ind in 1:num_roots
+        rangepoly = hull(rangepoly, fT(rootsder[ind].interval))
     end
 
     return rangepoly

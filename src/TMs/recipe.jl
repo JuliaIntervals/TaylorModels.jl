@@ -30,8 +30,9 @@ end
     xs = linspace(f.iI.lo, f.iI.hi, 100)
     evals = fT.(xs .- ξ0)
     corrs = (xs .- ξ0) .^ order
-    evalslo = evals .+ inf.( Δ .* corrs )
-    evalshi = evals .+ sup.( Δ .* corrs )
+    Δrel = δ .+ Δ .* corrs
+    evalslo = evals .+ inf.( Δrel )
+    evalshi = evals .+ sup.( Δrel )
 
     xs = [xs; reverse(xs); xs[1]]
     ys = [evalslo; reverse(evalshi); evalslo[1]]
