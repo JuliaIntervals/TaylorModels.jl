@@ -48,9 +48,15 @@ exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 function rpa(g::Function, tmf::TM1AbsRem)
     _order = get_order(tmf)
 
-    # Short-cut if `tmf` is the independent variable
-    tmf == TM1AbsRem(_order, tmf.x0, tmf.iI) &&
+    # Avoid overestimations:
+    if tmf == TM1AbsRem(_order, tmf.x0, tmf.iI)
+        # ... if `tmf` is the independent variable
         return _rpaar(g, tmf.x0, tmf.iI, _order)
+    elseif tmf == TM1AbsRem(tmf.pol[0], _order, tmf.x0, tmf.iI)
+        # ... in case `tmf` is a simple constant polynomial
+        range_g = bound_taylor1(g(tmf.pol), tmf.iI-tmf.x0) + remainder(tmf)
+        return TM1AbsRem(range_g, _order, tmf.x0, tmf.iI)
+    end
 
     f_pol = tmf.pol
     Δf = remainder(tmf)
@@ -84,9 +90,15 @@ exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 function rpa(g::Function, tmf::TM1RelRem)
     _order = get_order(tmf)
 
-    # Do not overestimate if `tmf` is the independent variable
-    tmf == TM1RelRem(_order, tmf.x0, tmf.iI) &&
+    # Avoid overestimations:
+    if tmf == TM1RelRem(_order, tmf.x0, tmf.iI)
+        # ... if `tmf` is the independent variable
         return _rparr(g, tmf.x0, tmf.iI, _order)
+    elseif tmf == TM1RelRem(tmf.pol[0], _order, tmf.x0, tmf.iI)
+        # ... in case `tmf` is a simple constant polynomial
+        range_g = bound_taylor1(g(tmf.pol), tmf.iI-tmf.x0) + remainder(tmf)
+        return TM1RelRem(range_g, _order, tmf.x0, tmf.iI)
+    end
 
     f_pol = tmf.pol
     Δf = remainder(tmf)
