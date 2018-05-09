@@ -60,6 +60,13 @@ end
         @test b/tv == TM1AbsRem(a.pol, Interval(-0.78125, 0.84375), x1, ii1)
         b = a * a.pol[0]
         @test b == a
+
+        a = TM1AbsRem(x0, 5, x0, ii0)
+        @test a^2 == TM1AbsRem(x0^2, 5, x0, ii0)
+        @test a^3 == TM1AbsRem(x0^3, 5, x0, ii0)
+        a = TM1AbsRem(x1, 5, x1, ii1)
+        @test a^2 == TM1AbsRem(x1^2, 5, x1, ii1)
+        @test a^3 == TM1AbsRem(x1^3, 5, x1, ii1)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -245,6 +252,13 @@ end
         @test b/tv == TM1RelRem(a.pol, Interval(-2.75, 4.75), x1, ii1)
         b = a * a.pol[0]
         @test b == a
+
+        a = TM1RelRem(x0, 5, x0, ii0)
+        @test a^2 == TM1RelRem(x0^2, 5, x0, ii0)
+        @test a^3 == TM1RelRem(x0^3, 5, x0, ii0)
+        a = TM1RelRem(x1, 5, x1, ii1)
+        @test a^2 == TM1RelRem(x1^2, 5, x1, ii1)
+        @test a^3 == TM1RelRem(x1^3, 5, x1, ii1)
     end
 
     @testset "RPAs, functions and remainders" begin
