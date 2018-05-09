@@ -17,7 +17,7 @@ function boundarem(f::Function, polf::Taylor1, polfI::Taylor1,
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
-    if (sup(fTIend) ≤ 0 || inf(fTIend) ≥ 0)
+    if (sup(fTIend) < 0 || inf(fTIend) > 0)
         # Absolute remainder is monotonic
         a = interval(ii.lo)
         b = interval(ii.hi)
