@@ -92,8 +92,9 @@ function bound_taylor1(fT::Taylor1, ii::Interval)
     (sup(range_deriv) ≤ 0 || inf(range_deriv) ≥ 0) && return bound_taylor1(fT, fTd, ii)
 
     # Compute roots of the derivative using the second derivative
+    # Fix some sort of relative tolerance for Newton root search
     fTd2 = TaylorSeries.derivative(fTd)
-    rootsder = roots(x->fTd(x), x->fTd2(x), ii, Newton, eps())
+    rootsder = roots(x->fTd(x), x->fTd2(x), ii, Newton, 1.0e-5*mag(ii))
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
