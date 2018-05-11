@@ -124,6 +124,7 @@ end
 
 # evaluate, and function-like evaluation for TM1AbsRem
 for TM in tupleTMs
+    # Composition: substitute tmf into tmg
     @eval function evaluate(tmg::$TM, tmf::$TM)
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
@@ -137,6 +138,22 @@ for TM in tupleTMs
     end
 
     @eval (tm::$TM)(x::$TM) = evaluate(tm, x)
+
+    # Evaluates the TM on an interval, including the remainder
+    @eval function evaluate(tm::$TM{T}, a::Interval{T}) where {T}
+        _order = get_order(tm)
+
+        if $(TM) == TM1AbsRem
+            Δ = tm.rem
+        else
+            ord = get_order(tm) + 1
+            Δ = tm.rem * a^ord
+        end
+
+        return tm.pol(a) + Δ
+    end
+
+    @eval (tm::$TM{T})(a::Interval{T}) where {T} = evaluate(tm, a)
 end
 
 

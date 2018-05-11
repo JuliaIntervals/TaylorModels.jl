@@ -12,25 +12,13 @@ else
     eeuler = Base.MathConstants.e
 end
 
-function check_inclusion(ftest, tma::TM1AbsRem)
+function check_inclusion(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
     ii = tma.iI
-    fT, Δ, ξ0 = rpafp(tma)
-    xfp = diam(ii)*(rand()-0.5) + ξ0
+    xfp = diam(tma.iI)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
-    range = fT(@interval(xfp)-ξ0) + Δ
+    range = tma(@interval(xfp)-tma.x0)
     bb = ftest(xbf) ∈ range
     bb || @show(ftest, xfp, xbf, ftest(xbf), range)
-    return bb
-end
-function check_inclusion(ftest, tma::TM1RelRem)
-    ii = tma.iI
-    order = get_order(tma)
-    fT, Δ, ξ0, δ = rpafp(tma)
-    xfp = diam(ii)*(rand()-0.5) + ξ0
-    xbf = big(xfp)
-    range = fT(@interval(xfp)-ξ0) + δ + Δ*(xfp-ξ0)^(order+1)
-    bb = ftest(xbf) ∈ range
-    bb || @show(ftest, xfp)
     return bb
 end
 
