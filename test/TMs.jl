@@ -1,6 +1,7 @@
 # Tests using TM1AbsRem and TM1RelRem
 
 using TaylorModels
+using TaylorSeries, IntervalArithmetic
 
 const _num_tests = 1000
 
