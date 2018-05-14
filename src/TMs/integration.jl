@@ -1,6 +1,13 @@
 # integration.jl
 
-# integrate
+"""
+    integrate(a::T, c0::Interval)
+
+Integrates the one-variable Taylor Model (`TM1AbsRem`
+or `TM1RelRem`) with respect to the independent variable; `c0` is
+the interval representing the integration constant; if omitted
+it is considered as the zero interval.
+"""
 function integrate(a::TM1AbsRem{T}, c0::Interval{T}) where {T}
     order = get_order(a)
     integ_pol = integrate(a.pol, c0)
@@ -28,11 +35,36 @@ end
 integrate(a::TM1RelRem{T}) where {T} = integrate(a, Interval(zero(T)))
 
 
-# \mscrP --> 𝒫
+"""
+    picard_lindelöf(f, tm::T, xm::T, x0::Interval)
+    𝒫(f, tm::T, xm::T, x0::Interval)
+
+Returns the application of the Picard-Lindelöf operator
+associated to the ODE `\dot{x} = f(t,x)`,
+with initial condition `x0`. Here, `tm` and `xm` are
+(one-variable) Taylor Models (`TM1AbsRem` or `TM1RelRem`).
+
+𝒫 is an abbreviation of this operator, which is obtained
+as `\mscrP<TAB>`.)
+"""
 picard_lindelöf(f, tm::T, xm::T, x0::Interval) where
     {T<:Union{TM1AbsRem, TM1RelRem}} = integrate(f(tm, xm), x0)
+
 const 𝒫 = picard_lindelöf
 
+"""
+    check_existence(f, tm::T, xm::T, x0::Interval, x_test::Interval)
+
+Checks that the range of one iterate of the Picard-Lindelöf
+operator is contained in the a-priori interval `x_test` (of
+the dependent variable) that bounds the solution of
+the ODE defined by `f`. This function returns an interval
+of the independent variable where the a-priori solution
+is warranted to exist; see [`shrink_for_existance`](@ref).
+Here, `tm` and `xm` are Taylor Models (`TM1AbsRem` or `TM1RelRem`)
+defined for the independent and dependent variables, and `x0`
+is the initial condition.
+"""
 function check_existence(f, tm::T, xm::T, x0::Interval, x_test::Interval,
         max_steps::Int=20) where {T<:Union{TM1AbsRem, TM1RelRem}}
 
@@ -45,6 +77,16 @@ function check_existence(f, tm::T, xm::T, x0::Interval, x_test::Interval,
     end
 end
 
+"""
+    shrink_for_existance(xm::T, t_interval, x_test, max_steps::Int=20)
+
+Shrinks the a-priori independent-variable interval `t_interval`
+so the range of `xm`, the Taylor Model (`TM1AbsRem` or `TM1RelRem`)
+associated with the dependent variable, is contained in the
+a-priori interval `x_test`. The method used is some sort
+of bisection. If no independent-variable interval is found within
+`max_steps`, an empty interval is returned.
+"""
 function shrink_for_existance(xm::T, t_interval, x_test, max_steps::Int=20) where
         {T<:Union{TM1AbsRem, TM1RelRem}}
 
@@ -80,6 +122,16 @@ function shrink_for_existance(xm::T, t_interval, x_test, max_steps::Int=20) wher
     return emptyinterval(tt)
 end
 
+"""
+    tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Int=20)
+
+Returns a Taylor Model for the dependent variable, with a tighter
+remainder, which is obtained after successive iteration
+of the Picard-Lindelöf. If the remainder is not tighter
+(and identity with the former iterate is not obtained) a
+Taylor Model with an empty interval is returned.
+
+"""
 function tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Int=20) where
         {T<:Union{TM1AbsRem, TM1RelRem}}
 
