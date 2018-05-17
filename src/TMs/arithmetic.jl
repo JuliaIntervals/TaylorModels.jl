@@ -64,6 +64,7 @@ end
 # in general use pow!, which yields [-∞,∞] if the interval
 # contains zero; the following uses power_by_squaring
 ^(a::Taylor1{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a,n)
+^(a::TaylorN{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a,n)
 
 
 # Multiplication
@@ -167,3 +168,64 @@ function reducetoorder(a::TM1RelRem, m::Int)
     Δ = bf + a.rem * (a.iI-a.x0)^(order-m)
     return TM1RelRem( Taylor1(copy(a.pol.coeffs[1:m+1])), Δ, a.x0, a.iI )
 end
+
+
+# Same as above, for TMNAbsRem
+zero(a::TMNAbsRem) = TMNAbsRem(zero(a.pol), zero(a.rem), a.x0, a.iI)
+
+# iszero(a::TMNAbsRem) = iszero(a.pol) && iszero(zero(a.rem))
+
+# findfirst(a::TMNAbsRem) = findfirst(a.pol)
+
+==(a::TMNAbsRem, b::TMNAbsRem) =
+    a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
+
+
+# # Addition
+# +(a::TMNAbsRem) = TMNAbsRem(a.pol, a.rem, a.x0, a.iI)
+#
+# function +(a::TMNAbsRem, b::TMNAbsRem)
+#     @assert a.x0 == b.x0 && a.iI == b.iI
+#     return TMNAbsRem(a.pol+b.pol, a.rem+b.rem, a.x0, a.iI)
+# end
+#
+# +(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} =
+#     TMNAbsRem(a.pol+b, a.rem, a.x0, a.iI)
+# +(b::T, a::TMNAbsRem) where {T<:TaylorSeries.NumberNotSeries} = a + b
+#
+#
+# # Substraction
+# -(a::TMNAbsRem) = TMNAbsRem(-a.pol, -a.rem, a.x0, a.iI)
+#
+# function -(a::TMNAbsRem, b::TMNAbsRem)
+#     @assert a.x0 == b.x0 && a.iI == b.iI
+#     return TMNAbsRem(a.pol-b.pol, a.rem-b.rem, a.x0, a.iI)
+# end
+#
+# -(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} =
+#     TMNAbsRem(a.pol-b, a.rem, a.x0, a.iI)
+# -(b::T, a::TMNAbsRem) where {T<:TaylorSeries.NumberNotSeries} =
+#     TMNAbsRem(b-a.pol, -a.rem, a.x0, a.iI)
+#
+#
+# # # Basic division
+# # function basediv(a::TMNAbsRem, b::TMNAbsRem)
+# #     invb = rpa(x->inv(x), b)
+# #     return a * invb
+# # end
+#
+#
+# # Multiplication by numbers
+# *(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} =
+#     TMNAbsRem(a.pol*b, b*a.rem, a.x0, a.iI)
+# *(b::T, a::TMNAbsRem) where {T<:TaylorSeries.NumberNotSeries} = a*b
+#
+#
+# # Division by numbers
+# /(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} = a * inv(b)
+# # /(b::T, a::TMNAbsRem) where {T} = b * inv(a)
+#
+#
+# # Power
+# # ^(a::TMNAbsRem, r) = rpa(x->x^r, a)
+# # ^(a::TMNAbsRem, n::Integer) = rpa(x->x^n, a)

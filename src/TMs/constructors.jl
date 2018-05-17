@@ -97,12 +97,12 @@ TMNAbsRem(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S}, iI::IntervalB
     TMNAbsRem{N,T,S}(pol, rem, x0, iI)
 
 # Short-cut for independent variable
-TMNAbsRem(nv::Int, x0::IntervalBox{N,T}, iI::IntervalBox{N,T}) where {N,T} =
-    TMNAbsRem(x0[nv] + TaylorN(Interval{T}, nv), zero(iI[1]), x0, iI)
+TMNAbsRem(nv::Int, ord::Int, x0::IntervalBox{N,T}, iI::IntervalBox{N,T}) where {N,T} =
+    TMNAbsRem(x0[nv] + TaylorN(Interval{T}, nv, order=ord), zero(iI[1]), x0, iI)
 
 # Short-cut for a constant
-TMNAbsRem(a::Interval{T}, x0::IntervalBox{N,T}, iI::IntervalBox{N,T}) where {N,T} =
-    TMNAbsRem(TaylorN(a, N), zero(iI[1]), x0, iI)
+TMNAbsRem(a::Interval{T}, ord::Int, x0::IntervalBox{N,T}, iI::IntervalBox{N,T}) where {N,T} =
+    TMNAbsRem(TaylorN(a, ord), zero(iI[1]), x0, iI)
 
 # Functions to retrieve the order and remainder
 get_order(tm::TMNAbsRem) = tm.pol.order
