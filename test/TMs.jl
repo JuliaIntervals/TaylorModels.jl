@@ -45,7 +45,7 @@ end
     ii1 = Interval(0.5, 1.5)
 
     @testset "TM1AbsRem constructors" begin
-        tv = TM1AbsRem{Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv = TM1AbsRem{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1AbsRem(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1AbsRem(5, x0, ii0)
         @test TM1AbsRem(x1, 5, x0, ii0) == TM1AbsRem(Taylor1(x1, 5), x0, x0, ii0)
@@ -268,7 +268,7 @@ end
     ii1 = Interval(0.5, 1.5)
 
     @testset "TM1RelRem constructors" begin
-        tv = TM1RelRem{Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv = TM1RelRem{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1RelRem(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1RelRem(5, x0, ii0)
         @test TM1RelRem(x1, 5, x0, ii0) == TM1RelRem(Taylor1(x1, 5), x0, x0, ii0)

@@ -21,7 +21,8 @@ export Taylor1Model, bound, make_Taylor_model, TMcomposition,
         taylor1_var, integrate, degree,
         calculate_set, Taylor_step
 
-export TM1AbsRem, TM1RelRem, remainder,
+export TM1AbsRem, TM1RelRem, TMNAbsRem,
+    remainder,
     rpa, rpafp, boundarem, boundrrem
 
 

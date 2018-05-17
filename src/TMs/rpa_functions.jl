@@ -169,7 +169,7 @@ representable, it returns *preferentiably* a rounded-down value.
 This function is primarily used for plotting.
 
 """
-function rpafp(tm::TM1AbsRem{T}) where {T}
+function rpafp(tm::TM1AbsRem{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
@@ -192,7 +192,7 @@ function rpafp(tm::TM1AbsRem{T}) where {T}
     return t, Δ, ξ0
 end
 
-function rpafp(tm::TM1RelRem{T}) where {T}
+function rpafp(tm::TM1RelRem{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
