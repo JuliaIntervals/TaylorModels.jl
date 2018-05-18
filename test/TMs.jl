@@ -487,14 +487,16 @@ end
     end
 end
 
+const _order = 2
+const _order_max = 2*(_order+1)
+set_variables(Interval{Float64}, [:x, :y], order=_order_max)
+
 @testset "Tests for TMNAbsRem" begin
     b0 = Interval(0.0) × Interval(0.0)
     ib0 = Interval(-0.5, 0.5) × Interval(-0.5, 0.5)
     b1 =  Interval(0.0) × Interval(1.0)
     ib1 = Interval(-0.5, 0.5) × Interval(0.5, 1.5)
 
-    _order = 2
-    set_variables("x y", order = 2*(_order+1))
     zi = 0..0
     x = TaylorN(Interval{Float64}, 1, order=_order)
     y = TaylorN(Interval{Float64}, 2, order=_order)
@@ -521,27 +523,32 @@ end
         @test remainder(ym) == zi
     end
 
-    # @testset "Arithmetic operations" begin
-    #     Δ = interval(-0.25, 0.25)
-    #     a = TMAbsRem1(x1+Taylor1(5), Δ, x1, ii1)
-    #     tv = TMAbsRem1(5, x1, ii1)
-    #     @test a+x1 == TMAbsRem1(2*x1+Taylor1(5), Δ, x1, ii1)
-    #     @test a+a == TMAbsRem1(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
-    #     @test a-x1 == TMAbsRem1(zero(x1)+Taylor1(5), Δ, x1, ii1)
-    #     @test a-a == TMAbsRem1(zero(a.pol), 2*Δ, x1, ii1)
-    #     b = a * tv
-    #     @test b == TMAbsRem1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
-    #     @test b/tv == TMAbsRem1(a.pol, Interval(-0.78125, 0.84375), x1, ii1)
-    #     b = a * a.pol[0]
-    #     @test b == a
-    #
-    #     a = TMAbsRem1(x0, 5, x0, ii0)
-    #     @test a^2 == TMAbsRem1(x0^2, 5, x0, ii0)
-    #     @test a^3 == TMAbsRem1(x0^3, 5, x0, ii0)
-    #     a = TMAbsRem1(x1, 5, x1, ii1)
-    #     @test a^2 == TMAbsRem1(x1^2, 5, x1, ii1)
-    #     @test a^3 == TMAbsRem1(x1^3, 5, x1, ii1)
-    # end
+    @testset "Arithmetic operations" begin
+        Δ = interval(-0.25, 0.25)
+        xm = TMNAbsRem(x, zi, b1, ib1)
+        ym = TMNAbsRem(y, zi, b1, ib1)
+        a = TMNAbsRem( b1[1]+x, Δ, b1, ib1)
+        @test a + a == TMNAbsRem(2*(b1[1]+ x), 2*Δ, b1, ib1)
+        @test -a == TMNAbsRem( -(b1[1]+x), -Δ, b1, ib1)
+        @test a - a == TMNAbsRem(zero(a.pol), 2*Δ, b1, ib1)
+        @test b1[2] + ym == TMNAbsRem(b1[2] + y, zi, b1, ib1)
+        @test a - b1[1] == TMNAbsRem(zero(b1[1])+x, Δ, b1, ib1)
+        
+        b = a * ym
+        @test b == TMNAbsRem( x*y, Δ*ym.pol(ib1-b1), b1, ib1)
+        b = ym * TMNAbsRem(x^2, zi, b1, ib1)
+        @test b == TMNAbsRem( zero(x), (ib1[1]-b1[1])^2*(ib1[2]-b1[2]), b1, ib1 )
+        # b = a * b1[2]
+        # @test b == TMNAbsRem( b1[2]*(a.pol), Δ*b1[2], b1, ib1 )
+        # @test b / b1[2] == a
+
+        # a = TMAbsRem1(x0, 5, x0, ii0)
+        # @test a^2 == TMAbsRem1(x0^2, 5, x0, ii0)
+        # @test a^3 == TMAbsRem1(x0^3, 5, x0, ii0)
+        # a = TMAbsRem1(x1, 5, x1, ii1)
+        # @test a^2 == TMAbsRem1(x1^2, 5, x1, ii1)
+        # @test a^3 == TMAbsRem1(x1^3, 5, x1, ii1)
+    end
     #
     # @testset "RPAs, functions and remainders" begin
     #     @test rpa(x->5+zero(x), TMAbsRem1(4, x0, ii0)) ==

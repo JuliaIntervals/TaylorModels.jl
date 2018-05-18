@@ -1,6 +1,8 @@
 # constructors.jl
 
 const tupleTMs = (:TM1AbsRem, :TM1RelRem)
+const NumberNotSeries = TaylorSeries.TaylorSeries.NumberNotSeries
+
 #=
 Structs `TM1AbsRem{T}` and `TM1RelRem{T}` are essentially identical, except
 the way the remainder is computed and that the remainder for `TM1AbsRem{T}`
@@ -82,8 +84,7 @@ struct TMNAbsRem{N,T,S}
 
     # Inner constructor
     function TMNAbsRem{N,T,S}(pol::TaylorN{T}, rem::Interval{S},
-            x0::IntervalBox{N,S}, iI::IntervalBox{N,S}) where
-            {N,T<:TaylorSeries.NumberNotSeriesN,S<:Real}
+            x0::IntervalBox{N,S}, iI::IntervalBox{N,S}) where {N,T<:NumberNotSeries,S<:Real}
 
         @assert N == get_numvars()
         @assert zero(S) ∈ rem && all(x0 .⊆ iI)

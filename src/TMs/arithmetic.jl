@@ -22,6 +22,7 @@ for TM in tupleTMs
         end
 
         +(a::$TM, b::T) where {T} = $TM(a.pol+b, a.rem, a.x0, a.iI)
+
         +(b::T, a::$TM) where {T} = $TM(b+a.pol, a.rem, a.x0, a.iI)
 
 
@@ -34,6 +35,7 @@ for TM in tupleTMs
         end
 
         -(a::$TM, b::T) where {T} = $TM(a.pol-b, a.rem, a.x0, a.iI)
+
         -(b::T, a::$TM) where {T} = $TM(b-a.pol, -a.rem, a.x0, a.iI)
 
 
@@ -46,16 +48,19 @@ for TM in tupleTMs
 
         # Multiplication by numbers
         *(a::$TM, b::T) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+
         *(b::T, a::$TM) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
 
 
         # Division by numbers
         /(a::$TM, b::T) where {T} = a * inv(b)
+
         /(b::T, a::$TM) where {T} = b * inv(a)
 
 
         # Power
         ^(a::$TM, r) = rpa(x->x^r, a)
+
         ^(a::$TM, n::Integer) = rpa(x->x^n, a)
     end
 end
@@ -92,6 +97,7 @@ function *(a::TM1AbsRem, b::TM1AbsRem)
 
     return TM1AbsRem(bext, Δ, a.x0, a.iI)
 end
+
 function *(a::TM1RelRem, b::TM1RelRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
 
@@ -124,6 +130,7 @@ function /(a::TM1AbsRem, b::TM1AbsRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
     return basediv(a, b)
 end
+
 function /(a::TM1RelRem, b::TM1RelRem)
     @assert a.x0 == b.x0 && a.iI == b.iI
 
@@ -181,51 +188,80 @@ zero(a::TMNAbsRem) = TMNAbsRem(zero(a.pol), zero(a.rem), a.x0, a.iI)
     a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
 
 
-# # Addition
-# +(a::TMNAbsRem) = TMNAbsRem(a.pol, a.rem, a.x0, a.iI)
-#
-# function +(a::TMNAbsRem, b::TMNAbsRem)
-#     @assert a.x0 == b.x0 && a.iI == b.iI
-#     return TMNAbsRem(a.pol+b.pol, a.rem+b.rem, a.x0, a.iI)
+# Addition and substraction
+for op in (:+, :-)
+    @eval begin
+        $(op)(a::TMNAbsRem) = TMNAbsRem($(op)(a.pol), $(op)(a.rem), a.x0, a.iI)
+
+        function $(op)(a::TMNAbsRem, b::TMNAbsRem)
+            @assert a.x0 == b.x0 && a.iI == b.iI
+            return TMNAbsRem($(op)(a.pol,b.pol), $(op)(a.rem,b.rem), a.x0, a.iI)
+        end
+
+        $(op)(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} =
+            TMNAbsRem($(op)(a.pol, b), a.rem, a.x0, a.iI)
+
+        $(op)(b::T, a::TMNAbsRem) where {T<:NumberNotSeries} =
+            TMNAbsRem($(op)(b, a.pol), $(op)(a.rem), a.x0, a.iI)
+
+    end
+end
+
+
+# Multiplication
+function *(a::TMNAbsRem, b::TMNAbsRem)
+    @assert a.x0 == b.x0 && a.iI == b.iI
+
+    # Polynomial product with extended order
+    order = max(get_order(a), get_order(b))
+    @assert 2*order ≤ get_order()
+    aext = TaylorN(copy(a.pol.coeffs), 2*order)
+    bext = TaylorN(copy(b.pol.coeffs), 2*order)
+    res = aext * bext
+
+    # Returned polynomial
+    bext = TaylorN( copy(res.coeffs[1:order+1]) )
+
+    # Bound for the neglected part of the product of polynomials
+    res[0:order] .= zero(eltype(res))
+    aux = IntervalBox(a.iI - a.x0)
+    Δnegl = evaluate(res, aux)
+
+    # Remainder of the product
+    Δa = a.pol(aux)
+    Δb = b.pol(aux)
+    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
+
+    return TMNAbsRem(bext, Δ, a.x0, a.iI)
+end
+
+# Multiplication by numbers
+function *(a::TMNAbsRem, b::T) where {T<:NumberNotSeries}
+    pol = a.pol * b
+    rem = b * a.rem
+    TMNAbsRem(pol, rem, a.x0, a.iI)
+end
+
+# function *(b::T, a::TMNAbsRem) where {T<:NumberNotSeries}
+#     pol = a.pol * b
+#     rem = b * a.rem
+#     TMNAbsRem(pol, rem, a.x0, a.iI)
 # end
-#
-# +(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} =
-#     TMNAbsRem(a.pol+b, a.rem, a.x0, a.iI)
-# +(b::T, a::TMNAbsRem) where {T<:TaylorSeries.NumberNotSeries} = a + b
-#
-#
-# # Substraction
-# -(a::TMNAbsRem) = TMNAbsRem(-a.pol, -a.rem, a.x0, a.iI)
-#
-# function -(a::TMNAbsRem, b::TMNAbsRem)
-#     @assert a.x0 == b.x0 && a.iI == b.iI
-#     return TMNAbsRem(a.pol-b.pol, a.rem-b.rem, a.x0, a.iI)
+
+
+
+# # Basic division
+# function basediv(a::TMNAbsRem, b::TMNAbsRem)
+#     invb = rpa(x->inv(x), b)
+#     return a * invb
 # end
-#
-# -(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} =
-#     TMNAbsRem(a.pol-b, a.rem, a.x0, a.iI)
-# -(b::T, a::TMNAbsRem) where {T<:TaylorSeries.NumberNotSeries} =
-#     TMNAbsRem(b-a.pol, -a.rem, a.x0, a.iI)
-#
-#
-# # # Basic division
-# # function basediv(a::TMNAbsRem, b::TMNAbsRem)
-# #     invb = rpa(x->inv(x), b)
-# #     return a * invb
-# # end
-#
-#
-# # Multiplication by numbers
-# *(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} =
-#     TMNAbsRem(a.pol*b, b*a.rem, a.x0, a.iI)
-# *(b::T, a::TMNAbsRem) where {T<:TaylorSeries.NumberNotSeries} = a*b
-#
-#
+
+
 # # Division by numbers
-# /(a::TMNAbsRem, b::T) where {T<:TaylorSeries.NumberNotSeries} = a * inv(b)
+# /(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = a * inv(b)
 # # /(b::T, a::TMNAbsRem) where {T} = b * inv(a)
-#
-#
+
+
 # # Power
 # # ^(a::TMNAbsRem, r) = rpa(x->x^r, a)
 # # ^(a::TMNAbsRem, n::Integer) = rpa(x->x^n, a)
