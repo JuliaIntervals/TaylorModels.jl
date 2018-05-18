@@ -533,14 +533,14 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test a - a == TMNAbsRem(zero(a.pol), 2*Δ, b1, ib1)
         @test b1[2] + ym == TMNAbsRem(b1[2] + y, zi, b1, ib1)
         @test a - b1[1] == TMNAbsRem(zero(b1[1])+x, Δ, b1, ib1)
-        
+
         b = a * ym
         @test b == TMNAbsRem( x*y, Δ*ym.pol(ib1-b1), b1, ib1)
         b = ym * TMNAbsRem(x^2, zi, b1, ib1)
         @test b == TMNAbsRem( zero(x), (ib1[1]-b1[1])^2*(ib1[2]-b1[2]), b1, ib1 )
-        # b = a * b1[2]
-        # @test b == TMNAbsRem( b1[2]*(a.pol), Δ*b1[2], b1, ib1 )
-        # @test b / b1[2] == a
+        b = b1[2] * a
+        @test b == TMNAbsRem( b1[2]*(a.pol), Δ*b1[2], b1, ib1 )
+        @test b / b1[2] == a
 
         # a = TMAbsRem1(x0, 5, x0, ii0)
         # @test a^2 == TMAbsRem1(x0^2, 5, x0, ii0)

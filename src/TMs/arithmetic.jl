@@ -235,19 +235,20 @@ function *(a::TMNAbsRem, b::TMNAbsRem)
     return TMNAbsRem(bext, Δ, a.x0, a.iI)
 end
 
+
 # Multiplication by numbers
-function *(a::TMNAbsRem, b::T) where {T<:NumberNotSeries}
+function *(b::T, a::TMNAbsRem) where {T<:NumberNotSeries}
     pol = a.pol * b
     rem = b * a.rem
-    TMNAbsRem(pol, rem, a.x0, a.iI)
+    return TMNAbsRem(pol, rem, a.x0, a.iI)
 end
 
-# function *(b::T, a::TMNAbsRem) where {T<:NumberNotSeries}
-#     pol = a.pol * b
-#     rem = b * a.rem
-#     TMNAbsRem(pol, rem, a.x0, a.iI)
-# end
-
+#=
+NOTE: This should be restricted to T<:NumberNotSeries, but if
+done we'll get an `AssertionError, "invalid age range update"`
+error. I don't understand it at all.
+=#
+*(a::TMNAbsRem, b::T) where {T} = b * a
 
 
 # # Basic division
@@ -257,9 +258,9 @@ end
 # end
 
 
-# # Division by numbers
-# /(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = a * inv(b)
-# # /(b::T, a::TMNAbsRem) where {T} = b * inv(a)
+# Division by numbers
+/(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = a * inv(b)
+# /(b::T, a::TMNAbsRem) where {T} = b * inv(a)
 
 
 # # Power
