@@ -87,7 +87,7 @@ struct TMNAbsRem{N,T,S}
             x0::IntervalBox{N,S}, iI::IntervalBox{N,S}) where {N,T<:NumberNotSeries,S<:Real}
 
         @assert N == get_numvars()
-        @assert zero(S) ∈ rem && all(x0 .⊆ iI)
+        @assert zero(S) ∈ rem && x0 ⊆ iI
 
         return new{N,T,S}(pol, rem, x0, iI)
     end

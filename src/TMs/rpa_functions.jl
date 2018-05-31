@@ -39,6 +39,7 @@ end
 
 """
    rpa(g::Function, tmf::TM1AbsRem)
+   rpa(g::Function, tmf::TMNAbsRem)
 
 Rigurous polynomial approximation (RPA) for the function `g` using the
 Taylor Model with absolute remainder `tmf`. The bound is computed
@@ -76,6 +77,40 @@ function rpa(g::Function, tmf::TM1AbsRem)
     # Final remainder
     Δ = remainder(tmres) + remainder(tmg)
     return TM1AbsRem(tmres.pol, Δ, x0, iI)
+end
+
+function rpa(g::Function, tmf::TMNAbsRem{N,T,S}) where {N,T,S}
+    _order = get_order(tmf)
+
+    # # Avoid overestimations
+    # if tmf == TMNAbsRem(constant_term(tmf.pol), _order, tmf.x0, tmf.iI)
+    #     # ... in case `tmf` is a simple constant polynomial
+    #     range_g = (g(tmf.pol))(tmf.iI-tmf.x0) + remainder(tmf)
+    #     return TMNAbsRem(range_g, _order, tmf.x0, tmf.iI)
+    # else
+    #     v = get_variables(T, _order)
+    #     any( tmf.pol .== v ) && _rpaar(g, tmf.x0, tmf.iI, _order)
+    # end
+
+    f_pol = tmf.pol
+    Δf = remainder(tmf)
+    x0 = tmf.x0
+    iI = tmf.iI
+
+    # Range of tmf including remainder (Δf)
+    range_tmf = f_pol(iI-x0) + Δf
+
+    # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
+    # Note that tmg is a TM1AbsRem !!
+    tmg = _rpaar(g, constant_term(f_pol), range_tmf, _order)
+
+    # Use original independent variable
+    tm1 = tmf - constant_term(f_pol)
+    tmres = tmg( tm1 )
+
+    # Final remainder
+    Δ = remainder(tmres) + remainder(tmg)
+    return TMNAbsRem(tmres.pol, Δ, x0, iI)
 end
 
 
@@ -220,8 +255,9 @@ end
 fnlist = (:inv, :sqrt, :exp, :log, :sin, :cos, :tan,
     :asin, :acos, :atan, :sinh, :cosh, :tanh)
 
-for TM in tupleTMs
-    for fn in fnlist
+for fn in fnlist
+    for TM in tupleTMs
         @eval $fn(tm::$TM) = rpa($fn, tm)
     end
+    @eval $fn(tm::TMNAbsRem) = rpa($fn, tm)
 end
