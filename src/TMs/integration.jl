@@ -8,7 +8,7 @@ or `TM1RelRem`) with respect to the independent variable; `c0` is
 the interval representing the integration constant; if omitted
 it is considered as the zero interval.
 """
-function integrate(a::TM1AbsRem{T}, c0::Interval{T}) where {T}
+function integrate(a::TM1AbsRem{T,S}, c0::Interval{S}) where {T,S}
     order = get_order(a)
     integ_pol = integrate(a.pol, c0)
     aux = (a.iI-a.x0)
@@ -20,9 +20,9 @@ function integrate(a::TM1AbsRem{T}, c0::Interval{T}) where {T}
 
     return TM1AbsRem( integ_pol, Δ, a.x0, a.iI )
 end
-integrate(a::TM1AbsRem{T}) where {T} = integrate(a, Interval(zero(T)))
+integrate(a::TM1AbsRem{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
 
-function integrate(a::TM1RelRem{T}, c0::Interval{T}) where {T}
+function integrate(a::TM1RelRem{T,S}, c0::Interval{S}) where {T,S}
     order = get_order(a)
     integ_pol = integrate(a.pol, c0)
     Δ = (a.iI-a.x0) * remainder(a)
@@ -32,7 +32,7 @@ function integrate(a::TM1RelRem{T}, c0::Interval{T}) where {T}
 
     return TM1RelRem( integ_pol, Δ, a.x0, a.iI )
 end
-integrate(a::TM1RelRem{T}) where {T} = integrate(a, Interval(zero(T)))
+integrate(a::TM1RelRem{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
 
 
 """

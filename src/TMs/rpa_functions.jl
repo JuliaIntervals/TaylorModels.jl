@@ -175,7 +175,7 @@ for TM in tupleTMs
     @eval (tm::$TM)(x::$TM) = evaluate(tm, x)
 
     # Evaluates the TM on an interval, including the remainder
-    @eval function evaluate(tm::$TM{T}, a::Interval{T}) where {T}
+    @eval function evaluate(tm::$TM{T,S}, a::Interval{S}) where {T,S}
         _order = get_order(tm)
 
         if $(TM) == TM1AbsRem
@@ -188,7 +188,7 @@ for TM in tupleTMs
         return tm.pol(a) + Δ
     end
 
-    @eval (tm::$TM{T})(a::Interval{T}) where {T} = evaluate(tm, a)
+    @eval (tm::$TM{T,S})(a::Interval{S}) where {T,S} = evaluate(tm, a)
 end
 
 
