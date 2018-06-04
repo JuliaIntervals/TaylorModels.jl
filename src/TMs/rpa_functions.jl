@@ -53,13 +53,14 @@ function rpa(g::Function, tmf::TM1AbsRem)
     if tmf == TM1AbsRem(_order, tmf.x0, tmf.iI)
         # ... if `tmf` is the independent variable
         return _rpaar(g, tmf.x0, tmf.iI, _order)
-    elseif tmf == TM1AbsRem(tmf.pol[0], _order, tmf.x0, tmf.iI)
+    elseif tmf == TM1AbsRem(constant_term(tmf.pol), _order, tmf.x0, tmf.iI)
         # ... in case `tmf` is a simple constant polynomial
         range_g = bound_taylor1(g(tmf.pol), tmf.iI-tmf.x0) + remainder(tmf)
         return TM1AbsRem(range_g, _order, tmf.x0, tmf.iI)
     end
 
     f_pol = tmf.pol
+    f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
     x0 = tmf.x0
     iI = tmf.iI
@@ -67,11 +68,11 @@ function rpa(g::Function, tmf::TM1AbsRem)
     # Range of tmf including remainder (Δf)
     range_tmf = bound_taylor1(f_pol, iI-x0) + Δf
 
-    # Compute RPA for `g`, around f_pol[0], over range_tmf
-    tmg = _rpaar(g, f_pol[0], range_tmf, _order)
+    # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
+    tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
-    tm1 = tmf - f_pol[0]
+    tm1 = tmf - f_pol0
     tmres = tmg( tm1 )
 
     # Final remainder
@@ -93,6 +94,7 @@ function rpa(g::Function, tmf::TMNAbsRem{N,T,S}) where {N,T,S}
     # end
 
     f_pol = tmf.pol
+    f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
     x0 = tmf.x0
     iI = tmf.iI
@@ -102,10 +104,10 @@ function rpa(g::Function, tmf::TMNAbsRem{N,T,S}) where {N,T,S}
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
     # Note that tmg is a TM1AbsRem !!
-    tmg = _rpaar(g, constant_term(f_pol), range_tmf, _order)
+    tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
-    tm1 = tmf - constant_term(f_pol)
+    tm1 = tmf - f_pol0
     tmres = tmg( tm1 )
 
     # Final remainder
@@ -129,7 +131,7 @@ function rpa(g::Function, tmf::TM1RelRem)
     if tmf == TM1RelRem(_order, tmf.x0, tmf.iI)
         # ... if `tmf` is the independent variable
         return _rparr(g, tmf.x0, tmf.iI, _order)
-    elseif tmf == TM1RelRem(tmf.pol[0], _order, tmf.x0, tmf.iI)
+    elseif tmf == TM1RelRem(constant_term(tmf.pol), _order, tmf.x0, tmf.iI)
         # ... in case `tmf` is a simple constant polynomial
         range_g = bound_taylor1(g(tmf.pol), tmf.iI-tmf.x0) + remainder(tmf)
         return TM1RelRem(range_g, _order, tmf.x0, tmf.iI)
@@ -143,9 +145,9 @@ function rpa(g::Function, tmf::TM1RelRem)
     # Range of tmf including remainder (Δf)
     range_tmf = bound_taylor1(f_pol, iI-x0) + Δf * (iI-x0)^(_order+1)
 
-    # Compute RPA for `g`, around f_pol[0], over range_tmf
-    tmg = _rparr(g, f_pol[0], range_tmf, _order)
-    tm1 = tmf - f_pol[0]
+    # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
+    tmg = _rparr(g, constant_term(f_pol), range_tmf, _order)
+    tm1 = tmf - constant_term(f_pol)
     tmres = tmg( tm1 )
 
     tmn = TM1RelRem(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.iI)
@@ -164,11 +166,13 @@ for TM in tupleTMs
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
 
-        tmres = $TM(zero(tmg.pol[0]), _order, tmf.x0, tmf.iI)
+        tmres = $TM(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.iI)
         @inbounds for k = _order:-1:0
             tmres = tmres * tmf
             tmres = tmres + tmg.pol[k]
         end
+
+        # Returned result does not include remainder of tmg
         return tmres
     end
 
@@ -190,6 +194,35 @@ for TM in tupleTMs
 
     @eval (tm::$TM{T,S})(a::Interval{S}) where {T,S} = evaluate(tm, a)
 end
+
+# Substitute a TMNAbsRem into a TM1
+@eval function evaluate(tmg::TM1AbsRem, tmf::TMNAbsRem)
+    _order = get_order(tmf)
+    @assert _order == get_order(tmg)
+
+    tmres = TMNAbsRem(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.iI)
+    @inbounds for k = _order:-1:0
+        tmres = tmres * tmf
+        tmres = tmres + tmg.pol[k]
+    end
+
+    # Returned result does not include remainder of tmg
+    return tmres
+end
+
+@eval (tm::TM1AbsRem)(x::TMNAbsRem) = evaluate(tm, x)
+
+
+# Evaluates the TM on an interval, including the remainder
+@eval function evaluate(tm::TMNAbsRem{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
+    _order = get_order(tm)
+
+    Δ = tm.rem
+
+    return tm.pol(a...) + Δ
+end
+
+@eval (tm::TMNAbsRem{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
 
 
 """

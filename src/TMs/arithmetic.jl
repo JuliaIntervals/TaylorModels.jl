@@ -203,7 +203,6 @@ for op in (:+, :-)
 
         $(op)(b::T, a::TMNAbsRem) where {T<:NumberNotSeries} =
             TMNAbsRem($(op)(b, a.pol), $(op)(a.rem), a.x0, a.iI)
-
     end
 end
 
@@ -224,8 +223,8 @@ function *(a::TMNAbsRem, b::TMNAbsRem)
 
     # Bound for the neglected part of the product of polynomials
     res[0:order] .= zero(eltype(res))
-    aux = IntervalBox(a.iI - a.x0)
-    Δnegl = evaluate(res, aux)
+    aux = a.iI - a.x0
+    Δnegl = res(aux)
 
     # Remainder of the product
     Δa = a.pol(aux)
@@ -243,26 +242,21 @@ function *(b::T, a::TMNAbsRem) where {T<:NumberNotSeries}
     return TMNAbsRem(pol, rem, a.x0, a.iI)
 end
 
-#=
-NOTE: This should be restricted to T<:NumberNotSeries, but if
-done we'll get an `AssertionError, "invalid age range update"`
-error. I don't understand it at all.
-=#
-*(a::TMNAbsRem, b::T) where {T} = b * a
+*(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = b * a
 
 
-# # Basic division
-# function basediv(a::TMNAbsRem, b::TMNAbsRem)
-#     invb = rpa(x->inv(x), b)
-#     return a * invb
-# end
+# Basic division
+function basediv(a::TMNAbsRem, b::TMNAbsRem)
+    invb = rpa(x->inv(x), b)
+    return a * invb
+end
 
 
 # Division by numbers
 /(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = a * inv(b)
-# /(b::T, a::TMNAbsRem) where {T} = b * inv(a)
+/(b::T, a::TMNAbsRem) where {T} = b * inv(a)
 
 
-# # Power
-# # ^(a::TMNAbsRem, r) = rpa(x->x^r, a)
-# # ^(a::TMNAbsRem, n::Integer) = rpa(x->x^n, a)
+# Power
+^(a::TMNAbsRem, r) = rpa(x->x^r, a)
+^(a::TMNAbsRem, n::Integer) = rpa(x->x^n, a)

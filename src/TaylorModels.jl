@@ -1,7 +1,7 @@
 module TaylorModels
 
-# using Reexport
-using TaylorSeries, IntervalArithmetic
+using Reexport
+@reexport using TaylorSeries, IntervalArithmetic
 using IntervalRootFinding
 using RecipesBase
 
