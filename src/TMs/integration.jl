@@ -40,12 +40,12 @@ integrate(a::TM1RelRem{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
     𝒫(f, tm::T, xm::T, x0::Interval)
 
 Returns the application of the Picard-Lindelöf operator
-associated to the ODE `\dot{x} = f(t,x)`,
+associated to the ODE ``\\dot{x} = f(t,x)``,
 with initial condition `x0`. Here, `tm` and `xm` are
 (one-variable) Taylor Models (`TM1AbsRem` or `TM1RelRem`).
 
 𝒫 is an abbreviation of this operator, which is obtained
-as `\mscrP<TAB>`.)
+as `\\mscrP<TAB>`.)
 """
 picard_lindelöf(f, tm::T, xm::T, x0::Interval) where
     {T<:Union{TM1AbsRem, TM1RelRem}} = integrate(f(tm, xm), x0)
