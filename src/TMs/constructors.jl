@@ -9,9 +9,8 @@ the way the remainder is computed and that the remainder for `TM1AbsRem{T}`
 must contain 0.
 =#
 for TM in tupleTMs
-
     @eval begin
-        struct $(TM){T,S}
+        struct $(TM){T,S} <: AbstractSeries{T}
             pol  :: Taylor1{T}    # polynomial approx (of order `ord`)
             rem  :: Interval{S}   # remainder
             x0   :: Interval{S}   # expansion point
@@ -76,7 +75,7 @@ Taylor Models with Absolute Remainder for `N` independent variables.
 the `IntervalBox`es.
 
 """
-struct TMNAbsRem{N,T,S}
+struct TMNAbsRem{N,T,S} <: AbstractSeries{T}
     pol  :: TaylorN{T}        # polynomial approx (of order `ord`)
     rem  :: Interval{S}       # remainder
     x0   :: IntervalBox{N,S}  # expansion point
