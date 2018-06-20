@@ -10,7 +10,7 @@ setformat(:full)
 
 import Base: setindex!,
     ==, +, -, *, /, ^,
-    zero, findfirst, #iszero,
+    zero, one, findfirst, #iszero,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 

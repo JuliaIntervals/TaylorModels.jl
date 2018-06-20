@@ -50,6 +50,9 @@ end
         @test tv == TM1AbsRem(5, x0, ii0)
         @test TM1AbsRem(x1, 5, x0, ii0) == TM1AbsRem(Taylor1(x1, 5), x0, x0, ii0)
 
+        @test isa(tv, AbstractSeries)
+        @test TM1AbsRem{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
+
         # Test errors in construction
         @test_throws AssertionError TM1AbsRem(Taylor1(Interval{Float64},5), x1, x0, ii0)
         @test_throws AssertionError TM1AbsRem(5, x1, ii0)
@@ -63,6 +66,8 @@ end
         Δ = interval(-0.25, 0.25)
         a = TM1AbsRem(x1+Taylor1(5), Δ, x1, ii1)
         tv = TM1AbsRem(5, x1, ii1)
+        @test zero(a) == TM1AbsRem(zero(a.pol), 0..0, x1, ii1)
+        @test one(a) == TM1AbsRem(one(a.pol), 0..0, x1, ii1)
         @test a+x1 == TM1AbsRem(2*x1+Taylor1(5), Δ, x1, ii1)
         @test a+a == TM1AbsRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
         @test a-x1 == TM1AbsRem(zero(x1)+Taylor1(5), Δ, x1, ii1)
@@ -273,6 +278,9 @@ end
         @test tv == TM1RelRem(5, x0, ii0)
         @test TM1RelRem(x1, 5, x0, ii0) == TM1RelRem(Taylor1(x1, 5), x0, x0, ii0)
 
+        @test isa(tv, AbstractSeries)
+        @test TM1RelRem{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
+
         # Zero may not be contained in the remainder of a TM1RelRem
         @test 0 ∉ remainder(TM1RelRem(Taylor1(Interval{Float64},5), x1, x0, ii0))
 
@@ -289,6 +297,8 @@ end
         a = TM1RelRem(x1+Taylor1(5), Δ, x1, ii1)
         tv = TM1RelRem(5, x1, ii1)
 
+        @test zero(a) == TM1RelRem(zero(a.pol), 0..0, x1, ii1)
+        @test one(a) == TM1RelRem(one(a.pol), 0..0, x1, ii1)
         @test a+x1 == TM1RelRem(2*x1+Taylor1(5), Δ, x1, ii1)
         @test a+a == TM1RelRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
         @test a-x1 == TM1RelRem(zero(x1)+Taylor1(5), Δ, x1, ii1)

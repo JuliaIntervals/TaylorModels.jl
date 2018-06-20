@@ -4,6 +4,7 @@
 for TM in tupleTMs
     @eval begin
         zero(a::$TM) = $TM(zero(a.pol), zero(a.rem), a.x0, a.iI)
+        one(a::$TM) = $TM(one(a.pol), zero(a.rem), a.x0, a.iI)
 
         # iszero(a::$TM) = iszero(a.pol) && iszero(zero(a.rem))
 
@@ -21,9 +22,9 @@ for TM in tupleTMs
             return $TM(a.pol+b.pol, a.rem+b.rem, a.x0, a.iI)
         end
 
-        +(a::$TM, b::T) where {T} = $TM(a.pol+b, a.rem, a.x0, a.iI)
+        +(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol+b, a.rem, a.x0, a.iI)
 
-        +(b::T, a::$TM) where {T} = $TM(b+a.pol, a.rem, a.x0, a.iI)
+        +(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b+a.pol, a.rem, a.x0, a.iI)
 
 
         # Substraction
@@ -34,9 +35,9 @@ for TM in tupleTMs
             return $TM(a.pol-b.pol, a.rem-b.rem, a.x0, a.iI)
         end
 
-        -(a::$TM, b::T) where {T} = $TM(a.pol-b, a.rem, a.x0, a.iI)
+        -(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol-b, a.rem, a.x0, a.iI)
 
-        -(b::T, a::$TM) where {T} = $TM(b-a.pol, -a.rem, a.x0, a.iI)
+        -(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b-a.pol, -a.rem, a.x0, a.iI)
 
 
         # Basic division
@@ -47,15 +48,15 @@ for TM in tupleTMs
 
 
         # Multiplication by numbers
-        *(a::$TM, b::T) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+        *(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
 
-        *(b::T, a::$TM) where {T} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+        *(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
 
 
         # Division by numbers
-        /(a::$TM, b::T) where {T} = a * inv(b)
+        /(a::$TM, b::T) where {T<:NumberNotSeries} = a * inv(b)
 
-        /(b::T, a::$TM) where {T} = b * inv(a)
+        /(b::T, a::$TM) where {T<:NumberNotSeries} = b * inv(a)
 
 
         # Power
@@ -65,11 +66,12 @@ for TM in tupleTMs
     end
 end
 
-# In TaylorSeries v0.7.3, a^n, a::Taylor1 and n::Integer,
-# in general use pow!, which yields [-∞,∞] if the interval
-# contains zero; the following uses power_by_squaring
-^(a::Taylor1{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a,n)
-^(a::TaylorN{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a,n)
+# This requires current master of TaylorSeries
+# # In TaylorSeries v0.7.3, a^n, a::Taylor1 and n::Integer,
+# # in general use pow!, which yields [-∞,∞] if the interval
+# # contains zero; the following uses power_by_squaring
+# ^(a::Taylor1{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a, n)
+# ^(a::TaylorN{Interval{T}}, n::Integer) where {T} = Base.power_by_squaring(a, n)
 
 
 # Multiplication
@@ -179,6 +181,7 @@ end
 
 # Same as above, for TMNAbsRem
 zero(a::TMNAbsRem) = TMNAbsRem(zero(a.pol), zero(a.rem), a.x0, a.iI)
+one(a::TMNAbsRem) = TMNAbsRem(one(a.pol), zero(a.rem), a.x0, a.iI)
 
 # iszero(a::TMNAbsRem) = iszero(a.pol) && iszero(zero(a.rem))
 
@@ -253,8 +256,8 @@ end
 
 
 # Division by numbers
-/(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = a * inv(b)
-/(b::T, a::TMNAbsRem) where {T} = b * inv(a)
+/(a::TMNAbsRem, b::T) where {T<:Number} = a * inv(b)
+/(b::T, a::TMNAbsRem) where {T<:NumberNotSeries} = b * inv(a)
 
 
 # Power

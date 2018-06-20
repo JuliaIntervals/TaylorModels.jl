@@ -13,7 +13,7 @@ else
     eeuler = Base.MathConstants.e
 end
 
-function check_inclusion(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
+function check_inclusion(ftest, tma::TMNAbsRem)
     ii = tma.iI
     xfp = diam(tma.iI)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
@@ -47,6 +47,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test TMNAbsRem( b1[1], 2, b0, ib0) ==
                 TMNAbsRem(TaylorN(b1[1], _order), zi, b0, ib0)
 
+        @test isa(xm, AbstractSeries)
+        @test TMNAbsRem{2, Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
+
         # Test errors in construction
         @test_throws AssertionError TMNAbsRem(xT, zi, IntervalBox(1..1), IntervalBox(1..1))
         @test_throws AssertionError TMNAbsRem(xT, zi, b0, ib1)
@@ -64,6 +67,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xm = TMNAbsRem(xT, zi, b1, ib1)
         ym = TMNAbsRem(yT, zi, b1, ib1)
         a = TMNAbsRem( b1[1]+xT, Δ, b1, ib1)
+        @test zero(a) == TMNAbsRem(zero(a.pol), 0..0, b1, ib1)
+        @test one(a) == TMNAbsRem(one(a.pol), 0..0, b1, ib1)
         @test a + a == TMNAbsRem(2*(b1[1]+ xT), 2*Δ, b1, ib1)
         @test -a == TMNAbsRem( -(b1[1]+xT), -Δ, b1, ib1)
         @test a - a == TMNAbsRem(zero(a.pol), 2*Δ, b1, ib1)
@@ -100,6 +105,18 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test rpa(x->5*x^4, xm) == TMNAbsRem(zero(xT), remT, b1, ib1)
         @test rpa(x->5*x^2, xm*ym) ==
                 TMNAbsRem( zero(xT), 5*(ib1[1]-b1[1])^4, b1, ib1)
+
+        # Testing remainders of an RPA
+        ftest = x -> exp(x)-1
+        tma = rpa(ftest, TMNAbsRem(xT+yT, zi, b1, ib1))
+        tmb = ftest(TMNAbsRem(xT+yT, zi, b1, ib1))
+        @test tma.pol == tmb.pol
+        # fT, Δ, ξ0 = rpafp(tma)
+        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
+        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        # for ind = 1:_num_tests
+        #     @test check_inclusion(ftest, tma)
+        # end
     end
 
     @testset "Composition of functions and their inverses" begin
