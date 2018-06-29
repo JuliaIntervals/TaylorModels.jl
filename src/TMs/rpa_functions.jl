@@ -1,5 +1,10 @@
 # rpa_functions.jl
 
+# α_mid=0.484375 is used to preferentially round-down the mid point
+# when the mid point is not exactly representable. Use for conversion
+const α_mid = 0.484375 # corrsponds to 31/64; to preferentiably round down
+
+
 """
    _rpaar(f::Function, x0::Interval, ii::Interval, _order::Int)
 
@@ -161,61 +166,52 @@ end
 
 
 """
-    rpafp(tm::TM1AbsRem{T})
-    rpafp(tm::TM1RelRem{T})
+    fp_rpa(tm::TM1AbsRem{Interval{T},T})
+    fp_rpa(tm::TM1RelRem{Interval{T},T})
 
-Convert a `tm` TaylorModel to a T-type RPA. It returns the `Taylor1{T}`
-polynomial, the accumulated (absolute or relative) error `Δ::Interval{S}`,
-and `ξ0` which is
-the mid point about which the expansion is obtained. If ξ0 is not exactly
-representable, it returns *preferentiably* a rounded-down value.
-This function is primarily used for plotting.
+Convert a `tm` TaylorModel to a TaylorModel whose polynomial coefficients
+of type `T<:Real`. The accumulated error is added to the remainder. The
+mid point of the expansion interval is preferentially rounded down
+if it is not an exactly representable value.
 
 """
-function rpafp(tm::TM1AbsRem{Interval{T},T}) where {T}
+function fp_rpa(tm::TM1AbsRem{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
     ii = tm.iI
     order = get_order(tm)
-
-    # α=0.484375 is used to get preferentially round-down of the mid point
-    # when the mid point is not exactly representable
-    α = 0.484375
-    ξ0 = mid(x0, α)
+    ξ0 = mid(x0, α_mid)
 
     b = Taylor1(Interval{T}, order)
     t = Taylor1(T, order)
     for ind=0:order
-        t[ind] = mid(fT[ind], α)
+        t[ind] = mid(fT[ind], α_mid)
         b[ind] = fT[ind] - Interval(t[ind])
     end
     δ = b(ii-x0)
     Δ = Δ + δ
-    return t, Δ, ξ0
+    return TM1AbsRem(t, Δ, x0, ii)
 end
 
-function rpafp(tm::TM1RelRem{Interval{T},T}) where {T}
+function fp_rpa(tm::TM1RelRem{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
     ii = tm.iI
     order = get_order(tm)
-
-    # α=0.484375 is used to get preferentially round-down of the mid point
-    # when the mid point is not exactly representable
-    α = 0.484375
-    ξ0 = mid(x0, α)
+    ξ0 = mid(x0, α_mid)
 
     b = Taylor1(Interval{T}, order)
     t = Taylor1(T, order)
     for ind=0:order
-        t[ind] = mid(fT[ind], α)
+        t[ind] = mid(fT[ind], α_mid)
         b[ind] = fT[ind] - Interval(t[ind])
     end
     δ = b(ii-x0)
     # Is the following correct for TM1RelRem?
-    return t, Δ, ξ0, δ
+    Δ = Δ + δ
+    return TM1RelRem(t, Δ, x0, ii)
 end
 
 

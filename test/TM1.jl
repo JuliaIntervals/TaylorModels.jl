@@ -4,6 +4,7 @@ using TaylorModels
 using TaylorSeries, IntervalArithmetic
 
 const _num_tests = 1000
+const α_mid = TaylorModels.α_mid
 
 if VERSION < v"0.7.0-DEV.2004"
     using Base.Test
@@ -106,9 +107,10 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -120,9 +122,10 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -134,9 +137,10 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -148,9 +152,10 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -162,9 +167,10 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
-                        ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
+                        ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -266,6 +272,23 @@ end
             @test check_containment(atan, integ_res)
         end
     end
+
+    @testset "Display" begin
+        tm = TM1AbsRem(2, x1, ii1)
+        use_show_default(true)
+        @test string(exp(tm)) == "TaylorModels.TM1AbsRem{IntervalArithmetic.Interval{Float64},Float64}" *
+            "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
+            "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+            "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677582, 0.06448109909211741), " *
+            "Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        use_show_default(false)
+        @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
+            "Interval(3.0, 3.0) t²  ± Interval(-0.125, 0.125)"
+        @test string(exp(tm)) == " Interval(2.718281828459045, 2.7182818284590455) + " *
+            "Interval(2.718281828459045, 2.7182818284590455) t + " *
+            "Interval(1.3591409142295225, 1.3591409142295228) t²  ± " *
+            "Interval(-0.05020487208677582, 0.06448109909211741)"
+    end
 end
 
 @testset "Tests for TM1RelRem " begin
@@ -337,9 +360,11 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -351,9 +376,11 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -365,9 +392,11 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -379,9 +408,11 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -393,9 +424,11 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
-                        ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
+                        ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -496,5 +529,21 @@ end
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
         end
+    end
+
+    @testset "Display" begin
+        tm = TM1RelRem(3, x1, ii1)
+        use_show_default(true)
+        @test string(exp(tm)) == "TaylorModels.TM1RelRem{IntervalArithmetic.Interval{Float64},Float64}" *
+            "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
+            "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+            "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *
+            "Interval(0.10281598943126724, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        use_show_default(false)
+        @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
+            "Interval(3.0, 3.0) t² + Interval(1.0, 1.0) t³ ± Interval(0.0, 0.0) t⁴"
+        @test string(exp(tm)) == " Interval(2.718281828459045, 2.7182818284590455) + " *
+            "Interval(2.718281828459045, 2.7182818284590455) t + Interval(1.3591409142295225, 1.3591409142295228) t² + " *
+            "Interval(0.45304697140984085, 0.45304697140984096) t³ ± Interval(0.10281598943126724, 0.1256036426541982) t⁴"
     end
 end

@@ -167,7 +167,6 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
-
     end
 
     @testset "Composition of functions and their inverses" begin
