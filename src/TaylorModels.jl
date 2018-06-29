@@ -11,6 +11,7 @@ setformat(:full)
 import Base: setindex!,
     ==, +, -, *, /, ^,
     zero, one, findfirst, #iszero,
+    promote, promote_type,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 
@@ -27,6 +28,7 @@ export TM1AbsRem, TM1RelRem, TMNAbsRem,
 
 
 include("TMs/constructors.jl")
+include("TMs/promotion.jl")
 include("TMs/bounds.jl")
 include("TMs/rpa_functions.jl")
 include("TMs/arithmetic.jl")

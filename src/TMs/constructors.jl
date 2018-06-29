@@ -1,7 +1,7 @@
 # constructors.jl
 
 const tupleTMs = (:TM1AbsRem, :TM1RelRem)
-const NumberNotSeries = TaylorSeries.TaylorSeries.NumberNotSeries
+const NumberNotSeries = TaylorSeries.NumberNotSeries
 
 #=
 Structs `TM1AbsRem{T}` and `TM1RelRem{T}` are essentially identical, except
