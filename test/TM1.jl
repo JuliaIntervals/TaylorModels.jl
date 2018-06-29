@@ -13,7 +13,7 @@ else
     eeuler = Base.MathConstants.e
 end
 
-function check_inclusion(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
+function check_containment(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
     ii = tma.iI
     xfp = diam(tma.iI)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
@@ -89,6 +89,8 @@ end
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), TM1AbsRem(4, x0, ii0)) ==
             TM1AbsRem(interval(5.0), 4, x0, ii0)
+        @test rpa(x->5+one(x), TM1AbsRem(4, x1, ii1)) ==
+            TM1AbsRem(5+x1, 4, x1, ii1)
         @test rpa(x->5*x, TM1AbsRem(4, x1, ii1)) ==
             TM1AbsRem(5.0*(x1+Taylor1(4)), x0, x1, ii1)
         @test rpa(x->5*x^4, TM1AbsRem(4, x0, ii0)) ==
@@ -108,7 +110,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -122,7 +124,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 3
@@ -136,7 +138,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -150,7 +152,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 5
@@ -164,7 +166,7 @@ end
         @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
                         ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
@@ -176,7 +178,7 @@ end
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
     end
 
@@ -237,7 +239,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(exp, integ_res)
+            @test check_containment(exp, integ_res)
         end
 
         integ_res = integrate(cos(tm))
@@ -245,7 +247,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(sin, integ_res)
+            @test check_containment(sin, integ_res)
         end
 
         integ_res = integrate(-sin(tm), 1..1)
@@ -253,7 +255,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(cos, integ_res)
+            @test check_containment(cos, integ_res)
         end
 
         integ_res = integrate(1/(1+tm^2))
@@ -261,7 +263,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         # @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(atan, integ_res)
+            @test check_containment(atan, integ_res)
         end
     end
 end
@@ -339,7 +341,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -353,7 +355,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 3
@@ -367,7 +369,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -381,7 +383,7 @@ end
         @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
                         ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 5
@@ -395,7 +397,7 @@ end
         @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
                         ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
@@ -407,7 +409,7 @@ end
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
     end
 
@@ -468,7 +470,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(exp, integ_res)
+            @test check_containment(exp, integ_res)
         end
 
         integ_res = integrate(cos(tm))
@@ -476,7 +478,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(sin, integ_res)
+            @test check_containment(sin, integ_res)
         end
 
         integ_res = integrate(-sin(tm), 1..1)
@@ -484,7 +486,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(cos, integ_res)
+            @test check_containment(cos, integ_res)
         end
 
         integ_res = integrate(1/(1+tm^2))
@@ -492,7 +494,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         # @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(atan, integ_res)
+            @test check_containment(atan, integ_res)
         end
     end
 end

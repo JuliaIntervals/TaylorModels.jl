@@ -13,13 +13,13 @@ else
     eeuler = Base.MathConstants.e
 end
 
-function check_inclusion(ftest, tma::TMNAbsRem)
-    ii = tma.iI
-    xfp = diam(tma.iI)*(rand()-0.5) + mid(tma.x0)
-    xbf = big(xfp)
-    range = tma(@interval(xfp)-tma.x0)
-    bb = ftest(xbf) ∈ range
-    bb || @show(ftest, xfp, xbf, ftest(xbf), range)
+function check_containment(ftest, xx::TMNAbsRem{N,T,S}, tma::TMNAbsRem{N,T,S}) where {N,T,S}
+    xfp = diam.(tma.iI) .* (rand(N)-0.5) .+ mid(tma.x0)
+    xbf = [big(xfp[i]) for i=1:N]
+    ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
+    range = evaluate(tma, ib-tma.x0)
+    bb = all(ftest(xx(xbf .- mid(tma.x0))) ∈ range)
+    bb || @show(ftest, ib, xbf, ftest(xbf...), range)
     return bb
 end
 
@@ -96,27 +96,29 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
     end
 
     @testset "RPAs, functions and remainders" begin
-        xm = TMNAbsRem(xT, zi, b1, ib1)
-        ym = TMNAbsRem(yT, zi, b1, ib1)
+        xm = TMNAbsRem(1, _order, b1, ib1)
+        ym = TMNAbsRem(2, _order, b1, ib1)
 
         @test rpa(x->5+zero(x), xm) == 5+zero(xm)
+        @test rpa(x->5+one(x), ym) == 5+one(ym)
         @test rpa(x->5*x, ym) == 5*ym
         remT = remainder(5*TM1AbsRem(2, b1[1], ib1[1])^4)
         @test rpa(x->5*x^4, xm) == TMNAbsRem(zero(xT), remT, b1, ib1)
-        @test rpa(x->5*x^2, xm*ym) ==
-                TMNAbsRem( zero(xT), 5*(ib1[1]-b1[1])^4, b1, ib1)
+        remT = 5 * (ib1[1]-b1[1])^2 * (2*(ib1[2]-b1[2])+(ib1[2]-b1[2])^2)
+        @test rpa(x->5*x^2, xm*ym) == TMNAbsRem( 5*xT^2, remT, b1, ib1)
 
         # Testing remainders of an RPA
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, TMNAbsRem(xT+yT, zi, b1, ib1))
-        tmb = ftest(TMNAbsRem(xT+yT, zi, b1, ib1))
+        xx = xm + ym
+        tma = rpa(ftest, xx)
+        tmb = ftest(xx)
         @test tma.pol == tmb.pol
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
-        # for ind = 1:_num_tests
-        #     @test check_inclusion(ftest, tma)
-        # end
+        for ind = 1:_num_tests
+            @test check_containment(ftest, xx, tma)
+        end
     end
 
     @testset "Composition of functions and their inverses" begin
