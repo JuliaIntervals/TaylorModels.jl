@@ -112,13 +112,62 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xx = xm + ym
         tma = rpa(ftest, xx)
         tmb = ftest(xx)
-        @test tma.pol == tmb.pol
+        @test tma == tmb
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+
+        ftest = x -> exp(x)
+        xx = xm + 2*ym
+        tma = rpa(ftest, xx)
+        tmb = ftest(xx)
+        @test tma == tmb
+        # fT, Δ, ξ0 = rpafp(tma)
+        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
+        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        for ind = 1:_num_tests
+            @test check_containment(ftest, xx, tma)
+        end
+
+        ftest = x -> sin(x)
+        xx = 1- xm^2 + ym
+        tma = rpa(ftest, xx)
+        tmb = ftest(xx)
+        @test tma == tmb
+        # fT, Δ, ξ0 = rpafp(tma)
+        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
+        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        for ind = 1:_num_tests
+            @test check_containment(ftest, xx, tma)
+        end
+
+        ftest = x -> sqrt(x)
+        xx = xm^2 + ym
+        tma = rpa(ftest, xx)
+        tmb = ftest(xx)
+        @test tma == tmb
+        # fT, Δ, ξ0 = rpafp(tma)
+        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
+        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        for ind = 1:_num_tests
+            @test check_containment(ftest, xx, tma)
+        end
+
+        ftest = x -> inv(x)
+        xx = 1 + xm + ym
+        tma = rpa(ftest, xx)
+        tmb = ftest(xx)
+        @test tma == tmb
+        # fT, Δ, ξ0 = rpafp(tma)
+        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
+        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        for ind = 1:_num_tests
+            @test check_containment(ftest, xx, tma)
+        end
+
     end
 
     @testset "Composition of functions and their inverses" begin
