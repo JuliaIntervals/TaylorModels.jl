@@ -283,10 +283,10 @@ end
             "Interval(1.0, 1.0), Interval(0.5, 1.5))"
         use_show_default(false)
         @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
-            "Interval(3.0, 3.0) t²  ± Interval(-0.125, 0.125)"
+            "Interval(3.0, 3.0) t² + Interval(-0.125, 0.125)"
         @test string(exp(tm)) == " Interval(2.718281828459045, 2.7182818284590455) + " *
             "Interval(2.718281828459045, 2.7182818284590455) t + " *
-            "Interval(1.3591409142295225, 1.3591409142295228) t²  ± " *
+            "Interval(1.3591409142295225, 1.3591409142295228) t² + " *
             "Interval(-0.05020487208677582, 0.06448109909211741)"
     end
 end
@@ -541,9 +541,9 @@ end
             "Interval(0.10281598943126724, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"
         use_show_default(false)
         @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
-            "Interval(3.0, 3.0) t² + Interval(1.0, 1.0) t³ ± Interval(0.0, 0.0) t⁴"
+            "Interval(3.0, 3.0) t² + Interval(1.0, 1.0) t³ + Interval(0.0, 0.0) t⁴"
         @test string(exp(tm)) == " Interval(2.718281828459045, 2.7182818284590455) + " *
             "Interval(2.718281828459045, 2.7182818284590455) t + Interval(1.3591409142295225, 1.3591409142295228) t² + " *
-            "Interval(0.45304697140984085, 0.45304697140984096) t³ ± Interval(0.10281598943126724, 0.1256036426541982) t⁴"
+            "Interval(0.45304697140984085, 0.45304697140984096) t³ + Interval(0.10281598943126724, 0.1256036426541982) t⁴"
     end
 end

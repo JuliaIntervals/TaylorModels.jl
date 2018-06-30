@@ -9,25 +9,17 @@ function show(io::IO, a::Union{TM1AbsRem, TM1RelRem, TMNAbsRem})
     end
 end
 
-for T in (:TM1AbsRem, :TMNAbsRem)
+for T in (:TM1AbsRem, :TMNAbsRem, :TM1RelRem)
     @eval function pretty_print(a::$T)
         _bigOnotation = TaylorSeries.bigOnotation[end]
         _bigOnotation && TaylorSeries.displayBigO(false)
-        if $T == :TM1AbsRem
-            strout = string(a.pol) * "± " * string(a.rem)
-        else
-            strout = string(a.pol) * " ± " * string(a.rem)
+        strout = $T == TMNAbsRem ?
+            string(a.pol, " + ", a.rem) : string(a.pol, "+ ", a.rem)
+        if $T == TM1RelRem
+            _order = get_order(a)
+            strout = strout * " t" * TaylorSeries.superscriptify(_order+1)
         end
         _bigOnotation && TaylorSeries.displayBigO(true)
         strout
     end
-end
-
-function pretty_print(a::TM1RelRem)
-    _bigOnotation = TaylorSeries.bigOnotation[end]
-    _bigOnotation && TaylorSeries.displayBigO(false)
-    _order = get_order(a)
-    strout = string(a.pol) * "± " * string(a.rem) * " t" * TaylorSeries.superscriptify(_order+1)
-    _bigOnotation && TaylorSeries.displayBigO(true)
-    strout
 end

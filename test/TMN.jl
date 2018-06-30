@@ -215,4 +215,26 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test tmb == acos(cos(1+ym))
         @test sup(norm(tmb.pol - (1+ym).pol, Inf)) < 1.0e-15
     end
+
+    @testset "Display" begin
+        xm = TMNAbsRem(1, _order, b1, ib1)
+        ym = TMNAbsRem(2, _order, b1, ib1)
+        use_show_default(true)
+        @test string(xm+ym) == "TaylorModels.TMNAbsRem{2,IntervalArithmetic.Interval{Float64},Float64}" *
+            "(TaylorSeries.TaylorN{IntervalArithmetic.Interval{Float64}}" *
+            "(TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
+            "[TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
+            "(IntervalArithmetic.Interval{Float64}[Interval(1.0, 1.0)], 0), " *
+            "TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
+            "(IntervalArithmetic.Interval{Float64}[Interval(1.0, 1.0), Interval(1.0, 1.0)], 1), " *
+            "TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
+            "(IntervalArithmetic.Interval{Float64}[Interval(0.0, 0.0), Interval(0.0, 0.0), " *
+            "Interval(0.0, 0.0)], 2)], 2), Interval(0.0, 0.0), IntervalBox(Interval(0.0, 0.0), " *
+            "Interval(1.0, 1.0)), IntervalBox(Interval(-0.5, 0.5), Interval(0.5, 1.5)))"
+        use_show_default(false)
+        @test string((xm+ym)^2) == " Interval(1.0, 1.0) + Interval(2.0, 2.0) x + " *
+            "Interval(2.0, 2.0) y + Interval(1.0, 1.0) x² + Interval(2.0, 2.0) x y + " *
+            "Interval(1.0, 1.0) y² + Interval(0.0, 0.0)"
+    end
+
 end
