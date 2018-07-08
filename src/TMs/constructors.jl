@@ -41,8 +41,9 @@ for TM in tupleTMs
             iI::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(iI), x0, iI)
 
         # Functions to retrieve the order and remainder
-        get_order(tm::$TM) = tm.pol.order
+        get_order(tm::$TM) = get_order(tm.pol)
         remainder(tm::$TM) = tm.rem
+        polynomial(tm::$TM) = tm.pol
     end
 end
 
@@ -107,3 +108,4 @@ TMNAbsRem(a::Interval{T}, ord::Int, x0::IntervalBox{N,T}, iI::IntervalBox{N,T}) 
 # Functions to retrieve the order and remainder
 get_order(tm::TMNAbsRem) = tm.pol.order
 remainder(tm::TMNAbsRem) = tm.rem
+polynomial(tm::TMNAbsRem) = tm.pol
