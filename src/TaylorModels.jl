@@ -24,7 +24,7 @@ export Taylor1Model, bound, make_Taylor_model, TMcomposition,
         calculate_set, Taylor_step
 
 export TM1AbsRem, TM1RelRem, TMNAbsRem,
-    remainder,
+    remainder, polynomial, 
     rpa, fp_rpa, boundarem, boundrrem
 
 
