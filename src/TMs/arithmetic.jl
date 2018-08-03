@@ -178,7 +178,7 @@ one(a::TMNAbsRem) = TMNAbsRem(one(a.pol), zero(a.rem), a.x0, a.iI)
 
 # iszero(a::TMNAbsRem) = iszero(a.pol) && iszero(zero(a.rem))
 
-# findfirst(a::TMNAbsRem) = findfirst(a.pol)
+findfirst(a::TMNAbsRem) = findfirst(a.pol)
 
 ==(a::TMNAbsRem, b::TMNAbsRem) =
     a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
