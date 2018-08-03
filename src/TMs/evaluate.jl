@@ -4,7 +4,7 @@
 
 for TM in tupleTMs
     # Evaluates the TM1{T,S} at a::T; the computation includes the remainder
-    @eval function evaluate(tm::$TM{T,S}, a::T) where {T,S}
+    @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
         _order = get_order(tm)
 
         if $(TM) == TM1AbsRem
@@ -16,7 +16,7 @@ for TM in tupleTMs
         return tm.pol(a) + Δ
     end
 
-    @eval (tm::$TM{T,S})(a::T) where {T,S} = evaluate(tm, a)
+    @eval (tm::$TM{T,S})(a) where {T,S} = evaluate(tm, a)
 
 
     # _evaluate corresponds to composition: substitute tmf into tmg
