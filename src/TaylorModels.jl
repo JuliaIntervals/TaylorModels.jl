@@ -11,7 +11,7 @@ setformat(:full)
 import Base: setindex!,
     ==, +, -, *, /, ^,
     zero, one, findfirst, #iszero,
-    promote, promote_type, show,
+    promote, show,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 
@@ -24,7 +24,7 @@ export Taylor1Model, bound, make_Taylor_model, TMcomposition,
         calculate_set, Taylor_step
 
 export TM1AbsRem, TM1RelRem, TMNAbsRem,
-    remainder, polynomial, 
+    remainder, polynomial,
     rpa, fp_rpa, boundarem, boundrrem
 
 
