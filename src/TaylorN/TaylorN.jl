@@ -43,6 +43,17 @@ include("integrate.jl")
 import Base.copy
 copy(f::TaylorNModel) = TaylorNModel(f.n, f.x0, f.I, copy(f.p), f.Δ, copy(f.order_bounds))
 
+import Base.show
+function show(io::IO, f::TaylorNModel)
+    print(io,
+    """Taylor model of degree $(f.n):
+       - x0: $(f.x0)
+       - I: $(f.I)
+       - p: $(f.p)
+       - Δ: $(f.Δ)
+    """
+    )
+end
 
 # Taylor1Model for a constant:
 # Taylor1Model(n::Int, x0, I, c::T) where {T<:AbstractFloat} = Taylor1Model{T}(n, x0, I, Taylor1{Interval{T}}(c), Interval{T}(0), [])
