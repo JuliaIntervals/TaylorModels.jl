@@ -35,6 +35,28 @@ end
 integrate(a::TM1RelRem{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
 
 
+function integrate(a::TM1AbsRem{TMNAbsRem{N,Interval{T},S}}) where {N,T,S}
+    order = get_order(a)
+    aa = a.pol[0] / 1
+    coeffs = Array{typeof(aa)}(order+1)
+    fill!(coeffs, zero(aa))
+    @inbounds for i = 1:order
+        coeffs[i+1] = a.pol[i-1] / i
+    end
+    aux = (a.iI-a.x0)
+    δTMN = a.pol[order](a.pol[order].iI-a.pol[order].x0) + remainder(a.pol[order])
+    Δ = aux * remainder(a) +  δTMN * aux^(order+1) / (order+1)
+    return TM1AbsRem( Taylor1(coeffs, order), Δ, a.x0, a.iI )
+end
+function integrate(a::TM1AbsRem{TMNAbsRem{N,Interval{T},S}},
+        c0::TMNAbsRem{N,Interval{T},S}) where {N,T,S}
+    res = integrate(a)
+    res.pol[0] = c0
+    return res
+end
+
+
+
 """
     picard_lindelöf(f, tm::T, xm::T, x0::Interval)
     𝒫(f, tm::T, xm::T, x0::Interval)
