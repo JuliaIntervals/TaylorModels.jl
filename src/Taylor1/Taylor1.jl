@@ -30,6 +30,18 @@ include("integrate.jl")
 include("draw.jl")
 
 
+import Base.show
+function show(io::IO, f::Taylor1Model)
+    print(io,
+    """Taylor1 model of degree $(f.n):
+       - x0: $(f.x0)
+       - I: $(f.I)
+       - p: $(f.p)
+       - Δ: $(f.Δ)
+    """
+    )
+end
+
 
 # Taylor1Model for a constant:
 # Taylor1Model(n::Int, x0, I, c::T) where {T<:AbstractFloat} = Taylor1Model{T}(n, x0, I, Taylor1{Interval{T}}(c), Interval{T}(0), [])
