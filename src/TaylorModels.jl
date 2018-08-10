@@ -1,23 +1,49 @@
 module TaylorModels
 
-using IntervalArithmetic, TaylorSeries
+using Reexport
+@reexport using TaylorSeries, IntervalArithmetic
+using IntervalRootFinding
 using RecipesBase
 
-const Interval = IntervalArithmetic.Interval
-import TaylorSeries.integrate
 
-import Base: exp, sin, inv, cos, identity, +, *, /, ^, -
+setformat(:full)
+
+import Base: setindex!,
+    ==, +, -, *, /, ^,
+    zero, one, findfirst, #iszero,
+    promote, show,
+    inv, sqrt, exp, log, sin, cos, tan,
+    asin, acos, atan, sinh, cosh, tanh
+
+import TaylorSeries: integrate, get_order, evaluate,
+    pretty_print
+
 
 export Taylor1Model, bound, make_Taylor_model, TMcomposition,
         taylor1_var, integrate, degree,
         calculate_set, Taylor_step
 
+
 export TaylorNModel
 
+export TM1AbsRem, TM1RelRem, TMNAbsRem,
+    remainder, polynomial,
+    rpa, fp_rpa, boundarem, boundrrem
 
-import Base: setindex!
+
+
+include("TMs/constructors.jl")
+include("TMs/promotion.jl")
+include("TMs/bounds.jl")
+include("TMs/evaluate.jl")
+include("TMs/rpa_functions.jl")
+include("TMs/arithmetic.jl")
+include("TMs/integration.jl")
+include("TMs/recipe.jl")
+include("TMs/show.jl")
 
 include("Taylor1/Taylor1.jl")
 include("TaylorN/TaylorN.jl")
 
-end
+
+end # module

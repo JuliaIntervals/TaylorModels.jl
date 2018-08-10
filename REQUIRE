@@ -1,1 +1,6 @@
 julia 0.6
+Reexport v0.1.0
+TaylorSeries v0.7.4
+IntervalArithmetic v0.13.0
+IntervalRootFinding v0.2.0
+RecipesBase
