@@ -35,9 +35,9 @@ function show(io::IO, f::Taylor1Model)
     print(io,
     """Taylor1 model of degree $(f.n):
        - x0: $(f.x0)
-       - I: $(f.I)
+       - I:  $(f.I)
        - p: $(f.p)
-       - Δ: $(f.Δ)
+       - Δ:  $(f.Δ)
     """
     )
 end

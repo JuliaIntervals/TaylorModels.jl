@@ -17,15 +17,18 @@ function -(f::Taylor1Model, g::Taylor1Model)
 end
 
 function +(α::Real, f::Taylor1Model)
-    g = copy(f)
+    g = deepcopy(f)
 
     g.p[0] += (α..α)
 
     return g
 end
 
++(f::Taylor1Model, α::Real)= α + f
+
 -(f::Taylor1Model) = (-1 * f)
 -(α::Real, f::Taylor1Model) = α + (-f)
+-(f::Taylor1Model, α::Real) = f + (-α)
 
 
 *(α::Real, f::Taylor1Model) = Taylor1Model(f.n, f.x0, f.I, Taylor1(α*f.p), (α..α)*f.Δ)
