@@ -19,6 +19,7 @@ end
 
 -(f::Taylor1Model) = (-1 * f)
 -(α::Real, f::Taylor1Model) = α + (-f)
+-(f::Taylor1Model, α::Real) = f + (-α)
 
 
 *(α::Real, f::Taylor1Model) = Taylor1Model(f, α*f.p, α*f.Δ)

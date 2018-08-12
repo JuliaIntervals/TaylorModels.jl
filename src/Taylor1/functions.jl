@@ -53,19 +53,16 @@ zero(::Type{Taylor1Model{T}}, n, x0, I::Interval{T}) where {T<:AbstractFloat} = 
 
 
 doc"""
-Evaluate a polynomial of a Taylor1Model.
-`b` are the coefficients of the Taylor1nomial.
+Evaluate a polynomial of a polynomial-like object (Taylor1Model, Taylor1) `f`.
+`a` are the coefficients of the polynomial, expressed as a `Taylor1`.
 """
-function poly_eval_of_TM(b, f, I::Interval{T}, x0, n) where {T<:AbstractFloat}
-
-    #M = Taylor1Model{T}(n, x0, I, Taylor1(zeros(n+1)), Interval{T}(0))
-    # M = zero(Taylor1Model{T}, n, x0, I)
+function evaluate_polynomial(a::Taylor1, f)
 
     M = zero(f)
 
-    for i in n:-1:0
-        M *= f
-        M.p[0] += b[i]  # add constant
+    # Horner method:
+    for i in degree(f):-1:0
+        M = (M * f) + a[i]
     end
 
     return M
@@ -75,23 +72,32 @@ doc"""
 Calculate the Taylor1Model of `(g∘f)` given a function `g` and a Taylor1Model `f`.
 """
 function TMcomposition(g, f::Taylor1Model)
-    x0, I, n = f.x0, f.I, f.n
+    #x0, I, n = f.x0, f.I, f.n
+    n = f.n
 
-    Bf = bound(f.p, x0, I)
-    a, Δf = f.p, f.Δ
+    f_of_x0 = f[0]
 
-    Mg = Taylor1Model(g, n, a[0], Bf + Δf)
+    # calculate interval for g: image of f
+    Bf = bound(f)  # Bf + Δf in Joldes thesis
+    #a, Δf = f.p, f.Δ
+
+    # location x0 for g is f(x0), which is first coefficient of expansion of f:
+
+
+    Mg = Taylor1Model(g, n, f_of_x0, Bf)
 
     b, Δg = Mg.p, Mg.Δ
 
-    a[0] = 0  # zero out first element
+    #f -= a[0]  #  now is f(x) - f(x0)
+    # a[0] = 0  # more efficient
 
-    M1 = Taylor1Model(n, x0, I, a, Δf)
-    M = poly_eval_of_TM(b, M1, I, x0, n)
+
+    M1 = f - f_of_x0  # f(x) - f(x0) # Taylor1Model(f, f.p - a[0], Δf)
+    M = evaluate_polynomial(b, M1)
 
     c, Δ = M.p, M.Δ
 
-    return Taylor1Model(n, x0, I, c, Δ+Δg)
+    return Taylor1Model(f, c, Δ+Δg)
 end
 
 

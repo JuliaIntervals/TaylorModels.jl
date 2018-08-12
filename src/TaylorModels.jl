@@ -6,7 +6,7 @@ using IntervalRootFinding
 using RecipesBase
 
 
-setformat(:full)
+# setformat(:full)
 
 import Base: setindex!,
     ==, +, -, *, /, ^,

@@ -2,17 +2,14 @@
 doc"""
 Compute a rigorous bound for a Taylor1Model.
 """
-function bound(f::Taylor1Model)
-    x0, I, p = f.x0, f.I, f.p
+bound(f::Taylor1Model) = bound(f, f.I)
 
-    B = zero(I)
-    n = degree(p)
-
-    for i = n:-1:0
-        B = B * (I - x0) + bound(p[i])
+function bound(f::Taylor1Model, I)
+    if !(I ⊆ f.I)
+        error("Cannot evaluate `Taylor1Model` on interval $I that is not included in interval of definition, $(f.I)")
     end
 
-    return B
+    return bound(f.p, f.x0, I) + f.Δ
 end
 
 function bound(p::Taylor1, x0, I)
