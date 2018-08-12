@@ -4,6 +4,10 @@ Compute a rigorous bound for a Taylor1Model.
 """
 bound(f::Taylor1Model) = bound(f, f.I)
 
+doc"""
+Compute a rigorous bound for a `Taylor1Model` `f` evaluated over the interval `I`.
+This interval must be a subset of `f.I`.
+"""
 function bound(f::Taylor1Model, I)
     if !(I ⊆ f.I)
         error("Cannot evaluate `Taylor1Model` on interval $I that is not included in interval of definition, $(f.I)")

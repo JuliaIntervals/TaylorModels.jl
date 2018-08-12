@@ -13,18 +13,14 @@ end
 
 taylor_coeff(::typeof(inv), i, x) = (-1)^i / (x^(i+1))
 
+taylor_coeffs(f, n, x0) = taylor_coeff.(f, 0:n, x0)
+
 doc"""
 Make a Taylor1Model for a given function over a given domain.
 """
 function Taylor1Model(f, n, x0, I)
 
-    #a = zeros(typeof(I), n+1)
-    a = taylor_coeff.(f, 0:n, x0)
-
-    # for i in 0:n
-    #     a[i+1] = taylor_coeff(f, i, x0)
-    # end
-
+    a = taylor_coeffs(f, n, x0)
     p = Taylor1(a)
 
     Γ = taylor_coeff(f, n+1, I)
@@ -48,9 +44,6 @@ function Taylor1Model(f, n, x0, I)
 end
 
 
-import Base.zero
-zero(::Type{Taylor1Model{T}}, n, x0, I::Interval{T}) where {T<:AbstractFloat} = Taylor1Model(n, x0, I, Taylor1{Interval{Float64}}(zeros(n+1)), Interval{T}(0))
-
 
 doc"""
 Evaluate a polynomial of a polynomial-like object (Taylor1Model, Taylor1) `f`.
@@ -72,32 +65,25 @@ doc"""
 Calculate the Taylor1Model of `(g∘f)` given a function `g` and a Taylor1Model `f`.
 """
 function TMcomposition(g, f::Taylor1Model)
-    #x0, I, n = f.x0, f.I, f.n
     n = f.n
 
-    f_of_x0 = f[0]
+    # centre ("x0") for g is f(x0), which is first coefficient of expansion of f:
+    f_of_x0 = f[0]  # constant_term(f.p)
 
     # calculate interval for g: image of f
-    Bf = bound(f)  # Bf + Δf in Joldes thesis
-    #a, Δf = f.p, f.Δ
-
-    # location x0 for g is f(x0), which is first coefficient of expansion of f:
-
+    Bf = bound(f)  # Bf + Δf in Joldes thesis; basically f(I)
 
     Mg = Taylor1Model(g, n, f_of_x0, Bf)
 
     b, Δg = Mg.p, Mg.Δ
 
-    #f -= a[0]  #  now is f(x) - f(x0)
-    # a[0] = 0  # more efficient
+    f_non_constant_part = [0; f.p[1:end]]  # f - f(x0)
 
+    M1 = Taylor1Model(f, f_non_constant_part, f.Δ)
 
-    M1 = f - f_of_x0  # f(x) - f(x0) # Taylor1Model(f, f.p - a[0], Δf)
     M = evaluate_polynomial(b, M1)
 
-    c, Δ = M.p, M.Δ
-
-    return Taylor1Model(f, c, Δ+Δg)
+    return Taylor1Model(M, M.Δ + Δg)   # same polynomial, different interval
 end
 
 
@@ -108,9 +94,7 @@ end
 
 
 function /(f::Taylor1Model, g::Taylor1Model)
-    @assert f.n == g.n
-    @assert f.x0 == g.x0
-    @assert f.I == g.I
+    @assert data(f) == data(g)
 
     M = f * inv(g)
 end

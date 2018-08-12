@@ -1,15 +1,13 @@
+data(f::Taylor1Model) = (f.n, f.x0, f.I)
+
 function +(f::Taylor1Model, g::Taylor1Model)
-    @assert f.n == g.n
-    @assert f.x0 == g.x0
-    @assert f.I == g.I
+    @assert data(f) == data(g)
 
     return Taylor1Model(f, f.p + g.p, f.Δ + g.Δ)
 end
 
 function -(f::Taylor1Model, g::Taylor1Model)
-    @assert f.n == g.n
-    @assert f.x0 == g.x0
-    @assert f.I == g.I
+    @assert data(f) == data(g)
 
     return Taylor1Model(f, f.p - g.p, f.Δ - g.Δ)
 end
@@ -21,14 +19,11 @@ end
 -(α::Real, f::Taylor1Model) = α + (-f)
 -(f::Taylor1Model, α::Real) = f + (-α)
 
-
 *(α::Real, f::Taylor1Model) = Taylor1Model(f, α*f.p, α*f.Δ)
 *(f::Taylor1Model, α::Real) = α * f
 
 function *(f::Taylor1Model, g::Taylor1Model)
-    @assert f.n == g.n
-    @assert f.x0 == g.x0
-    @assert f.I == g.I
+    @assert data(f) == data(g)
 
     n, x0, I = f.n, f.x0, f.I
 
