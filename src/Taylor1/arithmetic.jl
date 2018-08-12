@@ -1,11 +1,9 @@
-
-
 function +(f::Taylor1Model, g::Taylor1Model)
     @assert f.n == g.n
     @assert f.x0 == g.x0
     @assert f.I == g.I
 
-    return Taylor1Model(f.n, f.x0, f.I, f.p + g.p, f.Δ + g.Δ)
+    return Taylor1Model(f, f.p + g.p, f.Δ + g.Δ)
 end
 
 function -(f::Taylor1Model, g::Taylor1Model)
@@ -13,23 +11,18 @@ function -(f::Taylor1Model, g::Taylor1Model)
     @assert f.x0 == g.x0
     @assert f.I == g.I
 
-    return Taylor1Model(f.n, f.x0, f.I, f.p - g.p, f.Δ - g.Δ)
+    return Taylor1Model(f, f.p - g.p, f.Δ - g.Δ)
 end
 
-function +(α::Real, f::Taylor1Model)
-    g = copy(f)
-
-    g.p[0] += (α..α)
-
-    return g
-end
++(α::Real, f::Taylor1Model) = Taylor1Model(f, f.p + α, f.Δ)
++(f::Taylor1Model, α::Real)= α + f
 
 -(f::Taylor1Model) = (-1 * f)
 -(α::Real, f::Taylor1Model) = α + (-f)
 
 
-*(α::Real, f::Taylor1Model) = Taylor1Model(f.n, f.x0, f.I, Taylor1(α*f.p), (α..α)*f.Δ)
-
+*(α::Real, f::Taylor1Model) = Taylor1Model(f, α*f.p, α*f.Δ)
+*(f::Taylor1Model, α::Real) = α * f
 
 function *(f::Taylor1Model, g::Taylor1Model)
     @assert f.n == g.n
@@ -37,7 +30,6 @@ function *(f::Taylor1Model, g::Taylor1Model)
     @assert f.I == g.I
 
     n, x0, I = f.n, f.x0, f.I
-
 
     c = zeros(eltype(g.p), 2n+1)
 
@@ -56,10 +48,10 @@ function *(f::Taylor1Model, g::Taylor1Model)
 
     B = bound(Taylor1(d), x0, I)
     Bf = bound(a, x0, I)
-    Bg = bound(b, x0, I)   
+    Bg = bound(b, x0, I)
 
     Δ = B + (f.Δ * Bg) + (g.Δ * Bf) + (f.Δ * g.Δ)
 
-    return Taylor1Model(n, f.x0, f.I, Taylor1(c[1:n+1]), Δ)
+    return Taylor1Model(f, Taylor1(c[1:n+1]), Δ)
 
 end

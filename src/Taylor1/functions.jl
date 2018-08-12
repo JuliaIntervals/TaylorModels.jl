@@ -16,13 +16,14 @@ taylor_coeff(::typeof(inv), i, x) = (-1)^i / (x^(i+1))
 doc"""
 Make a Taylor1Model for a given function over a given domain.
 """
-function make_Taylor_model(f, n, x0, I::Interval{T}) where T
+function Taylor1Model(f, n, x0, I)
 
-    a = zeros(typeof(I), n+1)
+    #a = zeros(typeof(I), n+1)
+    a = taylor_coeff.(f, 0:n, x0)
 
-    for i in 0:n
-        a[i+1] = taylor_coeff(f, i, x0)
-    end
+    # for i in 0:n
+    #     a[i+1] = taylor_coeff(f, i, x0)
+    # end
 
     p = Taylor1(a)
 
@@ -58,7 +59,9 @@ Evaluate a polynomial of a Taylor1Model.
 function poly_eval_of_TM(b, f, I::Interval{T}, x0, n) where {T<:AbstractFloat}
 
     #M = Taylor1Model{T}(n, x0, I, Taylor1(zeros(n+1)), Interval{T}(0))
-    M = zero(Taylor1Model{T}, n, x0, I)
+    # M = zero(Taylor1Model{T}, n, x0, I)
+
+    M = zero(f)
 
     for i in n:-1:0
         M *= f
@@ -77,7 +80,7 @@ function TMcomposition(g, f::Taylor1Model)
     Bf = bound(f.p, x0, I)
     a, Δf = f.p, f.Δ
 
-    Mg = make_Taylor_model(g, n, a[0], Bf + Δf)
+    Mg = Taylor1Model(g, n, a[0], Bf + Δf)
 
     b, Δg = Mg.p, Mg.Δ
 

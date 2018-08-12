@@ -22,12 +22,22 @@ struct Taylor1Model{T,S}
     Δ::Interval{T}   # interval remainder bound
 end
 
+# convenience constructors with same n, x0, I:
+Taylor1Model(f, p, Δ) = Taylor1Model(f.n, f.x0, f.I, p, Δ)
+Taylor1Model(f, Δ) = Taylor1Model(f.n, f.x0, f.I, f.p, Δ)
+Taylor1Model(n, x0, I, p::Vector, Δ) = Taylor1Model(n, x0, I, Taylor1(p), interval(Δ))
+
+
 include("arithmetic.jl")
 include("functions.jl")
 include("bound.jl")
 
 include("integrate.jl")
 include("draw.jl")
+
+
+
+zero(f::Taylor1Model{T}) where T = zero(Taylor1Model{T}, f.n, f.x0, f.I)
 
 
 
