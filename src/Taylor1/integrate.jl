@@ -11,8 +11,7 @@ function integrate(f::Taylor1Model, x0=0)
 
     Δ = integral_bound(f)
 
-    g = Taylor1Model(f.n, f.x0, f.I, p2, Δ)
-    g.p[0] = x0  # constant term
+    g = Taylor1Model(f, [0; p2[1:end]], Δ)
 
     return g
 
@@ -20,7 +19,7 @@ end
 
 
 function integral_bound(f::Taylor1Model)
-    n = degree(f.p)
+    n = f.n
     high_order_term = f.p[n]
 
     coeff = bound(high_order_term)
