@@ -28,7 +28,10 @@ function integral_bound(f::Taylor1Model)
     return ((coeff * power) + f.Δ) * diam(f.I)
 end
 
-
+"""
+fs is an array of functions
+This works in 2 variables currently.
+"""
 function Taylor_step(fs, n, u0, v0, t_interval)
 
     u = u0

@@ -24,6 +24,9 @@ export Taylor1Model, bound, make_Taylor_model, TMcomposition,
 export TM1AbsRem, TM1RelRem, remainder,
     rpa, rpafp, boundarem, boundrrem
 
+export TaylorNModel
+
+
 
 include("TMs/constructors.jl")
 include("TMs/bounds.jl")
@@ -33,6 +36,7 @@ include("TMs/integration.jl")
 include("TMs/recipe.jl")
 
 include("Taylor1/Taylor1.jl")
+include("TaylorN/TaylorN.jl")
 
 
 end # module
