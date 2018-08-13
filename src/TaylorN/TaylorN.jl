@@ -33,6 +33,10 @@ end
 
 TaylorNModel(n, x0, I::IntervalBox{N,T}, p) where {N,T} =  TaylorNModel(n, x0, I, p, Interval{T}(0))
 
+# convenience constructors
+TaylorNModel(f, p, Δ) = TaylorNModel(f.n, f.x0, f.I, p, Δ)
+TaylorNModel(f, Δ) = TaylorNModel(f.n, f.x0, f.I, f.p, Δ)
+
 include("arithmetic.jl")
 # include("functions.jl")
 # include("bound.jl")
@@ -54,13 +58,3 @@ function show(io::IO, f::TaylorNModel)
     """
     )
 end
-
-# Taylor1Model for a constant:
-# Taylor1Model(n::Int, x0, I, c::T) where {T<:AbstractFloat} = Taylor1Model{T}(n, x0, I, Taylor1{Interval{T}}(c), Interval{T}(0), [])
-#
-# Taylor1Model(n::Int, x0, I) = Taylor1Model{Float64}(n, x0, I, Taylor1{Interval{Float64}}([0.0, 1.0]), Interval{Float64}(0.0))
-#
-
-#Taylor1Model(n::Int, x0::Interval{T}, I::Interval{T}, p::Taylor1{S}, Δ::Interval{T}) where {T, S} = Taylor1Model{T, S}(n, x0, I, p, Δ)
-
-# Taylor1Model for a variable:

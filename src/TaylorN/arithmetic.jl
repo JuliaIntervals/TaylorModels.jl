@@ -1,18 +1,15 @@
 
+data(f::TaylorNModel) = (f.n, f.x0, f.I)
 
 function +(f::TaylorNModel, g::TaylorNModel)
-    @assert f.n == g.n
-    @assert f.x0 == g.x0
-    @assert f.I == g.I
+    @assert data(f) == data(g)
 
     return TaylorNModel(f.n, f.x0, f.I, f.p + g.p, f.Δ + g.Δ, f.order_bounds
      + g.order_bounds)
 end
 
 function -(f::TaylorNModel, g::TaylorNModel)
-    @assert f.n == g.n
-    @assert f.x0 == g.x0
-    @assert f.I == g.I
+    @assert data(f) == data(g)
 
     return TaylorNModel(f.n, f.x0, f.I, f.p - g.p, f.Δ - g.Δ, f.order_bounds
      - g.order_bounds)
