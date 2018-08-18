@@ -3,11 +3,9 @@ module TaylorModels
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
 # Use current master (until next tag) of IntervalRootFinding
-using IntervalRootFinding; Pkg.checkout("IntervalRootFinding")
+using IntervalRootFinding#; Pkg.checkout("IntervalRootFinding")
 using RecipesBase
 
-
-# setformat(:full)
 
 import Base: setindex!,
     ==, +, -, *, /, ^,

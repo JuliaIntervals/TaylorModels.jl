@@ -3,9 +3,6 @@
 using TaylorModels
 using TaylorSeries, IntervalArithmetic
 
-const _num_tests = 1000
-const α_mid = TaylorModels.α_mid
-
 if VERSION < v"0.7.0-DEV.2004"
     using Base.Test
     eeuler = Base.e
@@ -13,6 +10,12 @@ else
     using Test
     eeuler = Base.MathConstants.e
 end
+
+const _num_tests = 1000
+const α_mid = TaylorModels.α_mid
+
+setformat(:full)
+
 
 function check_containment(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
     ii = tma.iI

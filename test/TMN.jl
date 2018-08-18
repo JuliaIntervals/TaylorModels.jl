@@ -3,8 +3,6 @@
 using TaylorModels
 using TaylorSeries, IntervalArithmetic
 
-const _num_tests = 1000
-
 if VERSION < v"0.7.0-DEV.2004"
     using Base.Test
     eeuler = Base.e
@@ -12,6 +10,11 @@ else
     using Test
     eeuler = Base.MathConstants.e
 end
+
+const _num_tests = 1000
+
+setformat(:full)
+
 
 function check_containment(ftest, xx::TMNAbsRem{N,T,S}, tma::TMNAbsRem{N,T,S}) where {N,T,S}
     xfp = diam.(tma.iI) .* (rand(N)-0.5) .+ mid(tma.x0)
