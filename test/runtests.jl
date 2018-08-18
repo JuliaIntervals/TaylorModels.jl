@@ -15,4 +15,5 @@ using TaylorModels
 
 # using Base.Test
 
-include("TMs.jl")
+include("TM1.jl")
+include("TMN.jl")

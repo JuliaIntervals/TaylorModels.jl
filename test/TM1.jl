@@ -4,6 +4,7 @@ using TaylorModels
 using TaylorSeries, IntervalArithmetic
 
 const _num_tests = 1000
+const α_mid = TaylorModels.α_mid
 
 if VERSION < v"0.7.0-DEV.2004"
     using Base.Test
@@ -13,7 +14,7 @@ else
     eeuler = Base.MathConstants.e
 end
 
-function check_inclusion(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
+function check_containment(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
     ii = tma.iI
     xfp = diam(tma.iI)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
@@ -45,10 +46,13 @@ end
     ii1 = Interval(0.5, 1.5)
 
     @testset "TM1AbsRem constructors" begin
-        tv = TM1AbsRem{Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv = TM1AbsRem{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1AbsRem(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1AbsRem(5, x0, ii0)
         @test TM1AbsRem(x1, 5, x0, ii0) == TM1AbsRem(Taylor1(x1, 5), x0, x0, ii0)
+
+        @test isa(tv, AbstractSeries)
+        @test TM1AbsRem{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
         # Test errors in construction
         @test_throws AssertionError TM1AbsRem(Taylor1(Interval{Float64},5), x1, x0, ii0)
@@ -63,6 +67,8 @@ end
         Δ = interval(-0.25, 0.25)
         a = TM1AbsRem(x1+Taylor1(5), Δ, x1, ii1)
         tv = TM1AbsRem(5, x1, ii1)
+        @test zero(a) == TM1AbsRem(zero(a.pol), 0..0, x1, ii1)
+        @test one(a) == TM1AbsRem(one(a.pol), 0..0, x1, ii1)
         @test a+x1 == TM1AbsRem(2*x1+Taylor1(5), Δ, x1, ii1)
         @test a+a == TM1AbsRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
         @test a-x1 == TM1AbsRem(zero(x1)+Taylor1(5), Δ, x1, ii1)
@@ -84,6 +90,8 @@ end
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), TM1AbsRem(4, x0, ii0)) ==
             TM1AbsRem(interval(5.0), 4, x0, ii0)
+        @test rpa(x->5+one(x), TM1AbsRem(4, x1, ii1)) ==
+            TM1AbsRem(5+x1, 4, x1, ii1)
         @test rpa(x->5*x, TM1AbsRem(4, x1, ii1)) ==
             TM1AbsRem(5.0*(x1+Taylor1(4)), x0, x1, ii1)
         @test rpa(x->5*x^4, TM1AbsRem(4, x0, ii0)) ==
@@ -99,11 +107,12 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -113,11 +122,12 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 3
@@ -127,11 +137,12 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -141,11 +152,12 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 5
@@ -155,11 +167,12 @@ end
         tma = rpa(ftest, TM1AbsRem(order, xx, ii))
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0 = rpafp(tma)
-        @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
-                        ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
+                        ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
@@ -171,7 +184,7 @@ end
         tmb = ftest(TM1AbsRem(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
     end
 
@@ -232,7 +245,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(exp, integ_res)
+            @test check_containment(exp, integ_res)
         end
 
         integ_res = integrate(cos(tm))
@@ -240,7 +253,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(sin, integ_res)
+            @test check_containment(sin, integ_res)
         end
 
         integ_res = integrate(-sin(tm), 1..1)
@@ -248,7 +261,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(cos, integ_res)
+            @test check_containment(cos, integ_res)
         end
 
         integ_res = integrate(1/(1+tm^2))
@@ -256,8 +269,25 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         # @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
-            @test check_inclusion(atan, integ_res)
+            @test check_containment(atan, integ_res)
         end
+    end
+
+    @testset "Display" begin
+        tm = TM1AbsRem(2, x1, ii1)
+        use_show_default(true)
+        @test string(exp(tm)) == "TaylorModels.TM1AbsRem{IntervalArithmetic.Interval{Float64},Float64}" *
+            "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
+            "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+            "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677582, 0.06448109909211741), " *
+            "Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        use_show_default(false)
+        @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
+            "Interval(3.0, 3.0) t² + Interval(-0.125, 0.125)"
+        @test string(exp(tm)) == " Interval(2.718281828459045, 2.7182818284590455) + " *
+            "Interval(2.718281828459045, 2.7182818284590455) t + " *
+            "Interval(1.3591409142295225, 1.3591409142295228) t² + " *
+            "Interval(-0.05020487208677582, 0.06448109909211741)"
     end
 end
 
@@ -268,10 +298,13 @@ end
     ii1 = Interval(0.5, 1.5)
 
     @testset "TM1RelRem constructors" begin
-        tv = TM1RelRem{Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv = TM1RelRem{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1RelRem(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TM1RelRem(5, x0, ii0)
         @test TM1RelRem(x1, 5, x0, ii0) == TM1RelRem(Taylor1(x1, 5), x0, x0, ii0)
+
+        @test isa(tv, AbstractSeries)
+        @test TM1RelRem{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
         # Zero may not be contained in the remainder of a TM1RelRem
         @test 0 ∉ remainder(TM1RelRem(Taylor1(Interval{Float64},5), x1, x0, ii0))
@@ -289,6 +322,8 @@ end
         a = TM1RelRem(x1+Taylor1(5), Δ, x1, ii1)
         tv = TM1RelRem(5, x1, ii1)
 
+        @test zero(a) == TM1RelRem(zero(a.pol), 0..0, x1, ii1)
+        @test one(a) == TM1RelRem(one(a.pol), 0..0, x1, ii1)
         @test a+x1 == TM1RelRem(2*x1+Taylor1(5), Δ, x1, ii1)
         @test a+a == TM1RelRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
         @test a-x1 == TM1RelRem(zero(x1)+Taylor1(5), Δ, x1, ii1)
@@ -325,11 +360,13 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -339,11 +376,13 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 3
@@ -353,11 +392,13 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 2
@@ -367,11 +408,13 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-                        ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
+                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         order = 5
@@ -381,11 +424,13 @@ end
         tma = rpa(ftest, TM1RelRem(order, xx, ii))
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test tma == tmb
-        fT, Δ, ξ0, δ = rpafp(tma)
-        @test interval(ftest(ii.hi)-fT(ii.hi-ξ0),
-                        ftest(ii.lo)-fT(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        # fT, Δ, ξ0, δ = fp_rpa(tma)
+        ξ0 = mid(xx, α_mid)
+        tmc = fp_rpa(tma)
+        @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
+                        ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
@@ -397,7 +442,7 @@ end
         tmb = ftest(TM1RelRem(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_inclusion(ftest, tma)
+            @test check_containment(ftest, tma)
         end
     end
 
@@ -458,7 +503,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(exp, integ_res)
+            @test check_containment(exp, integ_res)
         end
 
         integ_res = integrate(cos(tm))
@@ -466,7 +511,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(sin, integ_res)
+            @test check_containment(sin, integ_res)
         end
 
         integ_res = integrate(-sin(tm), 1..1)
@@ -474,7 +519,7 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(cos, integ_res)
+            @test check_containment(cos, integ_res)
         end
 
         integ_res = integrate(1/(1+tm^2))
@@ -482,7 +527,23 @@ end
         @test exact_res.pol ⊆ integ_res.pol
         # @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
-            @test check_inclusion(atan, integ_res)
+            @test check_containment(atan, integ_res)
         end
+    end
+
+    @testset "Display" begin
+        tm = TM1RelRem(3, x1, ii1)
+        use_show_default(true)
+        @test string(exp(tm)) == "TaylorModels.TM1RelRem{IntervalArithmetic.Interval{Float64},Float64}" *
+            "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
+            "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+            "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *
+            "Interval(0.10281598943126724, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        use_show_default(false)
+        @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
+            "Interval(3.0, 3.0) t² + Interval(1.0, 1.0) t³ + Interval(0.0, 0.0) t⁴"
+        @test string(exp(tm)) == " Interval(2.718281828459045, 2.7182818284590455) + " *
+            "Interval(2.718281828459045, 2.7182818284590455) t + Interval(1.3591409142295225, 1.3591409142295228) t² + " *
+            "Interval(0.45304697140984085, 0.45304697140984096) t³ + Interval(0.10281598943126724, 0.1256036426541982) t⁴"
     end
 end

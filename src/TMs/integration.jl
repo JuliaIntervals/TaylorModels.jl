@@ -8,7 +8,7 @@ or `TM1RelRem`) with respect to the independent variable; `c0` is
 the interval representing the integration constant; if omitted
 it is considered as the zero interval.
 """
-function integrate(a::TM1AbsRem{T}, c0::Interval{T}) where {T}
+function integrate(a::TM1AbsRem{T,S}, c0::Interval{S}) where {T,S}
     order = get_order(a)
     integ_pol = integrate(a.pol, c0)
     aux = (a.iI-a.x0)
@@ -20,9 +20,9 @@ function integrate(a::TM1AbsRem{T}, c0::Interval{T}) where {T}
 
     return TM1AbsRem( integ_pol, Δ, a.x0, a.iI )
 end
-integrate(a::TM1AbsRem{T}) where {T} = integrate(a, Interval(zero(T)))
+integrate(a::TM1AbsRem{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
 
-function integrate(a::TM1RelRem{T}, c0::Interval{T}) where {T}
+function integrate(a::TM1RelRem{T,S}, c0::Interval{S}) where {T,S}
     order = get_order(a)
     integ_pol = integrate(a.pol, c0)
     Δ = (a.iI-a.x0) * remainder(a)
@@ -32,7 +32,29 @@ function integrate(a::TM1RelRem{T}, c0::Interval{T}) where {T}
 
     return TM1RelRem( integ_pol, Δ, a.x0, a.iI )
 end
-integrate(a::TM1RelRem{T}) where {T} = integrate(a, Interval(zero(T)))
+integrate(a::TM1RelRem{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
+
+
+function integrate(a::TM1AbsRem{TMNAbsRem{N,Interval{T},S}}) where {N,T,S}
+    order = get_order(a)
+    aa = a.pol[0] / 1
+    coeffs = Array{typeof(aa)}(order+1)
+    fill!(coeffs, zero(aa))
+    @inbounds for i = 1:order
+        coeffs[i+1] = a.pol[i-1] / i
+    end
+    aux = (a.iI-a.x0)
+    δTMN = a.pol[order](a.pol[order].iI-a.pol[order].x0) + remainder(a.pol[order])
+    Δ = aux * remainder(a) +  δTMN * aux^(order+1) / (order+1)
+    return TM1AbsRem( Taylor1(coeffs, order), Δ, a.x0, a.iI )
+end
+function integrate(a::TM1AbsRem{TMNAbsRem{N,Interval{T},S}},
+        c0::TMNAbsRem{N,Interval{T},S}) where {N,T,S}
+    res = integrate(a)
+    res.pol[0] = c0
+    return res
+end
+
 
 
 """
@@ -40,12 +62,12 @@ integrate(a::TM1RelRem{T}) where {T} = integrate(a, Interval(zero(T)))
     𝒫(f, tm::T, xm::T, x0::Interval)
 
 Returns the application of the Picard-Lindelöf operator
-associated to the ODE `\dot{x} = f(t,x)`,
+associated to the ODE ``\\dot{x} = f(t,x)``,
 with initial condition `x0`. Here, `tm` and `xm` are
 (one-variable) Taylor Models (`TM1AbsRem` or `TM1RelRem`).
 
 𝒫 is an abbreviation of this operator, which is obtained
-as `\mscrP<TAB>`.)
+as `\\mscrP<TAB>`.)
 """
 picard_lindelöf(f, tm::T, xm::T, x0::Interval) where
     {T<:Union{TM1AbsRem, TM1RelRem}} = integrate(f(tm, xm), x0)
