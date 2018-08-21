@@ -52,7 +52,7 @@ function show(io::IO, f::Taylor1Model)
 end
 
 
-zero(f::Taylor1Model{T}) where {T} = Taylor1Model(f, zeros(length(f.p)), 0)
+zero(f::Taylor1Model{T}) where {T} = Taylor1Model(f, Taylor1(zeros(Interval{T},length(f.p))), interval(0))
 
 degree(f::Taylor1Model) = degree(f.p)
 

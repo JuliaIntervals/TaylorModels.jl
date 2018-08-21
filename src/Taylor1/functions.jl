@@ -77,9 +77,14 @@ function TMcomposition(g, f::Taylor1Model)
 
     b, Δg = Mg.p, Mg.Δ
 
-    f_non_constant_part = [0; f.p[1:end]]  # f - f(x0)
+    #f_non_constant_part = [0; f.p[1:end]]  # f - f(x0)
 
-    M1 = Taylor1Model(f, f_non_constant_part, f.Δ)
+    f_non_constant_part = f.p - f_of_x0
+    #ß@show f_non_constant_part
+
+    M1 = Taylor1Model(f.n, f.x0, f.I, f_non_constant_part, f.Δ)
+
+    #@show M1
 
     M = evaluate_polynomial(b, M1)
 
