@@ -1,26 +1,26 @@
 # bounds.jl
 
 """
-   boundarem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, ii::Interval)
+   bound_absrem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
 
 Bound the absolute remainder of the polynomial approximation of `f` given
-by the Taylor polynomial `polf` around `x0` on the interval `ii`. It requires
+by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
 the interval extension `polfI` of the polynomial that approximates `f` for
-the whole interval `ii`, in order to compute the Lagrange remainder. If
+the whole interval `I`, in order to compute the Lagrange remainder. If
 `polfI[end]` has a definite sign, then it is monotonic in the intervals
-[ii.lo, x0] and [x0.hi, ii.hi], which is exploited; otherwise, it is used
+[I.lo, x0] and [x0.hi, I.hi], which is exploited; otherwise, it is used
 to compute the Lagrange remainder.
 
 """
-function boundarem(f::Function, polf::Taylor1, polfI::Taylor1,
-        x0::Interval, ii::Interval)
+function bound_absrem(f::Function, polf::Taylor1, polfI::Taylor1,
+        x0::Interval, I::Interval)
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
     if (sup(fTIend) < 0 || inf(fTIend) > 0)
         # Absolute remainder is monotonic
-        a = interval(ii.lo)
-        b = interval(ii.hi)
+        a = interval(I.lo)
+        b = interval(I.hi)
         # Δlo = f(a) - polf(a-x0)
         Δlo = f(a) - bound_taylor1(polf, a-x0)
         # Δhi = f(b) - polf(b-x0)
@@ -29,31 +29,31 @@ function boundarem(f::Function, polf::Taylor1, polfI::Taylor1,
         Δ = hull(hull(Δlo, Δx0), Δhi)
     else
         # Lagrange bound
-        Δ = fTIend * (ii-x0)^_order
+        Δ = fTIend * (I-x0)^_order
     end
     return Δ
 end
 
 
 """
-   boundrrem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, ii::Interval)
+   bound_relrem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
 
 Bound the relative remainder of the polynomial approximation of `f` given
-by the Taylor polynomial `polf` around `x0` on the interval `ii`. It requires
+by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
 an the interval extension `polfI` of a polynomial that approximates `f` for
-the whole interval `ii`, in order to compute the Lagrange remainder. If
-`polfI[end]` has a definite sign, then it is monotonic in the interval `ii`,
+the whole interval `I`, in order to compute the Lagrange remainder. If
+`polfI[end]` has a definite sign, then it is monotonic in the interval `I`,
 which is exploited; otherwise, the last coefficients bounds the relative
 remainder.
 
 """
-function boundrrem(f::Function, polf::Taylor1, polfI::Taylor1,
-        x0::Interval, ii::Interval)
+function bound_relrem(f::Function, polf::Taylor1, polfI::Taylor1,
+        x0::Interval, I::Interval)
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order+1]
-    a = interval(ii.lo)
-    b = interval(ii.hi)
+    a = interval(I.lo)
+    b = interval(I.hi)
     if (sup(fTIend) < 0 || inf(fTIend) > 0) && isempty(a ∩ x0) && isempty(b ∩ x0)
         # Error is monotonic
         denom_lo = (a-x0)^_order
@@ -74,32 +74,32 @@ end
 
 
 """
-    bound_taylor1(fT::Taylor1, ii::Interval)
+    bound_taylor1(fT::Taylor1, I::Interval)
 
 Compute a *tight* polynomial bound for the Taylor polynomial `fT`
-for the interval `ii`.
+for the interval `I`.
 
-Note: Algorithm 2.1.1 corresponds to `evaluate(fT, ii)` or simply `fT(ii).
+Note: Algorithm 2.1.1 corresponds to `evaluate(fT, I)` or simply `fT(I).
 This function uses the roots of the derivative of `ft` to obtain a
 tighter bound.
 
 """
-function bound_taylor1(fT::Taylor1, ii::Interval)
+function bound_taylor1(fT::Taylor1, I::Interval)
 
     # Check if the fT is monotonous (the derivative has a given sign)
     fTd  = TaylorSeries.derivative(fT)
-    range_deriv = fTd(ii)
-    (sup(range_deriv) ≤ 0 || inf(range_deriv) ≥ 0) && return bound_taylor1(fT, fTd, ii)
+    range_deriv = fTd(I)
+    (sup(range_deriv) ≤ 0 || inf(range_deriv) ≥ 0) && return bound_taylor1(fT, fTd, I)
 
     # Compute roots of the derivative using the second derivative
     # Fix some sort of relative tolerance for Newton root search
     fTd2 = TaylorSeries.derivative(fTd)
-    rootsder = roots(x->fTd(x), x->fTd2(x), ii, Newton, 1.0e-5*mag(ii))
+    rootsder = roots(x->fTd(x), x->fTd2(x), I, Newton, 1.0e-5*mag(I))
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
-    num_roots == 0 && return fT(ii)
-    rangepoly = hull( fT(interval(ii.lo)), fT(interval(ii.hi)) )
+    num_roots == 0 && return fT(I)
+    rangepoly = hull( fT(interval(I.lo)), fT(interval(I.hi)) )
     for ind in 1:num_roots
         rangepoly = hull(rangepoly, fT(rootsder[ind].interval))
     end
@@ -109,29 +109,29 @@ end
 
 
 """
-    bound_taylor1(fT::Taylor1, fTd::Taylor1, ii::Interval)
+    bound_taylor1(fT::Taylor1, fTd::Taylor1, I::Interval)
 
 Compute a *tight* polynomial bound for the Taylor polynomial `fT`
-in the interval `ii`, considering whether its derivative `ftd` has
+in the interval `I`, considering whether its derivative `ftd` has
 a definite sign.
 
 """
-function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, ii::Interval{T}) where {T}
+function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
     #
-    if inf(fTd(ii)) ≥ 0
-        return @interval(fT(ii.lo), fT(ii.hi))
-    elseif sup(fTd(ii)) ≤ 0
-        return @interval(fT(ii.hi), fT(ii.lo))
+    if inf(fTd(I)) ≥ 0
+        return @interval(fT(I.lo), fT(I.hi))
+    elseif sup(fTd(I)) ≤ 0
+        return @interval(fT(I.hi), fT(I.lo))
     end
-    return fT(ii)
+    return fT(I)
 end
 function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
-        ii::Interval{S}) where {T,S}
+        I::Interval{S}) where {T,S}
     #
-    if inf(fTd(ii)) ≥ 0
-        return hull(fT(ii.lo), fT(ii.hi))
-    elseif sup(fTd(ii)) ≤ 0
-        return hull(fT(ii.hi), fT(ii.lo))
+    if inf(fTd(I)) ≥ 0
+        return hull(fT(I.lo), fT(I.hi))
+    elseif sup(fTd(I)) ≤ 0
+        return hull(fT(I.hi), fT(I.lo))
     end
-    return fT(ii)
+    return fT(I)
 end
