@@ -3,7 +3,7 @@ module TaylorModels
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
 # Use current master (until next tag) of IntervalRootFinding
-using IntervalRootFinding#; Pkg.checkout("IntervalRootFinding")
+using IntervalRootFinding
 using RecipesBase
 
 
@@ -22,23 +22,21 @@ export Taylor1Model, bound, make_Taylor_model, TMcomposition,
         taylor1_var, integrate, degree,
         calculate_set, Taylor_step
 
-export TM1AbsRem, TM1RelRem, TMNAbsRem,
-    remainder, polynomial,
-    rpa, fp_rpa, boundarem, boundrrem
+export TaylorModel1, RTaylorModel1, TaylorModelN
 
-export TaylorNModel
-
+export remainder, polynomial,
+    rpa, fp_rpa, bound_absrem, bound_relrem
 
 
 include("constructors.jl")
-include("TMs/promotion.jl")
-include("TMs/bounds.jl")
-include("TMs/evaluate.jl")
-include("TMs/rpa_functions.jl")
-include("TMs/arithmetic.jl")
-include("TMs/integration.jl")
-include("TMs/recipe.jl")
-include("TMs/show.jl")
+include("promotion.jl")
+include("bounds.jl")
+include("evaluate.jl")
+include("rpa_functions.jl")
+include("arithmetic.jl")
+include("integration.jl")
+include("recipe.jl")
+include("show.jl")
 
 include("Taylor1/Taylor1.jl")
 include("TaylorN/TaylorN.jl")
