@@ -5,7 +5,7 @@ https://github.com/dpsanders/TaylorModels.jl/blob/master/src/TaylorModels.jl
 
 using RecipesBase
 
-@recipe function g(f::TM1AbsRem)
+@recipe function g(f::TaylorModel1)
     fT, Δ, ξ0 = rpafp(f)
 
     alpha --> 0.3
@@ -20,7 +20,7 @@ using RecipesBase
     xs, ys
 end
 
-@recipe function g(f::TM1RelRem)
+@recipe function g(f::RTaylorModel1)
     fT, Δ, ξ0, δ = rpafp(f)
     order = get_order(f)+1
 
