@@ -30,7 +30,7 @@ export TaylorNModel
 
 
 
-include("TMs/constructors.jl")
+include("constructors.jl")
 include("TMs/promotion.jl")
 include("TMs/bounds.jl")
 include("TMs/evaluate.jl")
