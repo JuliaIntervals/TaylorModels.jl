@@ -4,8 +4,8 @@
 degree(f::Taylor1) = f.order
 setindex!(f::Taylor1, x, i) = f.coeffs[i+1] = x
 
-doc"""
-A `Taylor1Model` is a Taylor model in 1 variable, providing a bounding box for a function as a polynomial $p$ plus an interval bound $\Delta$ for a function $f(x)$ of a single variable.
+"""
+A `Taylor1Model` is a Taylor model in 1 variable, providing a bounding box for a function as a polynomial ``p`` plus an interval bound ``\\Delta`` for a function ``f(x)`` of a single variable.
 
 Fields:
 - `n`: degree of the polynomial
@@ -14,7 +14,7 @@ Fields:
 - `p`: the polynomial, represented as `TaylorSeries.Taylor1`
 - `Δ`: the interval bound
 
-The approximation is $f(x) \simeq \sum_i p_i (x - x_0)^i$.
+The approximation is ``f(x) \\simeq \\sum_i p_i (x - x_0)^i``.
 """
 struct Taylor1Model{T,S}
     n::Int      # degree

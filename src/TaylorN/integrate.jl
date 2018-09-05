@@ -20,7 +20,7 @@ function integrate(f::TaylorNModel, which=1, x0=0)
 
 end
 
-doc"""
+"""
 Bound the integral of a `TaylorNModel` `f` with respect to the variable `which`.
 """
 function integral_bound(f::TaylorNModel, which)

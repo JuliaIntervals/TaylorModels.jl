@@ -5,8 +5,8 @@
 degree(f::TaylorN) = f.order
 setindex!(f::TaylorN, x, i) = f.coeffs[i+1] = x
 
-doc"""
-A `Taylor1Model` represents a polynomial approximation to a function $f(t)$ of a single variable.
+"""
+A `Taylor1Model` represents a polynomial approximation to a function ``f(t)`` of a single variable.
 
 The fields are:
 - `n`: degree of the polynomial

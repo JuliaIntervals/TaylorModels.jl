@@ -1,10 +1,10 @@
 
-doc"""
+"""
 Compute a rigorous bound for a Taylor1Model.
 """
 bound(f::Taylor1Model) = bound(f, f.I)
 
-doc"""
+"""
 Compute a rigorous bound for a `Taylor1Model` `f` evaluated over the interval `I`.
 This interval must be a subset of `f.I`.
 """

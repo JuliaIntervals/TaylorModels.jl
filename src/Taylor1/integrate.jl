@@ -1,7 +1,7 @@
 const ∫ = integrate
 
 
-doc"""
+"""
 Integrate a Taylor1Model.
 `x0` is optional constant to add.
 """

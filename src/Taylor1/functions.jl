@@ -13,9 +13,9 @@ end
 
 taylor_coeff(::typeof(inv), i, x) = (-1)^i / (x^(i+1))
 
-taylor_coeffs(f, n, x0) = taylor_coeff.(f, 0:n, x0)
+taylor_coeffs(f, n, x0) = [taylor_coeff(f, i, x0) for i in 0:n]
 
-doc"""
+"""
 Make a Taylor1Model for a given function over a given domain.
 """
 function Taylor1Model(f, n, x0, I)
@@ -45,7 +45,7 @@ end
 
 
 
-doc"""
+"""
 Evaluate a polynomial of a polynomial-like object (Taylor1Model, Taylor1) `f`.
 `a` are the coefficients of the polynomial, expressed as a `Taylor1`.
 """
@@ -61,7 +61,7 @@ function evaluate_polynomial(a::Taylor1, f)
     return M
 end
 
-doc"""
+"""
 Calculate the Taylor1Model of `(g∘f)` given a function `g` and a Taylor1Model `f`.
 """
 function TMcomposition(g, f::Taylor1Model)
