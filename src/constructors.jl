@@ -52,44 +52,44 @@ for TM in tupleTMs
 end
 
 
-# @doc """
-#     TaylorModel1{T,S}
-#
-# Taylor model in 1 variable, providing a rigurous polynomial approximation
-# (around `x_0`) and an absolute remainder `\Delta` for a function `f(x)` in one variable,
-# valid in the interval `I`. Corresponds to definition 2.1.3 of
-# Mioara Joldes' thesis.
-#
-# Fields:
-# - `pol`: polynomial approximation, represented as `TaylorSeries.Taylor1`
-# - `rem`: the interval bound
-# - `x0`: expansion point
-# - `I`: interval over which the Taylor model is defined / valid
-#
-# The approximation `f(x) = \sum_{i=0}^n p_i (x - x_0)^i + \Delta` is
-# satisfied for all `x\in I` (`0\in\Delta`); `n` is the order (degree)
-# of the polynomial `p(x)`.
-#
-# """ TaylorModel1
-#
-# @doc """
-#     RTaylorModel1{T,S}
-#
-# Taylor model in 1 variable, providing a rigurous polynomial approximation
-# (around `x_0`) and a relative remainder `\delta` for a function `f(x)` in one variable,
-# valid in the interval `I`. Corresponds to definition 2.3.2 of
-# Mioara Joldes' thesis.
-#
-# Fields:
-# - `pol`: polynomial approximation, represented as `TaylorSeries.Taylor1`
-# - `rem`: the interval bound
-# - `x0`: expansion point
-# - `I`: interval over which the Taylor model is defined / valid
-#
-# The approximation `f(x) = \sum_i p_i (x - x_0)^i + \delta (x - x_0)^{n+1}` is
-# satisfied for all `x\in I`; `n` is the order (degree) of the polynomial `p(x)`.
-#
-# """ RTaylorModel1
+@doc doc"""
+    TaylorModel1{T,S}
+
+Taylor model in 1 variable, providing a rigurous polynomial approximation
+(around `x_0`) and an absolute remainder `\Delta` for a function `f(x)` in one variable,
+valid in the interval `I`. Corresponds to definition 2.1.3 of
+Mioara Joldes' thesis.
+
+Fields:
+- `pol`: polynomial approximation, represented as `TaylorSeries.Taylor1`
+- `rem`: the interval bound
+- `x0`: expansion point
+- `I`: interval over which the Taylor model is defined / valid
+
+The approximation `f(x) = \sum_{i=0}^n p_i (x - x_0)^i + \Delta` is
+satisfied for all `x\in I` (`0\in\Delta`); `n` is the order (degree)
+of the polynomial `p(x)`.
+
+""" TaylorModel1
+
+@doc doc"""
+    RTaylorModel1{T,S}
+
+Taylor model in 1 variable, providing a rigurous polynomial approximation
+(around `x_0`) and a relative remainder `\delta` for a function `f(x)` in one variable,
+valid in the interval `I`. Corresponds to definition 2.3.2 of
+Mioara Joldes' thesis.
+
+Fields:
+- `pol`: polynomial approximation, represented as `TaylorSeries.Taylor1`
+- `rem`: the interval bound
+- `x0`: expansion point
+- `I`: interval over which the Taylor model is defined / valid
+
+The approximation `f(x) = \sum_i p_i (x - x_0)^i + \delta (x - x_0)^{n+1}` is
+satisfied for all `x\in I`; `n` is the order (degree) of the polynomial `p(x)`.
+
+""" RTaylorModel1
 
 
 # TaylorModelN's struct
