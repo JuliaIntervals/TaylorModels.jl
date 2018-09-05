@@ -78,8 +78,9 @@ function rpa(g::Function, tmf::TaylorModel1)
     tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
-    tm1 = copy(tmf)
-    tm1[0] = zero(f_pol0)
+    # tm1 = copy(tmf)
+    # tm1.pol[0] = zero(f_pol0)
+    tm1 = tmf - f_pol0   # OVER-ESTIMATION; IMPROVE
     tmres = tmg( tm1 )
 
     # Final remainder
@@ -114,8 +115,9 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
-    tm1 = copy(tmf)
-    tm1[0] = zero(f_pol0)
+    # tm1 = copy(tmf)
+    # tm1.pol[0] = zero(f_pol0)
+    tm1 = tmf - f_pol0   # OVER-ESTIMATION; IMPROVE
     tmres = tmg( tm1 )
 
     # Final remainder
@@ -157,8 +159,9 @@ function rpa(g::Function, tmf::RTaylorModel1)
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
     tmg = _rparr(g, f_pol0, range_tmf, _order)
-    tm1 = copy(tmf)
-    tm1[0] = zero(f_pol0)
+    # tm1 = copy(tmf)
+    # tm1.pol[0] = zero(f_pol0)
+    tm1 = tmf - f_pol0   # OVER-ESTIMATION; IMPROVE
     tmres = tmg( tm1 )
 
     tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.I)

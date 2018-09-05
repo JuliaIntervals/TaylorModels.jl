@@ -1,15 +1,8 @@
 # Tests using TaylorModel1 and RTaylorModel1
 
 using TaylorModels
-# using TaylorSeries, IntervalArithmetic
-
-if VERSION < v"0.7.0-DEV.2004"
-    using Base.Test
-    eeuler = Base.e
-else
-    using Test
-    eeuler = Base.MathConstants.e
-end
+using LinearAlgebra: norm
+using Test
 
 const _num_tests = 1000
 const α_mid = TaylorModels.α_mid
@@ -245,7 +238,7 @@ end
 
         integ_res = integrate(exp(tm), 1..1)
         exact_res = exp(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
             @test check_containment(exp, integ_res)
@@ -253,7 +246,7 @@ end
 
         integ_res = integrate(cos(tm))
         exact_res = sin(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
             @test check_containment(sin, integ_res)
@@ -261,7 +254,7 @@ end
 
         integ_res = integrate(-sin(tm), 1..1)
         exact_res = cos(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
             @test check_containment(cos, integ_res)
@@ -269,7 +262,7 @@ end
 
         integ_res = integrate(1/(1+tm^2))
         exact_res = atan(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         # @test exact_res.rem ⊆ integ_res.rem
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
@@ -279,8 +272,8 @@ end
     @testset "Display" begin
         tm = TaylorModel1(2, x1, ii1)
         use_show_default(true)
-        @test string(exp(tm)) == "TaylorModels.TaylorModel1{IntervalArithmetic.Interval{Float64},Float64}" *
-            "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
+        @test string(exp(tm)) == "TaylorModel1{Interval{Float64},Float64}" *
+            "(Taylor1{Interval{Float64}}(Interval{Float64}" *
             "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
             "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677582, 0.06448109909211741), " *
             "Interval(1.0, 1.0), Interval(0.5, 1.5))"
@@ -503,7 +496,7 @@ end
 
         integ_res = integrate(exp(tm), 1..1)
         exact_res = exp(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(exp, integ_res)
@@ -511,7 +504,7 @@ end
 
         integ_res = integrate(cos(tm))
         exact_res = sin(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(sin, integ_res)
@@ -519,7 +512,7 @@ end
 
         integ_res = integrate(-sin(tm), 1..1)
         exact_res = cos(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(cos, integ_res)
@@ -527,7 +520,7 @@ end
 
         integ_res = integrate(1/(1+tm^2))
         exact_res = atan(tm)
-        @test exact_res.pol ⊆ integ_res.pol
+        @test exact_res.pol == integ_res.pol
         # @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
@@ -537,8 +530,8 @@ end
     @testset "Display" begin
         tm = RTaylorModel1(3, x1, ii1)
         use_show_default(true)
-        @test string(exp(tm)) == "TaylorModels.RTaylorModel1{IntervalArithmetic.Interval{Float64},Float64}" *
-            "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
+        @test string(exp(tm)) == "RTaylorModel1{Interval{Float64},Float64}" *
+            "(Taylor1{Interval{Float64}}(Interval{Float64}" *
             "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
             "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *
             "Interval(0.10281598943126724, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"

@@ -1,15 +1,8 @@
 # Tests using TaylorModel1 and RTaylorModel1
 
 using TaylorModels
-using TaylorSeries, IntervalArithmetic
-
-if VERSION < v"0.7.0-DEV.2004"
-    using Base.Test
-    eeuler = Base.e
-else
-    using Test
-    eeuler = Base.MathConstants.e
-end
+using LinearAlgebra: norm
+using Test
 
 const _num_tests = 1000
 
@@ -17,7 +10,7 @@ setformat(:full)
 
 
 function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
-    xfp = diam.(tma.I) .* (rand(N)-0.5) .+ mid(tma.x0)
+    xfp = diam.(tma.I) .* (rand(N) .- 0.5) .+ mid(tma.x0)
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
     range = evaluate(tma, ib-tma.x0)
@@ -223,15 +216,15 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xm = TaylorModelN(1, _order, b1, ib1)
         ym = TaylorModelN(2, _order, b1, ib1)
         use_show_default(true)
-        @test string(xm+ym) == "TaylorModels.TaylorModelN{2,IntervalArithmetic.Interval{Float64},Float64}" *
-            "(TaylorSeries.TaylorN{IntervalArithmetic.Interval{Float64}}" *
-            "(TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
-            "[TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
-            "(IntervalArithmetic.Interval{Float64}[Interval(1.0, 1.0)], 0), " *
-            "TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
-            "(IntervalArithmetic.Interval{Float64}[Interval(1.0, 1.0), Interval(1.0, 1.0)], 1), " *
-            "TaylorSeries.HomogeneousPolynomial{IntervalArithmetic.Interval{Float64}}" *
-            "(IntervalArithmetic.Interval{Float64}[Interval(0.0, 0.0), Interval(0.0, 0.0), " *
+        @test string(xm+ym) == "TaylorModelN{2,Interval{Float64},Float64}" *
+            "(TaylorN{Interval{Float64}}" *
+            "(HomogeneousPolynomial{Interval{Float64}}" *
+            "[HomogeneousPolynomial{Interval{Float64}}" *
+            "(Interval{Float64}[Interval(1.0, 1.0)], 0), " *
+            "HomogeneousPolynomial{Interval{Float64}}" *
+            "(Interval{Float64}[Interval(1.0, 1.0), Interval(1.0, 1.0)], 1), " *
+            "HomogeneousPolynomial{Interval{Float64}}" *
+            "(Interval{Float64}[Interval(0.0, 0.0), Interval(0.0, 0.0), " *
             "Interval(0.0, 0.0)], 2)], 2), Interval(0.0, 0.0), IntervalBox(Interval(0.0, 0.0), " *
             "Interval(1.0, 1.0)), IntervalBox(Interval(-0.5, 0.5), Interval(0.5, 1.5)))"
         use_show_default(false)

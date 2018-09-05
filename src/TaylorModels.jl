@@ -6,7 +6,6 @@ using Reexport
 using RecipesBase
 
 using Markdown
-import LinearAlgebra: norm
 
 import Base: setindex!, getindex, copy,
     ==, +, -, *, /, ^,
@@ -15,8 +14,7 @@ import Base: setindex!, getindex, copy,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 
-import TaylorSeries: integrate, get_order, evaluate,
-    pretty_print
+import TaylorSeries: integrate, get_order, evaluate, pretty_print
 
 
 # export Taylor1Model, bound, make_Taylor_model, TMcomposition,
@@ -30,6 +28,7 @@ export remainder, polynomial,
 
 
 include("constructors.jl")
+include("auxiliary.jl")
 include("promotion.jl")
 include("bounds.jl")
 include("evaluate.jl")
