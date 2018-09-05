@@ -2,11 +2,11 @@
 
 function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
     print(io,
-    """Taylor1 model of degree $(f.n):
-     - x0:  $(f.x0)
-     -  I:  $(f.I)
-     -  p:  $(f.pol)
-     -  Δ:  $(f.rem)
+    """Taylor model of degree $(get_order(f)):
+    - x0:  $(f.x0)
+    -  I:  $(f.I)
+    -  p:  $(f.pol)
+    -  Δ:  $(f.rem)
     """
     )
 end

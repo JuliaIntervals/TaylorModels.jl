@@ -7,7 +7,7 @@ using IntervalRootFinding
 using RecipesBase
 
 
-import Base: setindex!,
+import Base: setindex!, getindex, copy,
     ==, +, -, *, /, ^,
     zero, one, findfirst, #iszero,
     promote, show,
@@ -18,9 +18,9 @@ import TaylorSeries: integrate, get_order, evaluate,
     pretty_print
 
 
-export Taylor1Model, bound, make_Taylor_model, TMcomposition,
-        taylor1_var, integrate, degree,
-        calculate_set, Taylor_step
+# export Taylor1Model, bound, make_Taylor_model, TMcomposition,
+#         taylor1_var, integrate, degree,
+#         calculate_set, Taylor_step
 
 export TaylorModel1, RTaylorModel1, TaylorModelN
 
@@ -38,8 +38,8 @@ include("integration.jl")
 include("recipe.jl")
 include("show.jl")
 
-include("Taylor1/Taylor1.jl")
-include("TaylorN/TaylorN.jl")
+# include("Taylor1/Taylor1.jl")
+# include("TaylorN/TaylorN.jl")
 
 
 end # module
