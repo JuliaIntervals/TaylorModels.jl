@@ -1,6 +1,6 @@
 # show.jl
 
-function showfull(io::IO, f::Taylor1Model)
+function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
     print(io,
     """Taylor1 model of degree $(f.n):
      - x0:  $(f.x0)

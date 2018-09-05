@@ -38,7 +38,7 @@ for TM in tupleTMs
 
         # Short-cut for a constant TM
         $(TM)(a::Interval{T}, ord::Int, x0::Interval{T},
-            I::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(iI), x0, I)
+            I::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(I), x0, I)
 
         # convenience constructors with same n, x0, I:
         # TaylorModel1(f, p, Δ) = TaylorModel1(f.n, f.x0, f.I, p, Δ)
@@ -56,8 +56,8 @@ end
     TaylorModel1{T,S}
 
 Taylor model in 1 variable, providing a rigurous polynomial approximation
-(around $x_0$) and an absolute remainder $\Delta$ for a function $f(x)$ in one variable,
-valid in the interval $I$. Corresponds to definition 2.1.3 of
+(around `x_0`) and an absolute remainder `\Delta` for a function `f(x)` in one variable,
+valid in the interval `I`. Corresponds to definition 2.1.3 of
 Mioara Joldes' thesis.
 
 Fields:
@@ -66,9 +66,9 @@ Fields:
 - `x0`: expansion point
 - `I`: interval over which the Taylor model is defined / valid
 
-The approximation $f(x) = \sum_{i=0}^n p_i (x - x_0)^i + \Delta$ is
-satisfied for all $x\in I$ ($0\in\Delta$); $n$ is the order (degree)
-of the polynomial $p(x)$.
+The approximation `f(x) = \sum_{i=0}^n p_i (x - x_0)^i + \Delta` is
+satisfied for all `x\in I` (`0\in\Delta`); `n` is the order (degree)
+of the polynomial `p(x)`.
 
 """ TaylorModel1
 
@@ -76,8 +76,8 @@ of the polynomial $p(x)$.
     RTaylorModel1{T,S}
 
 Taylor model in 1 variable, providing a rigurous polynomial approximation
-(around $x_0$) and a relative remainder $\delta$ for a function $f(x)$ in one variable,
-valid in the interval $I$. Corresponds to definition 2.3.2 of
+(around `x_0`) and a relative remainder `\delta` for a function `f(x)` in one variable,
+valid in the interval `I`. Corresponds to definition 2.3.2 of
 Mioara Joldes' thesis.
 
 Fields:
@@ -86,27 +86,27 @@ Fields:
 - `x0`: expansion point
 - `I`: interval over which the Taylor model is defined / valid
 
-The approximation $f(x) = \sum_i p_i (x - x_0)^i + \delta (x - x_0)^{n+1}$ is
-satisfied for all $x\in I$; $n$ is the order (degree) of the polynomial $p(x)$.
+The approximation `f(x) = \sum_i p_i (x - x_0)^i + \delta (x - x_0)^{n+1}` is
+satisfied for all `x\in I`; `n` is the order (degree) of the polynomial `p(x)`.
 
 """ RTaylorModel1
 
 
-# TMNAbsRem's struct
+# TaylorModelN's struct
 """
     TaylorModelN{N,T,S}
 
 Taylor Models with absolute remainder for `N` independent variables.
 
 """
-struct TMNAbsRem{N,T,S} <: AbstractSeries{T}
+struct TaylorModelN{N,T,S} <: AbstractSeries{T}
     pol  :: TaylorN{T}        # polynomial approx (of order `ord`)
     rem  :: Interval{S}       # remainder
     x0   :: IntervalBox{N,S}  # expansion point
     I    :: IntervalBox{N,S}  # interval of interest
 
     # Inner constructor
-    function TMNAbsRem{N,T,S}(pol::TaylorN{T}, rem::Interval{S},
+    function TaylorModelN{N,T,S}(pol::TaylorN{T}, rem::Interval{S},
             x0::IntervalBox{N,S}, I::IntervalBox{N,S}) where {N,T<:NumberNotSeries,S<:Real}
 
         @assert N == get_numvars()
@@ -117,18 +117,18 @@ struct TMNAbsRem{N,T,S} <: AbstractSeries{T}
 end
 
 # Outer constructors
-TMNAbsRem(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S}, I::IntervalBox{N,S}) where {N,T,S} =
-    TMNAbsRem{N,T,S}(pol, rem, x0, I)
+TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S}, I::IntervalBox{N,S}) where {N,T,S} =
+    TaylorModelN{N,T,S}(pol, rem, x0, I)
 
 # Short-cut for independent variable
-TMNAbsRem(nv::Int, ord::Int, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
-    TMNAbsRem(x0[nv] + TaylorN(Interval{T}, nv, order=ord), zero(iI[1]), x0, I)
+TaylorModelN(nv::Int, ord::Int, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
+    TaylorModelN(x0[nv] + TaylorN(Interval{T}, nv, order=ord), zero(I[1]), x0, I)
 
 # Short-cut for a constant
-TMNAbsRem(a::Interval{T}, ord::Int, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
-    TMNAbsRem(TaylorN(a, ord), zero(iI[1]), x0, I)
+TaylorModelN(a::Interval{T}, ord::Int, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
+    TaylorModelN(TaylorN(a, ord), zero(I[1]), x0, I)
 
 # Functions to retrieve the order and remainder
-get_order(tm::TMNAbsRem) = tm.pol.order
-remainder(tm::TMNAbsRem) = tm.rem
-polynomial(tm::TMNAbsRem) = tm.pol
+get_order(tm::TaylorModelN) = tm.pol.order
+remainder(tm::TaylorModelN) = tm.rem
+polynomial(tm::TaylorModelN) = tm.pol

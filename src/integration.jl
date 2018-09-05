@@ -35,7 +35,7 @@ end
 integrate(a::RTaylorModel1{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
 
 
-function integrate(a::TaylorModel1{TMNAbsRem{N,Interval{T},S}}) where {N,T,S}
+function integrate(a::TaylorModel1{TaylorModelN{N,Interval{T},S}}) where {N,T,S}
     order = get_order(a)
     aa = a.pol[0] / 1
     coeffs = Array{typeof(aa)}(order+1)
@@ -48,8 +48,8 @@ function integrate(a::TaylorModel1{TMNAbsRem{N,Interval{T},S}}) where {N,T,S}
     Δ = aux * remainder(a) +  δTMN * aux^(order+1) / (order+1)
     return TaylorModel1( Taylor1(coeffs, order), Δ, a.x0, a.I )
 end
-function integrate(a::TaylorModel1{TMNAbsRem{N,Interval{T},S}},
-        c0::TMNAbsRem{N,Interval{T},S}) where {N,T,S}
+function integrate(a::TaylorModel1{TaylorModelN{N,Interval{T},S}},
+        c0::TaylorModelN{N,Interval{T},S}) where {N,T,S}
     res = integrate(a)
     res.pol[0] = c0
     return res

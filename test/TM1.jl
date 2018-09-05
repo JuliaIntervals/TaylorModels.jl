@@ -1,4 +1,4 @@
-# Tests using TM1AbsRem and TM1RelRem
+# Tests using TaylorModel1 and RTaylorModel1
 
 using TaylorModels
 using TaylorSeries, IntervalArithmetic
@@ -17,9 +17,9 @@ const α_mid = TaylorModels.α_mid
 setformat(:full)
 
 
-function check_containment(ftest, tma::T) where {T<:Union{TM1AbsRem, TM1RelRem}}
-    ii = tma.iI
-    xfp = diam(tma.iI)*(rand()-0.5) + mid(tma.x0)
+function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
+    ii = tma.I
+    xfp = diam(tma.I)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
     range = tma(@interval(xfp)-tma.x0)
     bb = ftest(xbf) ∈ range
@@ -42,24 +42,24 @@ end
     @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(1-t^4+t^5, 0..1)
 end
 
-@testset "Tests for TM1AbsRem " begin
+@testset "Tests for TaylorModel1 " begin
     x0 = Interval(0.0)
     ii0 = Interval(-0.5, 0.5)
     x1 = Interval(1.0)
     ii1 = Interval(0.5, 1.5)
 
-    @testset "TM1AbsRem constructors" begin
-        tv = TM1AbsRem{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
-        @test tv == TM1AbsRem(Taylor1(Interval{Float64},5), x0, x0, ii0)
-        @test tv == TM1AbsRem(5, x0, ii0)
-        @test TM1AbsRem(x1, 5, x0, ii0) == TM1AbsRem(Taylor1(x1, 5), x0, x0, ii0)
+    @testset "TaylorModel1 constructors" begin
+        tv = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        @test tv == TaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        @test tv == TaylorModel1(5, x0, ii0)
+        @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
 
         @test isa(tv, AbstractSeries)
-        @test TM1AbsRem{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
+        @test TaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
         # Test errors in construction
-        @test_throws AssertionError TM1AbsRem(Taylor1(Interval{Float64},5), x1, x0, ii0)
-        @test_throws AssertionError TM1AbsRem(5, x1, ii0)
+        @test_throws AssertionError TaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0)
+        @test_throws AssertionError TaylorModel1(5, x1, ii0)
 
         # Tests for get_order and remainder
         @test get_order(tv) == 5
@@ -68,47 +68,47 @@ end
 
     @testset "Arithmetic operations" begin
         Δ = interval(-0.25, 0.25)
-        a = TM1AbsRem(x1+Taylor1(5), Δ, x1, ii1)
-        tv = TM1AbsRem(5, x1, ii1)
-        @test zero(a) == TM1AbsRem(zero(a.pol), 0..0, x1, ii1)
-        @test one(a) == TM1AbsRem(one(a.pol), 0..0, x1, ii1)
-        @test a+x1 == TM1AbsRem(2*x1+Taylor1(5), Δ, x1, ii1)
-        @test a+a == TM1AbsRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
-        @test a-x1 == TM1AbsRem(zero(x1)+Taylor1(5), Δ, x1, ii1)
-        @test a-a == TM1AbsRem(zero(a.pol), 2*Δ, x1, ii1)
+        a = TaylorModel1(x1+Taylor1(5), Δ, x1, ii1)
+        tv = TaylorModel1(5, x1, ii1)
+        @test zero(a) == TaylorModel1(zero(a.pol), 0..0, x1, ii1)
+        @test one(a) == TaylorModel1(one(a.pol), 0..0, x1, ii1)
+        @test a+x1 == TaylorModel1(2*x1+Taylor1(5), Δ, x1, ii1)
+        @test a+a == TaylorModel1(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
+        @test a-x1 == TaylorModel1(zero(x1)+Taylor1(5), Δ, x1, ii1)
+        @test a-a == TaylorModel1(zero(a.pol), 2*Δ, x1, ii1)
         b = a * tv
-        @test b == TM1AbsRem(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
-        @test b/tv == TM1AbsRem(a.pol, Interval(-0.78125, 0.84375), x1, ii1)
+        @test b == TaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
+        @test b/tv == TaylorModel1(a.pol, Interval(-0.78125, 0.84375), x1, ii1)
         b = a * a.pol[0]
         @test b == a
 
-        a = TM1AbsRem(x0, 5, x0, ii0)
-        @test a^2 == TM1AbsRem(x0^2, 5, x0, ii0)
-        @test a^3 == TM1AbsRem(x0^3, 5, x0, ii0)
-        a = TM1AbsRem(x1, 5, x1, ii1)
-        @test a^2 == TM1AbsRem(x1^2, 5, x1, ii1)
-        @test a^3 == TM1AbsRem(x1^3, 5, x1, ii1)
+        a = TaylorModel1(x0, 5, x0, ii0)
+        @test a^2 == TaylorModel1(x0^2, 5, x0, ii0)
+        @test a^3 == TaylorModel1(x0^3, 5, x0, ii0)
+        a = TaylorModel1(x1, 5, x1, ii1)
+        @test a^2 == TaylorModel1(x1^2, 5, x1, ii1)
+        @test a^3 == TaylorModel1(x1^3, 5, x1, ii1)
     end
 
     @testset "RPAs, functions and remainders" begin
-        @test rpa(x->5+zero(x), TM1AbsRem(4, x0, ii0)) ==
-            TM1AbsRem(interval(5.0), 4, x0, ii0)
-        @test rpa(x->5+one(x), TM1AbsRem(4, x1, ii1)) ==
-            TM1AbsRem(5+x1, 4, x1, ii1)
-        @test rpa(x->5*x, TM1AbsRem(4, x1, ii1)) ==
-            TM1AbsRem(5.0*(x1+Taylor1(4)), x0, x1, ii1)
-        @test rpa(x->5*x^4, TM1AbsRem(4, x0, ii0)) ==
-            TM1AbsRem( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
-        @test rpa(x->5*x^4, TM1AbsRem(3, x0, ii0)) ==
-            TM1AbsRem( Taylor1(x0, 3), 5*ii0^4, x0, ii0)
+        @test rpa(x->5+zero(x), TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1(interval(5.0), 4, x0, ii0)
+        @test rpa(x->5+one(x), TaylorModel1(4, x1, ii1)) ==
+            TaylorModel1(5+x1, 4, x1, ii1)
+        @test rpa(x->5*x, TaylorModel1(4, x1, ii1)) ==
+            TaylorModel1(5.0*(x1+Taylor1(4)), x0, x1, ii1)
+        @test rpa(x->5*x^4, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
+        @test rpa(x->5*x^4, TaylorModel1(3, x0, ii0)) ==
+            TaylorModel1( Taylor1(x0, 3), 5*ii0^4, x0, ii0)
 
         # Testing remainders of an RPA
         order = 2
         ii = ii0
         xx = x0
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
-        tmb = ftest(TM1AbsRem(order, xx, ii))
+        tma = rpa(ftest, TaylorModel1(order, xx, ii))
+        tmb = ftest(TaylorModel1(order, xx, ii))
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -122,8 +122,8 @@ end
         ii = ii1
         xx = x1
         ftest = x -> exp(x)
-        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
-        tmb = ftest(TM1AbsRem(order, xx, ii))
+        tma = rpa(ftest, TaylorModel1(order, xx, ii))
+        tmb = ftest(TaylorModel1(order, xx, ii))
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -137,8 +137,8 @@ end
         ii = ii0
         xx = x0
         ftest = x -> sin(x)
-        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
-        tmb = ftest(TM1AbsRem(order, xx, ii))
+        tma = rpa(ftest, TaylorModel1(order, xx, ii))
+        tmb = ftest(TaylorModel1(order, xx, ii))
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -152,8 +152,8 @@ end
         ii = ii1
         xx = x1
         ftest = x -> sqrt(x)
-        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
-        tmb = ftest(TM1AbsRem(order, xx, ii))
+        tma = rpa(ftest, TaylorModel1(order, xx, ii))
+        tmb = ftest(TaylorModel1(order, xx, ii))
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -167,8 +167,8 @@ end
         ii = ii1
         xx = x1
         ftest = x -> inv(x)
-        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
-        tmb = ftest(TM1AbsRem(order, xx, ii))
+        tma = rpa(ftest, TaylorModel1(order, xx, ii))
+        tmb = ftest(TaylorModel1(order, xx, ii))
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -183,8 +183,8 @@ end
         ii = interval(-0.5, 1.0)
         xx = interval(mid(ii))
         ftest = x -> x*(x-1.1)*(x+2)*(x+2.2)*(x+2.5)*(x+3)*sin(1.7*x+0.5)
-        tma = rpa(ftest, TM1AbsRem(order, xx, ii))
-        tmb = ftest(TM1AbsRem(order, xx, ii))
+        tma = rpa(ftest, TaylorModel1(order, xx, ii))
+        tmb = ftest(TaylorModel1(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
@@ -192,7 +192,7 @@ end
     end
 
     @testset "Composition of functions and their inverses" begin
-        tv = TM1AbsRem(2, x0, ii0)
+        tv = TaylorModel1(2, x0, ii0)
 
         tma = exp(tv)
         tmb = log(tma)
@@ -226,7 +226,7 @@ end
 
 
         ####
-        tv = TM1AbsRem(2, x1, ii1)
+        tv = TaylorModel1(2, x1, ii1)
 
         tma = log(tv)
         tmb = exp(tma)
@@ -241,7 +241,7 @@ end
 
     @testset "Tests for integrate" begin
         order = 4
-        tm = TM1AbsRem(order, x0, ii0)
+        tm = TaylorModel1(order, x0, ii0)
 
         integ_res = integrate(exp(tm), 1..1)
         exact_res = exp(tm)
@@ -277,9 +277,9 @@ end
     end
 
     @testset "Display" begin
-        tm = TM1AbsRem(2, x1, ii1)
+        tm = TaylorModel1(2, x1, ii1)
         use_show_default(true)
-        @test string(exp(tm)) == "TaylorModels.TM1AbsRem{IntervalArithmetic.Interval{Float64},Float64}" *
+        @test string(exp(tm)) == "TaylorModels.TaylorModel1{IntervalArithmetic.Interval{Float64},Float64}" *
             "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
             "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
             "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677582, 0.06448109909211741), " *
@@ -294,26 +294,26 @@ end
     end
 end
 
-@testset "Tests for TM1RelRem " begin
+@testset "Tests for RTaylorModel1 " begin
     x0 = Interval(0.0)
     ii0 = Interval(-0.5, 0.5)
     x1 = Interval(1.0)
     ii1 = Interval(0.5, 1.5)
 
-    @testset "TM1RelRem constructors" begin
-        tv = TM1RelRem{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
-        @test tv == TM1RelRem(Taylor1(Interval{Float64},5), x0, x0, ii0)
-        @test tv == TM1RelRem(5, x0, ii0)
-        @test TM1RelRem(x1, 5, x0, ii0) == TM1RelRem(Taylor1(x1, 5), x0, x0, ii0)
+    @testset "RTaylorModel1 constructors" begin
+        tv = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        @test tv == RTaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        @test tv == RTaylorModel1(5, x0, ii0)
+        @test RTaylorModel1(x1, 5, x0, ii0) == RTaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
 
         @test isa(tv, AbstractSeries)
-        @test TM1RelRem{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
+        @test RTaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
-        # Zero may not be contained in the remainder of a TM1RelRem
-        @test 0 ∉ remainder(TM1RelRem(Taylor1(Interval{Float64},5), x1, x0, ii0))
+        # Zero may not be contained in the remainder of a RTaylorModel1
+        @test 0 ∉ remainder(RTaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0))
 
         # Test errors in construction
-        @test_throws AssertionError TM1RelRem(5, x1, ii0)
+        @test_throws AssertionError RTaylorModel1(5, x1, ii0)
 
         # Tests for get_order and remainder
         @test get_order(tv) == 5
@@ -322,46 +322,46 @@ end
 
     @testset "Arithmetic operations" begin
         Δ = interval(-0.25, 0.25)
-        a = TM1RelRem(x1+Taylor1(5), Δ, x1, ii1)
-        tv = TM1RelRem(5, x1, ii1)
+        a = RTaylorModel1(x1+Taylor1(5), Δ, x1, ii1)
+        tv = RTaylorModel1(5, x1, ii1)
 
-        @test zero(a) == TM1RelRem(zero(a.pol), 0..0, x1, ii1)
-        @test one(a) == TM1RelRem(one(a.pol), 0..0, x1, ii1)
-        @test a+x1 == TM1RelRem(2*x1+Taylor1(5), Δ, x1, ii1)
-        @test a+a == TM1RelRem(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
-        @test a-x1 == TM1RelRem(zero(x1)+Taylor1(5), Δ, x1, ii1)
-        @test a-a == TM1RelRem(zero(a.pol), 2*Δ, x1, ii1)
+        @test zero(a) == RTaylorModel1(zero(a.pol), 0..0, x1, ii1)
+        @test one(a) == RTaylorModel1(one(a.pol), 0..0, x1, ii1)
+        @test a+x1 == RTaylorModel1(2*x1+Taylor1(5), Δ, x1, ii1)
+        @test a+a == RTaylorModel1(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
+        @test a-x1 == RTaylorModel1(zero(x1)+Taylor1(5), Δ, x1, ii1)
+        @test a-a == RTaylorModel1(zero(a.pol), 2*Δ, x1, ii1)
         b = a * tv
-        @test b == TM1RelRem(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
-        @test b/tv == TM1RelRem(a.pol, Interval(-2.75, 4.75), x1, ii1)
+        @test b == RTaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
+        @test b/tv == RTaylorModel1(a.pol, Interval(-2.75, 4.75), x1, ii1)
         b = a * a.pol[0]
         @test b == a
 
-        a = TM1RelRem(x0, 5, x0, ii0)
-        @test a^2 == TM1RelRem(x0^2, 5, x0, ii0)
-        @test a^3 == TM1RelRem(x0^3, 5, x0, ii0)
-        a = TM1RelRem(x1, 5, x1, ii1)
-        @test a^2 == TM1RelRem(x1^2, 5, x1, ii1)
-        @test a^3 == TM1RelRem(x1^3, 5, x1, ii1)
+        a = RTaylorModel1(x0, 5, x0, ii0)
+        @test a^2 == RTaylorModel1(x0^2, 5, x0, ii0)
+        @test a^3 == RTaylorModel1(x0^3, 5, x0, ii0)
+        a = RTaylorModel1(x1, 5, x1, ii1)
+        @test a^2 == RTaylorModel1(x1^2, 5, x1, ii1)
+        @test a^3 == RTaylorModel1(x1^3, 5, x1, ii1)
     end
 
     @testset "RPAs, functions and remainders" begin
-        @test rpa(x->5+zero(x), TM1RelRem(4, x0, ii0)) ==
-            TM1RelRem(interval(5.0), 4, x0, ii0)
-        @test rpa(x->5*x, TM1RelRem(4, x1, ii1)) ==
-            TM1RelRem(5.0*(x1+Taylor1(4)), x0, x1, ii1)
-        @test rpa(x->5*x^4, TM1RelRem(4, x0, ii0)) ==
-            TM1RelRem( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
-        @test rpa(x->5*x^4, TM1RelRem(3, x0, ii0)) ==
-            TM1RelRem( Taylor1(x0, 3), interval(5), x0, ii0)
+        @test rpa(x->5+zero(x), RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1(interval(5.0), 4, x0, ii0)
+        @test rpa(x->5*x, RTaylorModel1(4, x1, ii1)) ==
+            RTaylorModel1(5.0*(x1+Taylor1(4)), x0, x1, ii1)
+        @test rpa(x->5*x^4, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
+        @test rpa(x->5*x^4, RTaylorModel1(3, x0, ii0)) ==
+            RTaylorModel1( Taylor1(x0, 3), interval(5), x0, ii0)
 
         # Testing remainders and inclusion of RPAs
         order = 2
         ii = ii0
         xx = x0
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, TM1RelRem(order, xx, ii))
-        tmb = ftest(TM1RelRem(order, xx, ii))
+        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
+        tmb = ftest(RTaylorModel1(order, xx, ii))
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -376,8 +376,8 @@ end
         ii = ii1
         xx = x1
         ftest = x -> exp(x)
-        tma = rpa(ftest, TM1RelRem(order, xx, ii))
-        tmb = ftest(TM1RelRem(order, xx, ii))
+        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
+        tmb = ftest(RTaylorModel1(order, xx, ii))
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -392,8 +392,8 @@ end
         ii = ii0
         xx = x0
         ftest = x -> sin(x)
-        tma = rpa(ftest, TM1RelRem(order, xx, ii))
-        tmb = ftest(TM1RelRem(order, xx, ii))
+        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
+        tmb = ftest(RTaylorModel1(order, xx, ii))
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -408,8 +408,8 @@ end
         ii = ii1
         xx = x1
         ftest = x -> sqrt(x)
-        tma = rpa(ftest, TM1RelRem(order, xx, ii))
-        tmb = ftest(TM1RelRem(order, xx, ii))
+        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
+        tmb = ftest(RTaylorModel1(order, xx, ii))
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -424,8 +424,8 @@ end
         ii = ii1
         xx = x1
         ftest = x -> inv(x)
-        tma = rpa(ftest, TM1RelRem(order, xx, ii))
-        tmb = ftest(TM1RelRem(order, xx, ii))
+        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
+        tmb = ftest(RTaylorModel1(order, xx, ii))
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -441,8 +441,8 @@ end
         ii = interval(-0.5, 1.0)
         xx = interval(mid(ii))
         ftest = x -> x*(x-1.1)*(x+2)*(x+2.2)*(x+2.5)*(x+3)*sin(1.7*x+0.5)
-        tma = rpa(ftest, TM1RelRem(order, xx, ii))
-        tmb = ftest(TM1RelRem(order, xx, ii))
+        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
+        tmb = ftest(RTaylorModel1(order, xx, ii))
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
@@ -450,7 +450,7 @@ end
     end
 
     @testset "Composition of functions and their inverses" begin
-        tv = TM1RelRem(2, x0, ii0)
+        tv = RTaylorModel1(2, x0, ii0)
 
         tma = exp(tv)
         tmb = log(tma)
@@ -484,7 +484,7 @@ end
 
 
         ####
-        tv = TM1RelRem(2, x1, ii1)
+        tv = RTaylorModel1(2, x1, ii1)
 
         tma = log(tv)
         tmb = exp(tma)
@@ -499,7 +499,7 @@ end
 
     @testset "Tests for integrate" begin
         order = 4
-        tm = TM1RelRem(order, x0, ii0)
+        tm = RTaylorModel1(order, x0, ii0)
 
         integ_res = integrate(exp(tm), 1..1)
         exact_res = exp(tm)
@@ -535,9 +535,9 @@ end
     end
 
     @testset "Display" begin
-        tm = TM1RelRem(3, x1, ii1)
+        tm = RTaylorModel1(3, x1, ii1)
         use_show_default(true)
-        @test string(exp(tm)) == "TaylorModels.TM1RelRem{IntervalArithmetic.Interval{Float64},Float64}" *
+        @test string(exp(tm)) == "TaylorModels.RTaylorModel1{IntervalArithmetic.Interval{Float64},Float64}" *
             "(TaylorSeries.Taylor1{IntervalArithmetic.Interval{Float64}}(IntervalArithmetic.Interval{Float64}" *
             "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
             "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *

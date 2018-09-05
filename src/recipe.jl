@@ -1,7 +1,4 @@
-#=
-Modified from:
-https://github.com/dpsanders/TaylorModels.jl/blob/master/src/TaylorModels.jl
-=#
+# recipe.jl
 
 using RecipesBase
 
@@ -11,7 +8,7 @@ using RecipesBase
     alpha --> 0.3
     seriestype := :shape
 
-    xs = linspace(f.iI.lo, f.iI.hi, 100)
+    xs = linspace(f.I.lo, f.I.hi, 100)
     evals = fT.(xs .- ξ0)
 
     xs = [xs; reverse(xs); xs[1]]
@@ -27,7 +24,7 @@ end
     alpha --> 0.5
     seriestype := :shape
 
-    xs = linspace(f.iI.lo, f.iI.hi, 100)
+    xs = linspace(f.I.lo, f.I.hi, 100)
     evals = fT.(xs .- ξ0)
     corrs = (xs .- ξ0) .^ order
     Δrel = δ .+ Δ .* corrs

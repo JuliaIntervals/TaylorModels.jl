@@ -89,10 +89,10 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     _order = get_order(tmf)
 
     # # Avoid overestimations
-    # if tmf == TMNAbsRem(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
+    # if tmf == TaylorModelN(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
     #     # ... in case `tmf` is a simple constant polynomial
     #     range_g = (g(tmf.pol))(tmf.I-tmf.x0) + remainder(tmf)
-    #     return TMNAbsRem(range_g, _order, tmf.x0, tmf.I)
+    #     return TaylorModelN(range_g, _order, tmf.x0, tmf.I)
     # else
     #     v = get_variables(T, _order)
     #     any( tmf.pol .== v ) && _rpaar(g, tmf.x0, tmf.I, _order)
@@ -108,7 +108,7 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     range_tmf = f_pol(I-x0) + Δf
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
-    # Note that tmg is a TM1AbsRem !!
+    # Note that tmg is a TaylorModel1 !!
     tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
@@ -117,7 +117,7 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
 
     # Final remainder
     Δ = remainder(tmres) + remainder(tmg)
-    return TMNAbsRem(tmres.pol, Δ, x0, I)
+    return TaylorModelN(tmres.pol, Δ, x0, I)
 end
 
 
@@ -133,13 +133,13 @@ function rpa(g::Function, tmf::RTaylorModel1)
     _order = get_order(tmf)
 
     # Avoid overestimations:
-    if tmf == TM1RelRem(_order, tmf.x0, tmf.I)
+    if tmf == RTaylorModel1(_order, tmf.x0, tmf.I)
         # ... if `tmf` is the independent variable
         return _rparr(g, tmf.x0, tmf.I, _order)
-    elseif tmf == TM1RelRem(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
+    elseif tmf == RTaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
         # ... in case `tmf` is a simple constant polynomial
         range_g = bound_taylor1(g(tmf.pol), tmf.I-tmf.x0) + remainder(tmf)
-        return TM1RelRem(range_g, _order, tmf.x0, tmf.I)
+        return RTaylorModel1(range_g, _order, tmf.x0, tmf.I)
     end
 
     f_pol = tmf.pol
@@ -155,12 +155,12 @@ function rpa(g::Function, tmf::RTaylorModel1)
     tm1 = tmf - constant_term(f_pol)   # OVER-ESTIMATION; IMPROVE
     tmres = tmg( tm1 )
 
-    tmn = TM1RelRem(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.I)
+    tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.I)
     for i = 1:_order
         tmn = tmn * tm1
     end
     Δ = remainder(tmres) + remainder(tmn) * remainder(tmg)
-    return TM1RelRem(tmres.pol, Δ, x0, I)
+    return RTaylorModel1(tmres.pol, Δ, x0, I)
 end
 
 
@@ -209,7 +209,7 @@ function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
         b[ind] = fT[ind] - Interval(t[ind])
     end
     δ = b(I-x0)
-    # Is the following correct for TM1RelRem?
+    # Is the following correct for RTaylorModel1?
     Δ = Δ + δ
     return RTaylorModel1(t, Δ, x0, I)
 end

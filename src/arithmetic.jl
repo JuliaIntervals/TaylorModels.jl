@@ -75,9 +75,9 @@ function *(a::TaylorModel1, b::TaylorModel1)
 
     # Polynomial product with extended order
     order = max(get_order(a), get_order(b))
-    # aext = Taylor1(copy(a.pol.coeffs), 2*order)
+    aext = Taylor1(copy(a.pol.coeffs), 2*order)
     bext = Taylor1(copy(b.pol.coeffs), 2*order)
-    res = a * bext
+    res = aext * bext
 
     # Returned polynomial
     bext = Taylor1( copy(res.coeffs[1:order+1]) )
@@ -100,9 +100,9 @@ function *(a::RTaylorModel1, b::RTaylorModel1)
 
     # Polynomial product with extended order
     order = max(get_order(a), get_order(b))
-    # aext = Taylor1(copy(a.pol.coeffs), 2*order)
+    aext = Taylor1(copy(a.pol.coeffs), 2*order)
     bext = Taylor1(copy(b.pol.coeffs), 2*order)
-    res = a * bext
+    res = aext * bext
 
     # Returned polynomial
     bext = Taylor1( copy(res.coeffs[1:order+1]) )
@@ -154,7 +154,7 @@ end
 
 
 """
-    reducetoorder(a::TM1RelRem, m::Int)
+    reducetoorder(a::RTaylorModel1, m::Int)
 
 From `a::RTaylorModel1`, it returns a RTaylorModel1 of order `m`.
 
