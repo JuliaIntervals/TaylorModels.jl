@@ -2,10 +2,11 @@ module TaylorModels
 
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
-# Use current master (until next tag) of IntervalRootFinding
-using IntervalRootFinding
+# using IntervalRootFinding
 using RecipesBase
 
+using Markdown
+import LinearAlgebra: norm
 
 import Base: setindex!, getindex, copy,
     ==, +, -, *, /, ^,

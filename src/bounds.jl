@@ -6,8 +6,9 @@
 Bound the absolute remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
 the interval extension `polfI` of the polynomial that approximates `f` for
-the whole interval `I`, in order to compute the Lagrange remainder. If
-`polfI[end]` has a definite sign, then it is monotonic in the intervals
+the whole interval `I`, in order to compute the Lagrange remainder.
+
+If `polfI[end]` has a definite sign, then it is monotonic in the intervals
 [I.lo, x0] and [x0.hi, I.hi], which is exploited; otherwise, it is used
 to compute the Lagrange remainder.
 
@@ -21,10 +22,10 @@ function bound_absrem(f::Function, polf::Taylor1, polfI::Taylor1,
         # Absolute remainder is monotonic
         a = interval(I.lo)
         b = interval(I.hi)
-        # Δlo = f(a) - polf(a-x0)
-        Δlo = f(a) - bound_taylor1(polf, a-x0)
-        # Δhi = f(b) - polf(b-x0)
-        Δhi = f(b) - bound_taylor1(polf, b-x0)
+        Δlo = f(a) - polf(a-x0)
+        # Δlo = f(a) - bound_taylor1(polf, a-x0)
+        Δhi = f(b) - polf(b-x0)
+        # Δhi = f(b) - bound_taylor1(polf, b-x0)
         Δx0 = f(x0) - polf[0]
         Δ = hull(hull(Δlo, Δx0), Δhi)
     else
@@ -41,8 +42,9 @@ end
 Bound the relative remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
 an the interval extension `polfI` of a polynomial that approximates `f` for
-the whole interval `I`, in order to compute the Lagrange remainder. If
-`polfI[end]` has a definite sign, then it is monotonic in the interval `I`,
+the whole interval `I`, in order to compute the Lagrange remainder.
+
+If `polfI[end]` has a definite sign, then it is monotonic in the interval `I`,
 which is exploited; otherwise, the last coefficients bounds the relative
 remainder.
 
@@ -57,12 +59,12 @@ function bound_relrem(f::Function, polf::Taylor1, polfI::Taylor1,
     if (sup(fTIend) < 0 || inf(fTIend) > 0) && isempty(a ∩ x0) && isempty(b ∩ x0)
         # Error is monotonic
         denom_lo = (a-x0)^_order
-        # Δlo = f(a) - polf(a-x0)
-        Δlo = f(a) - bound_taylor1(polf, a-x0)
+        Δlo = f(a) - polf(a-x0)
+        # Δlo = f(a) - bound_taylor1(polf, a-x0)
         Δlo = Δlo / denom_lo
         denom_hi = (b-x0)^_order
-        # Δhi = f(b) - polf(b-x0)
-        Δhi = f(b) - bound_taylor1(polf, b-x0)
+        Δhi = f(b) - polf(b-x0)
+        # Δhi = f(b) - bound_taylor1(polf, b-x0)
         Δhi = Δhi / denom_hi
         Δ = hull(Δlo, Δhi)
     else
@@ -77,7 +79,7 @@ end
     bound_taylor1(fT::Taylor1, I::Interval)
 
 Compute a *tight* polynomial bound for the Taylor polynomial `fT`
-for the interval `I`.
+in the interval `I`.
 
 Note: Algorithm 2.1.1 corresponds to `evaluate(fT, I)` or simply `fT(I).
 This function uses the roots of the derivative of `ft` to obtain a
@@ -94,7 +96,7 @@ function bound_taylor1(fT::Taylor1, I::Interval)
     # Compute roots of the derivative using the second derivative
     # Fix some sort of relative tolerance for Newton root search
     fTd2 = TaylorSeries.derivative(fTd)
-    rootsder = roots(x->fTd(x), x->fTd2(x), I, Newton, 1.0e-5*mag(I))
+    rootsder = roots(fTd, fTd2, I, Newton, 1.0e-5*mag(I))
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)

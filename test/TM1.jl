@@ -1,7 +1,7 @@
 # Tests using TaylorModel1 and RTaylorModel1
 
 using TaylorModels
-using TaylorSeries, IntervalArithmetic
+# using TaylorSeries, IntervalArithmetic
 
 if VERSION < v"0.7.0-DEV.2004"
     using Base.Test
@@ -27,20 +27,20 @@ function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorM
     return bb
 end
 
-@testset "Test `bound_taylor1`" begin
-    x0 = Interval(0.0)
-    ii0 = Interval(-0.5, 0.5)
-
-    tpol = exp( Taylor1(2) )
-    @test TaylorModels.bound_taylor1( tpol, ii0) ==
-        @interval(tpol(ii0.lo), tpol(ii0.hi))
-    @test TaylorModels.bound_taylor1( exp( Taylor1(Interval{Float64}, 2) ),
-        ii0) == @interval(tpol(ii0.lo), tpol(ii0.hi))
-
-    # An uncomfortable example from Makino
-    t = Taylor1(5)
-    @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(1-t^4+t^5, 0..1)
-end
+# @testset "Test `bound_taylor1`" begin
+#     x0 = Interval(0.0)
+#     ii0 = Interval(-0.5, 0.5)
+#
+#     tpol = exp( Taylor1(2) )
+#     @test TaylorModels.bound_taylor1( tpol, ii0) ==
+#         @interval(tpol(ii0.lo), tpol(ii0.hi))
+#     @test TaylorModels.bound_taylor1( exp( Taylor1(Interval{Float64}, 2) ),
+#         ii0) == @interval(tpol(ii0.lo), tpol(ii0.hi))
+#
+#     # An uncomfortable example from Makino
+#     t = Taylor1(5)
+#     @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(1-t^4+t^5, 0..1)
+# end
 
 @testset "Tests for TaylorModel1 " begin
     x0 = Interval(0.0)

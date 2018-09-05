@@ -71,13 +71,15 @@ function rpa(g::Function, tmf::TaylorModel1)
     I = tmf.I
 
     # Range of tmf including remainder (Δf)
-    range_tmf = bound_taylor1(f_pol, I-x0) + Δf
+    # range_tmf = bound_taylor1(f_pol, I-x0) + Δf
+    range_tmf = f_pol(I-x0) + Δf
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
     tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
-    tm1 = tmf - f_pol0   # OVER-ESTIMATION; IMPROVE
+    tm1 = copy(tmf)
+    tm1[0] = zero(f_pol0)
     tmres = tmg( tm1 )
 
     # Final remainder
@@ -112,7 +114,8 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     tmg = _rpaar(g, f_pol0, range_tmf, _order)
 
     # Use original independent variable
-    tm1 = tmf - f_pol0   # OVER-ESTIMATION; IMPROVE
+    tm1 = copy(tmf)
+    tm1[0] = zero(f_pol0)
     tmres = tmg( tm1 )
 
     # Final remainder
@@ -132,27 +135,30 @@ exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 function rpa(g::Function, tmf::RTaylorModel1)
     _order = get_order(tmf)
 
-    # Avoid overestimations:
-    if tmf == RTaylorModel1(_order, tmf.x0, tmf.I)
-        # ... if `tmf` is the independent variable
-        return _rparr(g, tmf.x0, tmf.I, _order)
-    elseif tmf == RTaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
-        # ... in case `tmf` is a simple constant polynomial
-        range_g = bound_taylor1(g(tmf.pol), tmf.I-tmf.x0) + remainder(tmf)
-        return RTaylorModel1(range_g, _order, tmf.x0, tmf.I)
-    end
+    # # Avoid overestimations:
+    # if tmf == RTaylorModel1(_order, tmf.x0, tmf.I)
+    #     # ... if `tmf` is the independent variable
+    #     return _rparr(g, tmf.x0, tmf.I, _order)
+    # elseif tmf == RTaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
+    #     # ... in case `tmf` is a simple constant polynomial
+    #     range_g = bound_taylor1(g(tmf.pol), tmf.I-tmf.x0) + remainder(tmf)
+    #     return RTaylorModel1(range_g, _order, tmf.x0, tmf.I)
+    # end
 
     f_pol = tmf.pol
+    f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
     x0 = tmf.x0
     I = tmf.I
 
     # Range of tmf including remainder (Δf)
-    range_tmf = bound_taylor1(f_pol, I-x0) + Δf * (I-x0)^(_order+1)
+    # range_tmf = bound_taylor1(f_pol, I-x0) + Δf * (I-x0)^(_order+1)
+    range_tmf = f_pol(I-x0) + Δf * (I-x0)^(_order+1)
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
-    tmg = _rparr(g, constant_term(f_pol), range_tmf, _order)
-    tm1 = tmf - constant_term(f_pol)   # OVER-ESTIMATION; IMPROVE
+    tmg = _rparr(g, f_pol0, range_tmf, _order)
+    tm1 = copy(tmf)
+    tm1[0] = zero(f_pol0)
     tmres = tmg( tm1 )
 
     tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.I)
