@@ -24,7 +24,7 @@ struct Taylor1Model{T,S}
     Δ::Interval{T}   # interval remainder bound
 end
 
-Taylor1Model(n, x0, I::Interval{T}, p, Δ) where{T} = Taylor1Model(n, interval(x0), I, Taylor1{Interval{T}}(p), interval(Δ))
+Taylor1Model(n, x0, I::Interval{T}, p, Δ) where{T} = Taylor1Model(n, interval(x0), I, Taylor1(interval.(p)), interval(Δ))
 
 # convenience constructors with same n, x0, I:
 Taylor1Model(f, p, Δ) = Taylor1Model(f.n, f.x0, f.I, p, Δ)
@@ -92,7 +92,7 @@ Base.getindex(f::Taylor1Model, i::Integer) = f.p[i]
     alpha --> 0.5
     seriestype := :shape
 
-    xs = linspace(I.lo, I.hi, 100)
+    xs = range(I.lo, stop=I.hi, length=100)
     evals = f.(xs)
 
     ylos = [y.lo for y in evals]
