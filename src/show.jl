@@ -10,6 +10,7 @@ function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
     """
     )
 end
+showfull(x) = showfull(stdout::IO, x)
 
 function show(io::IO, a::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
     if TaylorSeries._show_default[end]

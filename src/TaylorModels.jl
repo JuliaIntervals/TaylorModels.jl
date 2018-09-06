@@ -16,6 +16,7 @@ import Base: setindex!, getindex, copy,
 
 import TaylorSeries: integrate, get_order, evaluate, pretty_print
 
+import IntervalArithmetic: showfull
 
 # export Taylor1Model, bound, make_Taylor_model, TMcomposition,
 #         taylor1_var, integrate, degree,
