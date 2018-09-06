@@ -3,12 +3,15 @@
 using RecipesBase
 
 @recipe function g(f::TaylorModel1)
-    fT, Δ, ξ0 = rpafp(f)
+    ffp = fp_rpa(f)
+    fT = polynomial(ffp)
+    Δ = remainder(ffp)
+    ξ0 = ffp.x0
 
     alpha --> 0.3
     seriestype := :shape
 
-    xs = linspace(f.I.lo, f.I.hi, 100)
+    xs = range(f.I.lo, stop=f.I.hi, length=100)
     evals = fT.(xs .- ξ0)
 
     xs = [xs; reverse(xs); xs[1]]
@@ -18,16 +21,19 @@ using RecipesBase
 end
 
 @recipe function g(f::RTaylorModel1)
-    fT, Δ, ξ0, δ = rpafp(f)
+    ffp = fp_rpa(f)
+    fT = polynomial(ffp)
+    Δ = remainder(ffp)
+    ξ0 = ffp.x0
     order = get_order(f)+1
 
     alpha --> 0.5
     seriestype := :shape
 
-    xs = linspace(f.I.lo, f.I.hi, 100)
+    xs = range(f.I.lo, stop=f.I.hi, length=100)
     evals = fT.(xs .- ξ0)
     corrs = (xs .- ξ0) .^ order
-    Δrel = δ .+ Δ .* corrs
+    Δrel = Δ .* corrs
     evalslo = evals .+ inf.( Δrel )
     evalshi = evals .+ sup.( Δrel )
 
