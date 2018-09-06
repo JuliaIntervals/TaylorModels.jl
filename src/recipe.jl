@@ -12,10 +12,11 @@ using RecipesBase
     seriestype := :shape
 
     xs = range(f.I.lo, stop=f.I.hi, length=100)
-    evals = fT.(xs .- ξ0)
+    evals = fT.(xs .- ξ0) .+ Δ
 
+    # make polygon:
     xs = [xs; reverse(xs); xs[1]]
-    ys = [evals .+ inf(Δ); reverse(evals .+ sup(Δ)); evals[1]+inf(Δ)]
+    ys = [inf.(evals); reverse(sup.(evals)); inf(evals[1])]
 
     xs, ys
 end
