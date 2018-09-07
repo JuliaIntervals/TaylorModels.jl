@@ -88,7 +88,7 @@ defined for the independent and dependent variables, and `x0`
 is the initial condition.
 """
 function check_existence(f, tm::T, xm::T, x0::Interval, x_test::Interval,
-        max_steps::Int=20) where {T<:Union{TaylorModel1, RTaylorModel1}}
+        max_steps::Integer=20) where {T<:Union{TaylorModel1, RTaylorModel1}}
 
     pl = 𝒫(f, tm, xm, x0)
     tt = shrink_for_existance(pl, tm.I, x_test, max_steps)
@@ -100,7 +100,7 @@ function check_existence(f, tm::T, xm::T, x0::Interval, x_test::Interval,
 end
 
 """
-    shrink_for_existance(xm::T, t_interval, x_test, max_steps::Int=20)
+    shrink_for_existance(xm::T, t_interval, x_test, max_steps::Integer=20)
 
 Shrinks the a-priori independent-variable interval `t_interval`
 so the range of `xm`, the Taylor Model (`TaylorModel1` or `RTaylorModel1`)
@@ -109,7 +109,7 @@ a-priori interval `x_test`. The method used is some sort
 of bisection. If no independent-variable interval is found within
 `max_steps`, an empty interval is returned.
 """
-function shrink_for_existance(xm::T, t_interval, x_test, max_steps::Int=20) where
+function shrink_for_existance(xm::T, t_interval, x_test, max_steps::Integer=20) where
         {T<:Union{TaylorModel1, RTaylorModel1}}
 
     tt = t_interval
@@ -145,7 +145,7 @@ function shrink_for_existance(xm::T, t_interval, x_test, max_steps::Int=20) wher
 end
 
 """
-    tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Int=20)
+    tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Integer=20)
 
 Returns a Taylor Model for the dependent variable, with a tighter
 remainder, which is obtained after successive iteration
@@ -154,7 +154,7 @@ of the Picard-Lindelöf. If the remainder is not tighter
 Taylor Model with an empty interval is returned.
 
 """
-function tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Int=20) where
+function tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Integer=20) where
         {T<:Union{TaylorModel1, RTaylorModel1}}
 
     xOld = deepcopy(xm)

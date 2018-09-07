@@ -33,11 +33,11 @@ for TM in tupleTMs
             x0::Interval{S}, I::Interval{S}) where {T,S} = $(TM){T,S}(pol, rem, x0, I)
 
         # Short-cut for independent variable
-        $(TM)(ord::Int, x0, I::Interval{T}) where {T} =
+        $(TM)(ord::Integer, x0, I::Interval{T}) where {T} =
             $(TM)(interval(x0) + Taylor1(Interval{T}, ord), zero(I), x0, I)
 
         # Short-cut for a constant TM
-        $(TM)(a::Interval{T}, ord::Int, x0::Interval{T},
+        $(TM)(a::Interval{T}, ord::Integer, x0::Interval{T},
             I::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(I), x0, I)
 
         # convenience constructors with same n, x0, I:
@@ -121,11 +121,11 @@ TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S}, I::Interva
     TaylorModelN{N,T,S}(pol, rem, x0, I)
 
 # Short-cut for independent variable
-TaylorModelN(nv::Int, ord::Int, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
+TaylorModelN(nv::Integer, ord::Integer, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
     TaylorModelN(x0[nv] + TaylorN(Interval{T}, nv, order=ord), zero(I[1]), x0, I)
 
 # Short-cut for a constant
-TaylorModelN(a::Interval{T}, ord::Int, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
+TaylorModelN(a::Interval{T}, ord::Integer, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
     TaylorModelN(TaylorN(a, ord), zero(I[1]), x0, I)
 
 # Functions to retrieve the order and remainder

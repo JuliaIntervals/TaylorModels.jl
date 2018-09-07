@@ -6,7 +6,7 @@ const α_mid = 0.484375 # == 31/64
 
 
 """
-   _rpaar(f::Function, x0::Interval, I::Interval, _order::Int)
+   _rpaar(f::Function, x0::Interval, I::Interval, _order::Integer)
 
 Rigurous polynomial approximation (RPA) with absolute remainder
 for the function `f` on the interval `I`,  using a Taylor expansion
@@ -15,7 +15,7 @@ by `bound_absrem`(@ref)
 exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 
 """
-function _rpaar(f::Function, x0::Interval{T}, I::Interval{T}, _order::Int) where {T}
+function _rpaar(f::Function, x0::Interval{T}, I::Interval{T}, _order::Integer) where {T}
     polf  = f( x0+Taylor1(Interval{T}, _order) )
     polfI = f( I+Taylor1(Interval{T}, _order+1) )
     Δ = bound_absrem(f, polf, polfI, x0, I)
@@ -24,7 +24,7 @@ end
 
 
 """
-   _rparr(f::Function, x0::Interval, I::Interval, _order::Int)
+   _rparr(f::Function, x0::Interval, I::Interval, _order::Integer)
 
 Rigurous polynomial approximation (RPA) with relative remainder
 for the function `f` on the interval `I`,  using a Taylor expansion
@@ -34,7 +34,7 @@ exploiting monotonicity if possible, otherwise, it uses the Lagrange
 coefficient.
 
 """
-function _rparr(f::Function, x0::Interval{T}, I::Interval{T}, _order::Int) where {T}
+function _rparr(f::Function, x0::Interval{T}, I::Interval{T}, _order::Integer) where {T}
     polf  = f( x0+Taylor1(Interval{T}, _order) )
     polfI = f( I+Taylor1(Interval{T}, _order+2) )
     Δ = bound_relrem(f, polf, polfI, x0, I)

@@ -154,12 +154,12 @@ end
 
 
 """
-    reducetoorder(a::RTaylorModel1, m::Int)
+    reducetoorder(a::RTaylorModel1, m::Integer)
 
 From `a::RTaylorModel1`, it returns a RTaylorModel1 of order `m`.
 
 """
-function reducetoorder(a::RTaylorModel1, m::Int)
+function reducetoorder(a::RTaylorModel1, m::Integer)
     order = get_order(a)
     @assert order ≥ m ≥ 0
 
