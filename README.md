@@ -25,3 +25,16 @@ This package combines the `IntervalArithmetic.jl` and `TaylorSeries.jl` packages
 Taylor polynomials with guaranteed error bounds to approximate functions.
 
 An introduction is available in [this video from JuliaCon 2018](https://www.youtube.com/watch?v=o1h7BUW04NI).
+
+
+### Authors
+- [Luis Benet](http://www.cicc.unam.mx/~benet/), Instituto de Ciencias Físicas, Universidad Nacional Autónoma de México (UNAM)
+- [David P. Sanders](http://sistemas.fciencias.unam.mx/~dsanders), Departamento de Física, Facultad de Ciencias, Universidad Nacional Autónoma de México (UNAM)
+
+## Bibliography
+
+
+
+## Acknowledgements ##
+
+Financial support is acknowledged from DGAPA-UNAM PAPIIT grant IN-117117. DPS acknowledges support through a *Cátedra Marcos Moshinsky* (2013).
