@@ -14,7 +14,7 @@ function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
     range = evaluate(tma, ib-tma.x0)
-    bb = all(ftest(xx(xbf .- mid(tma.x0))) ∈ range)
+    bb = all(ftest(xx(xbf .- mid(tma.x0))) ⊆ range)
     bb || @show(ftest, ib, xbf, ftest(xbf...), range)
     return bb
 end
