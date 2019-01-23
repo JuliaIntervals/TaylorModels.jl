@@ -1,7 +1,18 @@
 # show.jl
 
+function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
+    print(io,
+    """Taylor model of degree $(get_order(f)):
+    - x0:  $(f.x0)
+    -  I:  $(f.I)
+    -  p:  $(f.pol)
+    -  Δ:  $(f.rem)
+    """
+    )
+end
+showfull(x) = showfull(stdout::IO, x)
 
-function show(io::IO, a::Union{TM1AbsRem, TM1RelRem, TMNAbsRem})
+function show(io::IO, a::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
     if TaylorSeries._show_default[end]
         return Base.show_default(io, a)
     else
@@ -9,13 +20,13 @@ function show(io::IO, a::Union{TM1AbsRem, TM1RelRem, TMNAbsRem})
     end
 end
 
-for T in (:TM1AbsRem, :TMNAbsRem, :TM1RelRem)
+for T in (:TaylorModel1, :TaylorModelN, :RTaylorModel1)
     @eval function pretty_print(a::$T)
         _bigOnotation = TaylorSeries.bigOnotation[end]
         _bigOnotation && TaylorSeries.displayBigO(false)
-        strout = $T == TMNAbsRem ?
+        strout = $T == TaylorModelN ?
             string(a.pol, " + ", a.rem) : string(a.pol, "+ ", a.rem)
-        if $T == TM1RelRem
+        if $T == RTaylorModel1
             _order = get_order(a)
             strout = strout * " t" * TaylorSeries.superscriptify(_order+1)
         end

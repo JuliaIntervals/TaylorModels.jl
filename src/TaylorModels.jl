@@ -2,46 +2,45 @@ module TaylorModels
 
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
-# Use current master (until next tag) of IntervalRootFinding
-using IntervalRootFinding#; Pkg.checkout("IntervalRootFinding")
+# using IntervalRootFinding
 using RecipesBase
 
+using Markdown
 
-import Base: setindex!,
+import Base: setindex!, getindex, copy,
     ==, +, -, *, /, ^,
     zero, one, findfirst, #iszero,
     promote, show,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 
-import TaylorSeries: integrate, get_order, evaluate,
-    pretty_print
+import TaylorSeries: integrate, get_order, evaluate, pretty_print
+
+import IntervalArithmetic: showfull
+
+# export Taylor1Model, bound, make_Taylor_model, TMcomposition,
+#         taylor1_var, integrate, degree,
+#         calculate_set, Taylor_step
+
+export TaylorModel1, RTaylorModel1, TaylorModelN
+
+export remainder, polynomial,
+    rpa, fp_rpa, bound_absrem, bound_relrem
 
 
-export Taylor1Model, bound, make_Taylor_model, TMcomposition,
-        taylor1_var, integrate, degree,
-        calculate_set, Taylor_step
+include("constructors.jl")
+include("auxiliary.jl")
+include("promotion.jl")
+include("bounds.jl")
+include("evaluate.jl")
+include("rpa_functions.jl")
+include("arithmetic.jl")
+include("integration.jl")
+include("recipe.jl")
+include("show.jl")
 
-export TM1AbsRem, TM1RelRem, TMNAbsRem,
-    remainder, polynomial,
-    rpa, fp_rpa, boundarem, boundrrem
-
-export TaylorNModel
-
-
-
-include("TMs/constructors.jl")
-include("TMs/promotion.jl")
-include("TMs/bounds.jl")
-include("TMs/evaluate.jl")
-include("TMs/rpa_functions.jl")
-include("TMs/arithmetic.jl")
-include("TMs/integration.jl")
-include("TMs/recipe.jl")
-include("TMs/show.jl")
-
-include("Taylor1/Taylor1.jl")
-include("TaylorN/TaylorN.jl")
+# include("Taylor1/Taylor1.jl")
+# include("TaylorN/TaylorN.jl")
 
 
 end # module

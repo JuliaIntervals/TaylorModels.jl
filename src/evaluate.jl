@@ -7,7 +7,7 @@ for TM in tupleTMs
     @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
         _order = get_order(tm)
 
-        if $(TM) == TM1AbsRem
+        if $(TM) == TaylorModel1
             Δ = tm.rem
         else
             Δ = tm.rem * a^(_order + 1)
@@ -25,7 +25,7 @@ for TM in tupleTMs
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
 
-        tmres = $TM(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.iI)
+        tmres = $TM(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.I)
         @inbounds for k = _order:-1:0
             tmres = tmres * tmf
             tmres = tmres + tmg.pol[k]
@@ -41,12 +41,12 @@ end
 
 
 
-# Substitute a TMNAbsRem into a TM1; it **does not** include the remainder
-function _evaluate(tmg::TM1AbsRem, tmf::TMNAbsRem)
+# Substitute a TaylorModelN into a TM1; it **does not** include the remainder
+function _evaluate(tmg::TaylorModel1, tmf::TaylorModelN)
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
-    tmres = TMNAbsRem(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.iI)
+    tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.I)
     @inbounds for k = _order:-1:0
         tmres = tmres * tmf
         tmres = tmres + tmg.pol[k]
@@ -56,13 +56,13 @@ function _evaluate(tmg::TM1AbsRem, tmf::TMNAbsRem)
     return tmres
 end
 
-(tm::TM1AbsRem)(x::TMNAbsRem) = _evaluate(tm, x)
+(tm::TaylorModel1)(x::TaylorModelN) = _evaluate(tm, x)
 
 
 
 # Evaluates the TMN on an interval, or array with proper dimension;
 # the computation includes the remainder
-function evaluate(tm::TMNAbsRem{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
+function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
     _order = get_order(tm)
 
     Δ = tm.rem
@@ -70,9 +70,9 @@ function evaluate(tm::TMNAbsRem{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
     return tm.pol(a...) + Δ
 end
 
-(tm::TMNAbsRem{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
+(tm::TaylorModelN{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
 
-function evaluate(tm::TMNAbsRem{N,T,S}, a::Array{R,1}) where {N,T,S,R}
+function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
     _order = get_order(tm)
 
     Δ = tm.rem
@@ -80,4 +80,4 @@ function evaluate(tm::TMNAbsRem{N,T,S}, a::Array{R,1}) where {N,T,S,R}
     return tm.pol(a...) + Δ
 end
 
-(tm::TMNAbsRem{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)
+(tm::TaylorModelN{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)

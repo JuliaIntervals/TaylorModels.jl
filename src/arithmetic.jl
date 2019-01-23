@@ -3,41 +3,43 @@
 # Addition, substraction and other functions
 for TM in tupleTMs
     @eval begin
-        zero(a::$TM) = $TM(zero(a.pol), zero(a.rem), a.x0, a.iI)
-        one(a::$TM) = $TM(one(a.pol), zero(a.rem), a.x0, a.iI)
+        tmdata(f::$TM) = (f.x0, f.I)
+
+        zero(a::$TM) = $TM(zero(a.pol), zero(a.rem), a.x0, a.I)
+        one(a::$TM) = $TM(one(a.pol), zero(a.rem), a.x0, a.I)
 
         # iszero(a::$TM) = iszero(a.pol) && iszero(zero(a.rem))
 
         findfirst(a::$TM) = findfirst(a.pol)
 
         ==(a::$TM, b::$TM) =
-            a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
+            a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.I == b.I
 
 
         # Addition
-        +(a::$TM) = $TM(a.pol, a.rem, a.x0, a.iI)
+        +(a::$TM) = $TM(a.pol, a.rem, a.x0, a.I)
 
         function +(a::$TM, b::$TM)
-            @assert a.x0 == b.x0 && a.iI == b.iI
-            return $TM(a.pol+b.pol, a.rem+b.rem, a.x0, a.iI)
+            @assert tmdata(a) == tmdata(b)
+            return $TM(a.pol+b.pol, a.rem+b.rem, a.x0, a.I)
         end
 
-        +(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol+b, a.rem, a.x0, a.iI)
+        +(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol+b, a.rem, a.x0, a.I)
 
-        +(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b+a.pol, a.rem, a.x0, a.iI)
+        +(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b+a.pol, a.rem, a.x0, a.I)
 
 
         # Substraction
-        -(a::$TM) = $TM(-a.pol, -a.rem, a.x0, a.iI)
+        -(a::$TM) = $TM(-a.pol, -a.rem, a.x0, a.I)
 
         function -(a::$TM, b::$TM)
-            @assert a.x0 == b.x0 && a.iI == b.iI
-            return $TM(a.pol-b.pol, a.rem-b.rem, a.x0, a.iI)
+            @assert tmdata(a) == tmdata(b)
+            return $TM(a.pol-b.pol, a.rem-b.rem, a.x0, a.I)
         end
 
-        -(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol-b, a.rem, a.x0, a.iI)
+        -(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol-b, a.rem, a.x0, a.I)
 
-        -(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b-a.pol, -a.rem, a.x0, a.iI)
+        -(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b-a.pol, -a.rem, a.x0, a.I)
 
 
         # Basic division
@@ -48,9 +50,9 @@ for TM in tupleTMs
 
 
         # Multiplication by numbers
-        *(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+        *(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.I)
 
-        *(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.iI)
+        *(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.I)
 
 
         # Division by numbers
@@ -68,8 +70,8 @@ end
 
 
 # Multiplication
-function *(a::TM1AbsRem, b::TM1AbsRem)
-    @assert a.x0 == b.x0 && a.iI == b.iI
+function *(a::TaylorModel1, b::TaylorModel1)
+    @assert tmdata(a) == tmdata(b)
 
     # Polynomial product with extended order
     order = max(get_order(a), get_order(b))
@@ -82,7 +84,7 @@ function *(a::TM1AbsRem, b::TM1AbsRem)
 
     # Bound for the neglected part of the product of polynomials
     res[0:order] .= zero(eltype(res))
-    aux = a.iI - a.x0
+    aux = a.I - a.x0
     Δnegl = res(aux)
 
     # Remainder of the product
@@ -90,11 +92,11 @@ function *(a::TM1AbsRem, b::TM1AbsRem)
     Δb = b.pol(aux)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
 
-    return TM1AbsRem(bext, Δ, a.x0, a.iI)
+    return TaylorModel1(bext, Δ, a.x0, a.I)
 end
 
-function *(a::TM1RelRem, b::TM1RelRem)
-    @assert a.x0 == b.x0 && a.iI == b.iI
+function *(a::RTaylorModel1, b::RTaylorModel1)
+    @assert tmdata(a) == tmdata(b)
 
     # Polynomial product with extended order
     order = max(get_order(a), get_order(b))
@@ -107,7 +109,7 @@ function *(a::TM1RelRem, b::TM1RelRem)
 
     # Bound for the neglected part of the product (properly factorized)
     res = Taylor1(copy(res.coeffs[order+2:2*order+1]), order-1)
-    aux = a.iI - a.x0
+    aux = a.I - a.x0
     Δnegl = res(aux)
 
     # Remainder of the product
@@ -116,18 +118,19 @@ function *(a::TM1RelRem, b::TM1RelRem)
     V = aux^(order+1)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
 
-    return TM1RelRem(bext, Δ, a.x0, a.iI)
+    return RTaylorModel1(bext, Δ, a.x0, a.I)
+
 end
 
 
 # Division
-function /(a::TM1AbsRem, b::TM1AbsRem)
-    @assert a.x0 == b.x0 && a.iI == b.iI
+function /(a::TaylorModel1, b::TaylorModel1)
+    @assert a.x0 == b.x0 && a.I == b.I
     return basediv(a, b)
 end
 
-function /(a::TM1RelRem, b::TM1RelRem)
-    @assert a.x0 == b.x0 && a.iI == b.iI
+function /(a::RTaylorModel1, b::RTaylorModel1)
+    @assert tmdata(a) == tmdata(b)
 
     # DetermineRootOrderUpperBound seems equivalent (optimized?) to `findfirst`
     bk = findfirst(b)
@@ -141,23 +144,22 @@ function /(a::TM1RelRem, b::TM1RelRem)
     #
     order = get_order(a)
     ared = reducetoorder(
-        TM1RelRem(Taylor1(a.pol.coeffs[bk+1:order+1]), a.rem, a.x0, a.iI), order-bk)
+        RTaylorModel1(Taylor1(a.pol.coeffs[bk+1:order+1]), a.rem, a.x0, a.I), order-bk)
     order = get_order(b)
     bred = reducetoorder(
-        TM1RelRem(Taylor1(b.pol.coeffs[bk+1:order+1]), b.rem, b.x0, b.iI), order-bk)
+        RTaylorModel1(Taylor1(b.pol.coeffs[bk+1:order+1]), b.rem, b.x0, b.I), order-bk)
 
     return basediv( ared, bred )
 end
 
 
 """
-    reducetoorder(a::TM1RelRem, m::Int)
+    reducetoorder(a::RTaylorModel1, m::Integer)
 
-From `a:TM1RelRem`, it returns a Taylor Model of relative
-remainder of order `m`.
+From `a::RTaylorModel1`, it returns a RTaylorModel1 of order `m`.
 
 """
-function reducetoorder(a::TM1RelRem, m::Int)
+function reducetoorder(a::RTaylorModel1, m::Integer)
     order = get_order(a)
     @assert order ≥ m ≥ 0
 
@@ -166,46 +168,46 @@ function reducetoorder(a::TM1RelRem, m::Int)
     for ind in 0:m
         bpol[ind] = zz
     end
-    bf = bpol(a.iI-a.x0)
-    Δ = bf + a.rem * (a.iI-a.x0)^(order-m)
-    return TM1RelRem( Taylor1(copy(a.pol.coeffs[1:m+1])), Δ, a.x0, a.iI )
+    bf = bpol(a.I-a.x0)
+    Δ = bf + a.rem * (a.I-a.x0)^(order-m)
+    return RTaylorModel1( Taylor1(copy(a.pol.coeffs[1:m+1])), Δ, a.x0, a.I )
 end
 
 
-# Same as above, for TMNAbsRem
-zero(a::TMNAbsRem) = TMNAbsRem(zero(a.pol), zero(a.rem), a.x0, a.iI)
-one(a::TMNAbsRem) = TMNAbsRem(one(a.pol), zero(a.rem), a.x0, a.iI)
+# Same as above, for TaylorModelN
+zero(a::TaylorModelN) = TaylorModelN(zero(a.pol), zero(a.rem), a.x0, a.I)
+one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(a.rem), a.x0, a.I)
 
-# iszero(a::TMNAbsRem) = iszero(a.pol) && iszero(zero(a.rem))
+# iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(a.rem))
 
-findfirst(a::TMNAbsRem) = findfirst(a.pol)
+findfirst(a::TaylorModelN) = findfirst(a.pol)
 
-==(a::TMNAbsRem, b::TMNAbsRem) =
-    a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.iI == b.iI
+==(a::TaylorModelN, b::TaylorModelN) =
+    a.pol == b.pol && a.rem == b.rem && a.x0 == b.x0 && a.I == b.I
 
 
 # Addition and substraction
 for op in (:+, :-)
     @eval begin
-        $(op)(a::TMNAbsRem) = TMNAbsRem($(op)(a.pol), $(op)(a.rem), a.x0, a.iI)
+        $(op)(a::TaylorModelN) = TaylorModelN($(op)(a.pol), $(op)(a.rem), a.x0, a.I)
 
-        function $(op)(a::TMNAbsRem, b::TMNAbsRem)
-            @assert a.x0 == b.x0 && a.iI == b.iI
-            return TMNAbsRem($(op)(a.pol,b.pol), $(op)(a.rem,b.rem), a.x0, a.iI)
+        function $(op)(a::TaylorModelN, b::TaylorModelN)
+            @assert a.x0 == b.x0 && a.I == b.I
+            return TaylorModelN($(op)(a.pol,b.pol), $(op)(a.rem,b.rem), a.x0, a.I)
         end
 
-        $(op)(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} =
-            TMNAbsRem($(op)(a.pol, b), a.rem, a.x0, a.iI)
+        $(op)(a::TaylorModelN, b::T) where {T<:NumberNotSeries} =
+            TaylorModelN($(op)(a.pol, b), a.rem, a.x0, a.I)
 
-        $(op)(b::T, a::TMNAbsRem) where {T<:NumberNotSeries} =
-            TMNAbsRem($(op)(b, a.pol), $(op)(a.rem), a.x0, a.iI)
+        $(op)(b::T, a::TaylorModelN) where {T<:NumberNotSeries} =
+            TaylorModelN($(op)(b, a.pol), $(op)(a.rem), a.x0, a.I)
     end
 end
 
 
 # Multiplication
-function *(a::TMNAbsRem, b::TMNAbsRem)
-    @assert a.x0 == b.x0 && a.iI == b.iI
+function *(a::TaylorModelN, b::TaylorModelN)
+    @assert a.x0 == b.x0 && a.I == b.I
 
     # Polynomial product with extended order
     order = max(get_order(a), get_order(b))
@@ -219,7 +221,7 @@ function *(a::TMNAbsRem, b::TMNAbsRem)
 
     # Bound for the neglected part of the product of polynomials
     res[0:order] .= zero(eltype(res))
-    aux = a.iI - a.x0
+    aux = a.I - a.x0
     Δnegl = res(aux)
 
     # Remainder of the product
@@ -227,32 +229,32 @@ function *(a::TMNAbsRem, b::TMNAbsRem)
     Δb = b.pol(aux)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
 
-    return TMNAbsRem(bext, Δ, a.x0, a.iI)
+    return TaylorModelN(bext, Δ, a.x0, a.I)
 end
 
 
 # Multiplication by numbers
-function *(b::T, a::TMNAbsRem) where {T<:NumberNotSeries}
+function *(b::T, a::TaylorModelN) where {T<:NumberNotSeries}
     pol = a.pol * b
     rem = b * a.rem
-    return TMNAbsRem(pol, rem, a.x0, a.iI)
+    return TaylorModelN(pol, rem, a.x0, a.I)
 end
 
-*(a::TMNAbsRem, b::T) where {T<:NumberNotSeries} = b * a
+*(a::TaylorModelN, b::T) where {T<:NumberNotSeries} = b * a
 
 
 # Basic division
-function basediv(a::TMNAbsRem, b::TMNAbsRem)
+function basediv(a::TaylorModelN, b::TaylorModelN)
     invb = rpa(x->inv(x), b)
     return a * invb
 end
 
 
 # Division by numbers
-/(a::TMNAbsRem, b::T) where {T<:Number} = a * inv(b)
-/(b::T, a::TMNAbsRem) where {T<:NumberNotSeries} = b * inv(a)
+/(a::TaylorModelN, b::T) where {T<:Number} = a * inv(b)
+/(b::T, a::TaylorModelN) where {T<:NumberNotSeries} = b * inv(a)
 
 
 # Power
-^(a::TMNAbsRem, r) = rpa(x->x^r, a)
-^(a::TMNAbsRem, n::Integer) = rpa(x->x^n, a)
+^(a::TaylorModelN, r) = rpa(x->x^r, a)
+^(a::TaylorModelN, n::Integer) = rpa(x->x^n, a)
