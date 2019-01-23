@@ -6,7 +6,7 @@
 
 ## Documentation [here][documenter_latest]
 
-Change documentation link to `documenter_stable` once published!
+<!-- Change documentation link to `documenter_stable` once published! -->
 
 [travis_badge]: https://travis-ci.org/dpsanders/TaylorModels.jl.svg?branch=master
 [travis_url]: https://travis-ci.org/dpsanders/TaylorModels.jl
@@ -19,3 +19,9 @@ Change documentation link to `documenter_stable` once published!
 
 [documenter_stable]: https://dpsanders.github.io/TaylorModels.jl/stable
 [documenter_latest]: https://dpsanders.github.io/TaylorModels.jl/latest
+
+
+This package combines the `IntervalArithmetic.jl` and `TaylorSeries.jl` packages to provide **Taylor models**, i.e.
+Taylor polynomials with guaranteed error bounds to approximate functions.
+
+An introduction is available in [this video from JuliaCon 2018](https://www.youtube.com/watch?v=o1h7BUW04NI).
