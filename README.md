@@ -37,4 +37,4 @@ An introduction is available in [this video from JuliaCon 2018](https://www.yout
 
 ## Acknowledgements ##
 
-Financial support is acknowledged from DGAPA-UNAM PAPIIT grant IN-117117. DPS acknowledges support through a *Cátedra Marcos Moshinsky* (2013).
+Financial support is acknowledged from DGAPA-UNAM PAPIIT grants IN-117117, IG-100616 and IG-100819. DPS acknowledges support through a *Cátedra Marcos Moshinsky* (2018).
