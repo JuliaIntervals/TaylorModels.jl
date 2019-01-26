@@ -38,8 +38,8 @@ integrate(a::RTaylorModel1{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
 function integrate(a::TaylorModel1{TaylorModelN{N,Interval{T},S}}) where {N,T,S}
     order = get_order(a)
     aa = a.pol[0] / 1
-    coeffs = Array{typeof(aa)}(order+1)
-    fill!(coeffs, zero(aa))
+    coeffs = Array{typeof(aa)}(zero(aa), order+1)
+    # fill!(coeffs, zero(aa))
     @inbounds for i = 1:order
         coeffs[i+1] = a.pol[i-1] / i
     end

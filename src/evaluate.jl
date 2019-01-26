@@ -18,6 +18,9 @@ for TM in tupleTMs
 
     @eval (tm::$TM{T,S})(a) where {T,S} = evaluate(tm, a)
 
+    @eval evaluate(tm::Vector{$TM{T,S}}, a) where {N,T,S} =
+        [ tm[i](a) for i in eachindex(tm) ]
+
 
     # _evaluate corresponds to composition: substitute tmf into tmg
     # It **does not** include the remainder
@@ -81,3 +84,6 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
 end
 
 (tm::TaylorModelN{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)
+
+evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
+    [ tm[i](a) for i in eachindex(tm) ]
