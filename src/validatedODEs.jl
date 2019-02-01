@@ -102,7 +102,7 @@ function taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
     # Allocation of vectors
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
-    xTMNv = Array{TaylorModelN{N,R,T}}(undef, dof, maxsteps+1)
+    # xTMNv = Array{TaylorModelN{N,R,T}}(undef, dof, maxsteps+1)
     x     = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
     dx    = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
     xaux  = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
@@ -120,7 +120,7 @@ function taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
     # Output vectors
     @inbounds tv[1] = t0
     @inbounds xv[1] = IntervalBox( evaluate(xTMN, δq0) )
-    @inbounds xTMNv[:,1] .= xTMN
+    # @inbounds xTMNv[:,1] .= xTMN
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
@@ -159,7 +159,7 @@ function taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         nsteps += 1
         @inbounds tv[nsteps] = t0
         @inbounds xv[nsteps] = x0
-        @inbounds xTMNv[:,nsteps] .= xTMN
+        # @inbounds xTMNv[:,nsteps] .= xTMN
         println(nsteps, "\t", t0, "\t", x0)
         if nsteps > maxsteps
             @info("""
@@ -169,5 +169,5 @@ function taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         end
     end
 
-    return view(tv,1:nsteps), view(xv,1:nsteps), view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
+    return view(tv,1:nsteps), view(xv,1:nsteps)#, view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
 end
