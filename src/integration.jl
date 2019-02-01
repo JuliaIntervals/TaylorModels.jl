@@ -1,7 +1,7 @@
 # integration.jl
 
 """
-    integrate(a::T, c0::Interval)
+    integrate(a, c0)
 
 Integrates the one-variable Taylor Model (`TaylorModel1`
 or `RTaylorModel1`) with respect to the independent variable; `c0` is
@@ -9,13 +9,11 @@ the interval representing the integration constant; if omitted
 it is considered as the zero interval.
 """
 function integrate(a::TaylorModel1{T,S}, c0::T) where {T,S}
-    order = get_order(a)
     integ_pol = integrate(a.pol, c0)
     δ = a.I-a.x0
 
     # Remainder bound after integrating.
     Δ = bound_integration(a, δ)
-    # Δ = δ * remainder(a) +  a.pol[order] * δ^(order+1) / (order+1)
 
     return TaylorModel1( integ_pol, Δ, a.x0, a.I )
 end
@@ -44,19 +42,17 @@ This is tighter that the one used by Berz+Makino, which corresponds to
 ``Δ = aux * remainder(a) +  a.pol[order] * aux^(order+1)``.
 
 """
-function bound_integration(xTM1::TaylorModel1{Interval{S},S},
-        δt::Interval{S}) where {S}
-    order = get_order(xTM1)
-    aux = δt^order  / (order+1)
-    Δtest = δt * (remainder(xTM1)*δt + getcoeff(polynomial(xTM1),order) * aux)
-    return Δtest
+function bound_integration(a::TaylorModel1{T,S}, δ) where {T,S}
+    order = get_order(a)
+    aux = δ^order / (order+1)
+    Δ = δ * (remainder(a) + getcoeff(polynomial(a),order) * aux)
+    return Δ
 end
-function bound_integration(xTM1::Vector{TaylorModel1{Interval{S},S}},
-        δt::Interval{S}) where {S}
-    order = get_order(xTM1[1])
-    aux = δt^order  / (order+1)
-    Δtest = δt .* (remainder.(xTM1) .+ getcoeff.(polynomial.(xTM1), order) .* aux)
-    return IntervalBox(Δtest)
+function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
+    order = get_order(a[1])
+    aux = δ^order / (order+1)
+    Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
+    return IntervalBox(Δ)
 end
 
 
