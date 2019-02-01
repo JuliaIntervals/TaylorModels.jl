@@ -84,7 +84,7 @@ function TaylorIntegration.taylorstep!(f!, t::Taylor1{R},
     return δt
 end
 
-function taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
+function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
         maxsteps::Int=500, parse_eqs::Bool=true) where {N, T<:Real}
 
