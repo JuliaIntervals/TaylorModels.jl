@@ -36,6 +36,10 @@ for TM in tupleTMs
         $(TM)(ord::Integer, x0, I::Interval{T}) where {T} =
             $(TM)(interval(x0) + Taylor1(Interval{T}, ord), zero(I), x0, I)
 
+        # Short-cut for a constructor expanding around midpoint by default
+        $(TM)(ord::Integer, I::Interval{T}) where {T} =
+            $(TM)(ord, Interval(mid(I)), I)
+
         # Short-cut for a constant TM
         $(TM)(a::Interval{T}, ord::Integer, x0::Interval{T},
             I::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(I), x0, I)
