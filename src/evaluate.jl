@@ -85,4 +85,4 @@ end
 (tm::TaylorModelN{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)
 
 evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
-    IntervalBox( evaluate.(tm, a) )
+    IntervalBox( [ tm[i](a) for i in eachindex(tm) ] )
