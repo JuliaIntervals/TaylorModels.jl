@@ -168,3 +168,41 @@ function tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Integer=20) w
     end
     return xOld
 end
+
+
+
+function integrate(f::TaylorModelN, which=1, x0=0)
+
+    p = integrate(f.pol, which)  # not necessary if an already complete Taylor series, in which case p2 == f.p
+
+    Δ = integral_bound(f, which)
+
+    g = TaylorModelN(p, Δ, f.x0, f.I)
+
+    g.pol[0] += x0  # constant term
+
+    # for k in 0:(x0.order)
+    #     TaylorSeries.add!(g.p, g.p, x0, k)
+    # end
+
+    return g
+
+end
+
+
+
+"""
+Bound the integral of a `TaylorNModel` `f` with respect to the variable `which`.
+"""
+function integral_bound(f::TaylorModelN, which)
+
+    high_order_term = f.pol[end]  # a HomogeneousPolynomial
+
+    Δ = ( bound(high_order_term, f.x0, f.I) + f.rem ) * diam(f.I[which])
+
+    return Δ
+end
+
+
+bound(f::HomogeneousPolynomial, x0, I) = f( [(I - x0)...] )
+# applies the hom poly to the bounds
