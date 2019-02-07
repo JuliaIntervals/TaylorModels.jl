@@ -233,4 +233,17 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             "Interval(1.0, 1.0) y² + Interval(0.0, 0.0)"
     end
 
+    @testset "Integration" begin
+        const _order = 2
+        const _order_max = 2*(_order+1)
+        x, y = set_variables(Interval{Float64}, [:x, :y], order=_order_max)
+
+        u = 3x*y + 4y
+        v = integrate(u, 1)
+        @test v == 4*x*y + 1.5*x^2*y
+
+        v = integrate(u, 2)
+        @test v == 2*y^2 + 1.5*x*y^2
+    end
+
 end
