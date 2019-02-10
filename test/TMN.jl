@@ -20,8 +20,7 @@ function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T
 end
 
 const _order = 2
-const _order_max = 2*(_order+1)
-set_variables(Interval{Float64}, [:x, :y], order=_order_max)
+set_variables(Interval{Float64}, [:x, :y], order=_order)
 
 @testset "Tests for TaylorModelN " begin
     b0 = Interval(0.0) × Interval(0.0)
@@ -53,7 +52,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
 
         # Tests for get_order and remainder
-        @test get_order() == 6
+        @test get_order() == 2
         @test get_order(xm) == 2
         @test remainder(ym) == zi
     end
@@ -79,8 +78,6 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         b = b1[2] * a
         @test b == TaylorModelN( b1[2]*a.pol, Δ*b1[2], b1, ib1 )
         @test b / b1[2] == a
-        @test_throws AssertionError TaylorModelN(TaylorN(1, order=_order_max), zi, b1, ib1) *
-            TaylorModelN(TaylorN(2, order=_order_max), zi, b1, ib1)
 
         remt = remainder(1/(1-TaylorModel1(_order, b1[1], ib1[1])))
         @test remainder(1 / (1-xm)) == remt
@@ -100,7 +97,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test rpa(x->5*x, ym) == 5*ym
         remT = remainder(5*TaylorModel1(2, b1[1], ib1[1])^4)
         @test rpa(x->5*x^4, xm) == TaylorModelN(zero(xT), remT, b1, ib1)
-        remT = 5 * (ib1[1]-b1[1])^2 * (2*(ib1[2]-b1[2])+(ib1[2]-b1[2])^2)
+        remT = 5 * (ib1[1]-b1[1])^2 *(ib1[2]-b1[2]) * (2+(ib1[2]-b1[2]))
         @test rpa(x->5*x^2, xm*ym) == TaylorModelN( 5*xT^2, remT, b1, ib1)
 
         # Testing remainders of an RPA

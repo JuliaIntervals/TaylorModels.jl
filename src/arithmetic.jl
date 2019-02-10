@@ -208,30 +208,47 @@ end
 # Multiplication
 function *(a::TaylorModelN, b::TaylorModelN)
     @assert a.x0 == b.x0 && a.I == b.I
-
-    # Polynomial product with extended order
-    order = max(get_order(a), get_order(b))
-    @assert 2*order ≤ get_order()
-    aext = TaylorN(copy(a.pol.coeffs), 2*order)
-    bext = TaylorN(copy(b.pol.coeffs), 2*order)
-    res = aext * bext
-
-    # Returned polynomial
-    bext = TaylorN( copy(res.coeffs[1:order+1]) )
-
-    # Bound for the neglected part of the product of polynomials
-    res[0:order] .= zero(eltype(res))
     aux = a.I - a.x0
-    Δnegl = res(aux)
 
-    # Remainder of the product
-    Δa = a.pol(aux)
-    Δb = b.pol(aux)
-    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
+    # Polynomial product with largest order from TaylorSeries._params_TaylorN_
+    order_a = get_order(a)
+    order_b = get_order(b)
+    order_max = max(order_a, order_b)
+    order_prod = order_a + order_b
+    orderTS = get_order()
 
-    return TaylorModelN(bext, Δ, a.x0, a.I)
+    # The returned polynomial has no neglected part
+    if order_prod ≤ orderTS
+        apol = TaylorN(a.pol.coeffs, order_prod)
+        bpol = TaylorN(b.pol.coeffs, order_prod)
+        res = apol * bpol
+        Δa = a.pol(aux)
+        Δb = b.pol(aux)
+        Δ = Δb * a.rem + Δa * b.rem + a.rem * b.rem
+        return TaylorModelN(res, Δ, a.x0, a.I)
+    end
+
+    # The returned polynomial has a neglected part
+    # Bound the neglected part of the product of polynomials
+    apol = TaylorN(a.pol.coeffs, orderTS)
+    bpol = TaylorN(b.pol.coeffs, orderTS)
+    res = apol * bpol
+    Δa = apol(aux)
+    Δb = bpol(aux)
+    Δ = Δb * a.rem + Δa * b.rem + a.rem * b.rem
+
+    # We evaluate each term of the product of coefficients at `aux`
+    Δnegl = zero(Δ)
+    for order = order_max+1:order_prod
+        orderini = order - order_max
+        for inda = orderini:order_a
+            indb = order - inda
+            Δnegl += evaluate(apol[inda], aux) * evaluate(bpol[indb], aux)
+        end
+    end
+
+    return TaylorModelN(res, Δ+Δnegl, a.x0, a.I)
 end
-
 
 # Multiplication by numbers
 function *(b::T, a::TaylorModelN) where {T<:NumberNotSeries}
