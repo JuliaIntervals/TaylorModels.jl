@@ -210,14 +210,13 @@ function *(a::TaylorModelN, b::TaylorModelN)
     @assert a.x0 == b.x0 && a.I == b.I
     aux = a.I - a.x0
 
-    # Polynomial product with largest order from TaylorSeries._params_TaylorN_
+    # Some definitions related to the order of some polynomials
+    orderTS = get_order()  # maximum order, fixed by `TaylorSeries._params_TaylorN_`
     order_a = get_order(a)
     order_b = get_order(b)
-    order_max = max(order_a, order_b)
-    order_prod = order_a + order_b
-    orderTS = get_order()
+    order_prod = 2 * max(order_a, order_b)
 
-    # The returned polynomial has no neglected part
+    # The returned polynomial has no terms beyond `orderTS`
     if order_prod ≤ orderTS
         apol = TaylorN(a.pol.coeffs, order_prod)
         bpol = TaylorN(b.pol.coeffs, order_prod)
@@ -228,27 +227,49 @@ function *(a::TaylorModelN, b::TaylorModelN)
         return TaylorModelN(res, Δ, a.x0, a.I)
     end
 
-    # The returned polynomial has a neglected part
-    # Bound the neglected part of the product of polynomials
+    # The resulting product has a part whose order is larger than `orderTS`;
+    # a bound for this polynomial has to be included
     apol = TaylorN(a.pol.coeffs, orderTS)
     bpol = TaylorN(b.pol.coeffs, orderTS)
-    res = apol * bpol
+    res = apol * bpol    # Trunctated polynomial to order `orderTS`
     Δa = apol(aux)
     Δb = bpol(aux)
     Δ = Δb * a.rem + Δa * b.rem + a.rem * b.rem
+    N = get_numvars()
 
-    # We evaluate each term of the product of coefficients at `aux`
+    # We evaluate *explicitely* each term of the product of coefficients at `aux`
     Δnegl = zero(Δ)
-    for order = order_max+1:order_prod
-        orderini = order - order_max
+    for order = orderTS+1:order_prod
+        orderini = order - orderTS
         for inda = orderini:order_a
             indb = order - inda
-            Δnegl += evaluate(apol[inda], aux) * evaluate(bpol[indb], aux)
+            # Δnegl += evaluate(apol[inda], aux) * evaluate(bpol[indb], aux)
+
+            # Coefficient tables of corresponding `HomogeneousPolynomial`s
+            @inbounds cta = TaylorSeries.coeff_table[inda+1]
+            @inbounds ctb = TaylorSeries.coeff_table[indb+1]
+
+            for i in eachindex(cta)
+                @inbounds a_coeff = apol.coeffs[inda+1][i]
+                iszero(a_coeff) && continue
+                for j in eachindex(ctb)
+                    @inbounds b_coeff = bpol.coeffs[indb+1][j]
+                    iszero(b_coeff) && continue
+
+                    # Evaluation of monomials
+                    tmp = one(Δ)
+                    for n in 1:N
+                        @inbounds tmp *= aux[n]^(cta[i][n]+ctb[j][n])
+                    end
+                    Δnegl += a_coeff * b_coeff * tmp
+                end
+            end
         end
     end
 
     return TaylorModelN(res, Δ+Δnegl, a.x0, a.I)
 end
+
 
 # Multiplication by numbers
 function *(b::T, a::TaylorModelN) where {T<:NumberNotSeries}

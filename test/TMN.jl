@@ -97,7 +97,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order)
         @test rpa(x->5*x, ym) == 5*ym
         remT = remainder(5*TaylorModel1(2, b1[1], ib1[1])^4)
         @test rpa(x->5*x^4, xm) == TaylorModelN(zero(xT), remT, b1, ib1)
-        remT = 5 * (ib1[1]-b1[1])^2 *(ib1[2]-b1[2]) * (2+(ib1[2]-b1[2]))
+        # remT = 5 * (ib1[1]-b1[1])^2 *(ib1[2]-b1[2]) * (2+(ib1[2]-b1[2]))
+        remT = 5 * (ib1[1]-b1[1])^2 * (2*(ib1[2]-b1[2])+(ib1[2]-b1[2])^2)
         @test rpa(x->5*x^2, xm*ym) == TaylorModelN( 5*xT^2, remT, b1, ib1)
 
         # Testing remainders of an RPA
