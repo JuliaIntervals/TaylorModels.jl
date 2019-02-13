@@ -1,21 +1,15 @@
 # promotion.jl
 #
 
-# Promotion
-promote(a::TaylorModelN{N,Interval{T},S}, b::S) where {N, T<:Real, S<:Real} =
-    (a, TaylorModelN(IntervalArithmetic.atomic(Interval{T}, b), get_order(a), a.x0, a.I))
-promote(b::S, a::TaylorModelN{N,Interval{T},S}) where {N, T<:Real, S<:Real} =
-    reverse( promote(a, b) )
-#
-promote(a::TaylorModelN{N,Interval{T},S}, b::R) where {N, T<:Real, S<:Real, R<:Real} =
-    promote(a, IntervalArithmetic.atomic(Interval{T}, b))
-promote(b::R, a::TaylorModelN{N,Interval{T},S}) where {N, T<:Real, S<:Real, R<:Real} =
-    reverse( promote(a, b) )
-#
-promote(a::TaylorModelN{N,Interval{T},S}, b::Interval{T}) where {N, T<:Real, S<:Real} =
-    (a, TaylorModelN(b, get_order(a), a.x0, a.I))
-promote(b::Interval{T}, a::TaylorModelN{N,Interval{T},S}) where {N, T<:Real, S<:Real} =
-    reverse( promote(a, b) )
+# # Promotion
+function promote(a::TaylorModelN{N,T,S}, b::R) where {N, T<:Real, S<:Real, R<:Real}
+    orderTMN = get_order(a[0])
+    apol, bb = promote(a.pol, b)
+    return (TaylorModelN(apol, a.rem, a.x0, a.I), TaylorModelN(bb, zero(a.rem), a.x0, a.I))
+end
+promote(b::R, a::TaylorModelN{N,T,S}) where {N, T<:Real, S<:Real, R<:Real} =
+    reverse(promote(a,b))
+
 #
 function promote(a::TaylorModelN{N,T,S}, b::TaylorN{R}) where {N, T, S, R}
     RR = promote_type(T,R)
