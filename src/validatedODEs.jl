@@ -1,7 +1,8 @@
 # Some methods for validated integration of ODEs
 
 # Stepsize, for Taylor1{TaylorModelN{N,R,T}}
-function TaylorIntegration.stepsize(x::Taylor1{TaylorModelN{N,R,T}}, epsilon::T) where {N,R,T<:Real}
+function TaylorIntegration.stepsize(x::Taylor1{TaylorModelN{N,Interval{T},T}},
+        epsilon::T) where {N,T<:Real}
     ord = get_order(x)
     h = convert(T, Inf)
     for k in (ord-1, ord)
@@ -25,14 +26,14 @@ integral operator, considering only the remainder. Inputs are: `dx`, the
 vector with the RHS of the defining ODEs, `δI` the interval box where the
 initial conditions are varied, and `δt` is the integration interval.
 """
-function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,R,T}}},
-        δI::IntervalBox{N,T}, δt::T) where {N,R,T}
+function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,Interval{T},T}}},
+        δI::IntervalBox{N,T}, δt) where {N,T}
 
     orderT = get_order(dx[1])
     aux = δt^orderT / (orderT+1)
     last_coeffTM = getcoeff.(dx, orderT)
     last_coeff_I = evaluate(last_coeffTM, δI) .* aux
-    vv = Array{R}(undef, N)
+    vv = Vector{Interval{T}}(undef, N)
     Δtest = zero.(δI)
 
     # This mimics the Schauder's fix point theorem (100 iterations)
@@ -60,6 +61,8 @@ function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,R,T}}},
 
     # NOTE: Return after 100 iterations; this should be changed
     # to ensure convergence. Perhaps shrink δt ?
+    @warn("Maximum number of iterations reached")
+
     return Δtest
 end
 
@@ -84,13 +87,14 @@ function TaylorIntegration.taylorstep!(f!, t::Taylor1{R},
     return δt
 end
 
-function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
+function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
         maxsteps::Int=500, parse_eqs::Bool=true) where {N, T<:Real}
 
     # Set proper parameters for jet transport
+    @assert N == get_numvars()
     dof = N
-    if (get_numvars() != dof || get_order() != 2orderQ)
+    if get_order() != 2*orderQ
         set_variables("δ", numvars=dof, order=2*orderQ)
     end
 
@@ -98,11 +102,14 @@ function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalB
     R   = Interval{T}
     ti0 = Interval(t0)
     t   = ti0 + Taylor1(orderT)
+    δq_norm = IntervalBox(-1..1, Val(N))
 
     # Allocation of vectors
+    # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
     # xTMNv = Array{TaylorModelN{N,R,T}}(undef, dof, maxsteps+1)
+    # Internals
     x     = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
     dx    = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
     xaux  = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
@@ -111,7 +118,7 @@ function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalB
     # Set initial conditions
     zI = zero(R)
     @inbounds for i in eachindex(x)
-        qaux = q0[i] + TaylorN(i, order=orderQ)
+        qaux = normalize_taylor(q0[i] + TaylorN(i, order=orderQ), δq0, true)
         x[i] = Taylor1( TaylorModelN(qaux, zI, q0, q0 + δq0), orderT )
         dx[i] = x[i]
         xTMN[i] = x[i][0]
@@ -119,7 +126,7 @@ function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalB
 
     # Output vectors
     @inbounds tv[1] = t0
-    @inbounds xv[1] = IntervalBox( evaluate(xTMN, δq0) )
+    @inbounds xv[1] = IntervalBox( evaluate(xTMN, δq_norm) )
     # @inbounds xTMNv[:,1] .= xTMN
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
@@ -142,12 +149,12 @@ function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalB
         # Validate the solution: build a tight remainder (based on Schauder thm)
         # This is to compute dx[:][orderT] (now zero), needed for the remainder
         f!(t, x, dx)
-        Δ = remainder_taylorstep(dx, δq0, δt) # remainder of integration step
+        Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0,δt)) # remainder of integration step
 
         # Evaluate the solution (TaylorModelN) at δt including remainder Δ
         xTMN .= evaluate.( x, δt ) .+ Δ
         # Construct IntervalBox for output (wrapping effect?)
-        x0 = IntervalBox( evaluate(xTMN, δq0) )
+        x0 = IntervalBox( evaluate(xTMN, δq_norm) )
 
         # New initial conditions and output
         t0 += δt
@@ -160,7 +167,7 @@ function TaylorIntegration.taylorinteg(f!, q0::IntervalBox{N,T}, δq0::IntervalB
         @inbounds tv[nsteps] = t0
         @inbounds xv[nsteps] = x0
         # @inbounds xTMNv[:,nsteps] .= xTMN
-        println(nsteps, "\t", t0, "\t", x0)
+        # println(nsteps, "\t", t0, "\t", x0, "\t", diam(Δ))
         if nsteps > maxsteps
             @info("""
             Maximum number of integration steps reached; exiting.
