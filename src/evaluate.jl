@@ -27,7 +27,7 @@ for TM in tupleTMs
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
 
-        tmres = $TM(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.I)
+        tmres = $TM(Taylor1(zero(constant_term(tmg.pol)), _order), zero(tmf.x0), tmf.x0, tmf.I)
         @inbounds for k = _order:-1:0
             tmres = tmres * tmf
             tmres = tmres + tmg.pol[k]

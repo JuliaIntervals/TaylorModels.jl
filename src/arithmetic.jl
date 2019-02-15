@@ -119,7 +119,6 @@ function *(a::RTaylorModel1, b::RTaylorModel1)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
 
     return RTaylorModel1(bext, Δ, a.x0, a.I)
-
 end
 
 
