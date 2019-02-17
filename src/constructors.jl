@@ -131,6 +131,8 @@ TaylorModelN(nv::Integer, ord::Integer, x0::IntervalBox{N,T}, I::IntervalBox{N,T
 # Short-cut for a constant
 TaylorModelN(a::Interval{T}, ord::Integer, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
     TaylorModelN(TaylorN(a, ord), zero(I[1]), x0, I)
+TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, I::IntervalBox{N,T}) where {N,T} =
+    TaylorModelN(TaylorN(a, ord), zero(I[1]), x0, I)
 
 # Functions to retrieve the order and remainder
 get_order(tm::TaylorModelN) = tm.pol.order

@@ -163,7 +163,7 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
     # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
-    # xTMNv = Array{TaylorModelN{N,R,T}}(undef, dof, maxsteps+1)
+    xTMNv = Array{TaylorModelN{N,R,T}}(undef, dof, maxsteps+1)
     # Internals
     x     = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
     dx    = Array{Taylor1{TaylorModelN{N,R,T}}}(undef, dof)
@@ -174,7 +174,7 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
     zI = zero(R)
     @inbounds for i in eachindex(x)
         qaux = normalize_taylor(q0[i] + TaylorN(i, order=orderQ), δq0, sym_norm)
-        x[i] = Taylor1( TaylorModelN(qaux, zI, q0, q0 + δq0), orderT )
+        x[i] = Taylor1( TaylorModelN(qaux, zI, q0, q0 + δq_norm), orderT )
         dx[i] = x[i]
         xTMN[i] = x[i][0]
     end
@@ -182,7 +182,7 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
     # Output vectors
     @inbounds tv[1] = t0
     @inbounds xv[1] = IntervalBox( evaluate(xTMN, δq_norm) )
-    # @inbounds xTMNv[:,1] .= xTMN
+    @inbounds xTMNv[:,1] .= xTMN
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
@@ -205,23 +205,24 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         # This is to compute dx[:][orderT] (now zero), needed for the remainder
         f!(t, x, dx)
         Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0,δt)) # remainder of integration step
+        # @assert all(0..0 .⊆ Δ)
 
         # Evaluate the solution (TaylorModelN) at δt including remainder Δ
-        xTMN .= evaluate.( x, δt ) .+ Δ
-        # Construct IntervalBox for output (wrapping effect?)
-        x0 = IntervalBox( evaluate(xTMN, δq_norm) )
-
         # New initial conditions and output
         t0 += δt
-        @inbounds for i in eachindex(x)
-            x[i]  = Taylor1( xTMN[i], orderT )
-            dx[i] = Taylor1( zero(xTMN[i]), orderT )
-        end
-        @inbounds t[0] = Interval(t0)
         nsteps += 1
-        @inbounds tv[nsteps] = t0
-        @inbounds xv[nsteps] = x0
-        # @inbounds xTMNv[:,nsteps] .= xTMN
+        @inbounds begin
+            for i in eachindex(x)
+                tmp = evaluate( x[i], δt ) + Δ[i]
+                xTMN[i] = TaylorModelN(tmp.pol, tmp.rem, tmp.x0, tmp.I)
+                x[i]  = Taylor1( xTMN[i], orderT )
+                dx[i] = Taylor1( zero(xTMN[i]), orderT )
+            end
+            t[0] = Interval(t0)
+            tv[nsteps] = t0
+            xv[nsteps] = evaluate(xTMN, δq_norm)
+            xTMNv[:,nsteps] .= xTMN
+        end
         # println(nsteps, "\t", t0, "\t", x0, "\t", diam(Δ))
         if nsteps > maxsteps
             @info("""
@@ -231,7 +232,8 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         end
     end
 
-    return view(tv,1:nsteps), view(xv,1:nsteps)#, view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
+    return view(tv,1:nsteps), view(xv,1:nsteps)
+    # return view(tv,1:nsteps), view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
 end
 #
 function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
@@ -247,15 +249,15 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
     # Some variables
     R   = Interval{T}
-    ti0 = Interval(t0)
-    t   = ti0 + Taylor1(orderT)
+    q0 = IntervalBox(Interval.(qq0))
+    t   = t0 + Taylor1(orderT)
     δq_norm = sym_norm ? IntervalBox(-1..1, Val(N)) : IntervalBox(0..1, Val(N))
 
     # Allocation of vectors
     # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
-    # xTMNv = Array{TaylorModelN{N,T,T}}(undef, dof, maxsteps+1)
+    xTMNv = Array{TaylorModelN{N,T,T}}(undef, dof, maxsteps+1)
     # Internals
     x     = Array{Taylor1{TaylorModelN{N,T,T}}}(undef, dof)
     dx    = Array{Taylor1{TaylorModelN{N,T,T}}}(undef, dof)
@@ -263,11 +265,10 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     xTMN  = Array{TaylorModelN{N,T,T}}(undef, dof)
 
     # Set initial conditions
-    q0 = IntervalBox(Interval.(qq0))
     zI = zero(R)
     @inbounds for i in eachindex(x)
         qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, sym_norm)
-        x[i] = Taylor1( TaylorModelN(qaux, zI, q0, q0 + δq0), orderT)
+        x[i] = Taylor1( TaylorModelN(qaux, zI, q0, q0 + δq_norm), orderT)
         dx[i] = x[i]
         xTMN[i] = x[i][0]
     end
@@ -275,7 +276,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     # Output vectors
     @inbounds tv[1] = t0
     @inbounds xv[1] = IntervalBox( evaluate(xTMN, δq_norm) )
-    # @inbounds xTMNv[:,1] .= fp_rpa.(xTMN[:])
+    @inbounds xTMNv[:,1] .= xTMN
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
@@ -298,23 +299,24 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         # This is to compute dx[:][orderT] (now zero), needed for the remainder
         f!(t, x, dx)
         Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0,δt)) # remainder of integration step
+        # @assert all(0..0 .⊆ Δ)
 
         # Evaluate the solution (TaylorModelN) at δt including remainder Δ
-        xTMN .= fp_rpa.(evaluate.( x, δt ) .+ Δ)
-        # Construct IntervalBox for output (wrapping effect?)
-        x0 = IntervalBox( evaluate(xTMN, δq_norm) )
-
         # New initial conditions and output
         t0 += δt
-        @inbounds for i in eachindex(x)
-            x[i]  = Taylor1( xTMN[i], orderT )
-            dx[i] = Taylor1( zero(xTMN[i]), orderT )
-        end
-        @inbounds t[0] = Interval(t0)
         nsteps += 1
-        @inbounds tv[nsteps] = t0
-        @inbounds xv[nsteps] = x0
-        # @inbounds xTMNv[:,nsteps] .= fp_rpa.(xTMN[:])
+        @inbounds begin
+            for i in eachindex(x)
+                tmp = evaluate( x[i], δt )
+                xTMN[i] = TaylorModelN(tmp.pol, tmp.rem+Δ[i], tmp.x0, tmp.I)
+                x[i]  = Taylor1( xTMN[i], orderT )
+                dx[i] = Taylor1( zero(xTMN[i]), orderT )
+            end
+            t[0] = t0
+            tv[nsteps] = t0
+            xv[nsteps] = evaluate(xTMN, δq_norm)
+            xTMNv[:,nsteps] .= xTMN
+        end
         # println(nsteps, "\t", t0, "\t", x0, "\t", diam(Δ))
         if nsteps > maxsteps
             @info("""
@@ -324,5 +326,6 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         end
     end
 
-    return view(tv,1:nsteps), view(xv,1:nsteps)#, view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
+    return view(tv,1:nsteps), view(xv,1:nsteps)
+    # return view(tv,1:nsteps), view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
 end

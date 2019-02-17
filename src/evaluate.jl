@@ -44,7 +44,7 @@ end
 
 
 # Substitute a TaylorModelN into a TM1; it **does not** include the remainder
-function _evaluate(tmg::TaylorModel1, tmf::TaylorModelN)
+function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
