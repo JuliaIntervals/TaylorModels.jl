@@ -213,15 +213,16 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         nsteps += 1
         @inbounds begin
             for i in eachindex(x)
-                tmp = evaluate( x[i], δt ) + Δ[i]
-                xTMN[i] = TaylorModelN(tmp.pol, tmp.rem, tmp.x0, tmp.I)
+                tmp1 = evaluate(x[i], Interval(0,δt))
+                xTMNv[i,nsteps] = TaylorModelN(tmp1.pol, tmp1.rem + Δ[i], tmp1.x0, tmp1.I)
+                tmp = evaluate( x[i], δt )
+                xTMN[i] = TaylorModelN(tmp.pol, tmp.rem + Δ[i], tmp.x0, tmp.I)
                 x[i]  = Taylor1( xTMN[i], orderT )
                 dx[i] = Taylor1( zero(xTMN[i]), orderT )
             end
             t[0] = Interval(t0)
             tv[nsteps] = t0
-            xv[nsteps] = evaluate(xTMN, δq_norm)
-            xTMNv[:,nsteps] .= xTMN
+            xv[nsteps] = evaluate(xTMNv[:,nsteps], δq_norm)
         end
         # println(nsteps, "\t", t0, "\t", x0, "\t", diam(Δ))
         if nsteps > maxsteps
@@ -307,6 +308,8 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         nsteps += 1
         @inbounds begin
             for i in eachindex(x)
+                tmp1 = fp_rpa( evaluate(x[i], Interval(0,δt)) )
+                xTMNv[i,nsteps] = TaylorModelN(tmp1.pol, tmp1.rem + Δ[i], tmp1.x0, tmp1.I)
                 tmp = evaluate( x[i], δt )
                 xTMN[i] = TaylorModelN(tmp.pol, tmp.rem+Δ[i], tmp.x0, tmp.I)
                 x[i]  = Taylor1( xTMN[i], orderT )
@@ -314,8 +317,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
             end
             t[0] = t0
             tv[nsteps] = t0
-            xv[nsteps] = evaluate(xTMN, δq_norm)
-            xTMNv[:,nsteps] .= xTMN
+            xv[nsteps] = evaluate(xTMNv[:,nsteps], δq_norm)
         end
         # println(nsteps, "\t", t0, "\t", x0, "\t", diam(Δ))
         if nsteps > maxsteps
