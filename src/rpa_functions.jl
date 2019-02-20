@@ -200,7 +200,7 @@ function fp_rpa(tm::TaylorModel1{Interval{T},T}) where {T}
 
     b = Taylor1(Interval{T}, order)
     t = Taylor1(T, order)
-    for ind=0:order
+    @inbounds for ind=order:-1:0
         t[ind] = mid(fT[ind], α_mid)
         b[ind] = fT[ind] - Interval(t[ind])
     end
@@ -219,7 +219,7 @@ function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
 
     b = Taylor1(Interval{T}, order)
     t = Taylor1(T, order)
-    for ind=0:order
+    @inbounds for ind=order:-1:0
         t[ind] = mid(fT[ind], α_mid)
         b[ind] = fT[ind] - Interval(t[ind])
     end
@@ -236,11 +236,11 @@ function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     I = tm.I
     order = get_order(tm)
 
-    b = zero(tm.pol)
+    b = zero(fT)
     t = TaylorN([HomogeneousPolynomial(zeros(T,N))], order)
-    for ind=0:order
-        for homPol in eachindex(fT[ind])
-            t[ind][homPol] = mid(fT[ind][homPol], TaylorModels.α_mid)
+    for ind = 0:order
+        @inbounds for homPol in 1:length(fT[ind])
+            t[ind][homPol] = mid(fT[ind][homPol])
             b[ind][homPol] = fT[ind][homPol] - t[ind][homPol]
         end
     end

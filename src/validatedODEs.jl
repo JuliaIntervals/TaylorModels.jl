@@ -41,11 +41,11 @@ integral operator, considering only the remainder. Inputs are: `dx`, the
 vector with the RHS of the defining ODEs, `δI` the interval box where the
 initial conditions are varied, and `δt` is the integration interval.
 """
-function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,Interval{T},T}}},
-        δI::IntervalBox{N,T}, δt) where {N,T}
+function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,S,T}}},
+        δI::IntervalBox{N,T}, δt) where {N,S,T}
 
     orderT = get_order(dx[1])
-    aux = δt^orderT / (orderT+1)
+    aux = δt^(orderT+1) / (orderT+1)
     last_coeffTM = getcoeff.(dx, orderT)
     last_coeff_I = evaluate(last_coeffTM, δI) .* aux
     vv = Vector{Interval{T}}(undef, N)
@@ -53,57 +53,11 @@ function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,Interval{T},T}}}
 
     # This mimics the Schauder's fix point theorem (100 iterations)
     for i = 1:100
-        # Only the remainders (Picard's integrationto order orderT) are included
-        Δ = δt .* (Δtest .+ last_coeff_I )
+        # Only the remainders (Picard's integration to order orderT) are included
+        Δ = δt .* Δtest .+ last_coeff_I
 
-        # This enlarges Δtest in all directions, and returns
-        if Δ == Δtest
-            @inbounds for ind in eachindex(vv)
-                vv[ind] = Interval(prevfloat(vv[ind].lo), nextfloat(vv[ind].hi))
-            end
-            Δtest = IntervalBox(vv)
-            return Δtest
-        end
-
-        # If needed, the tested remainder is enlarged
-        @inbounds for ind in eachindex(vv)
-            vv[ind] = Δ[ind]
-            (Δ[ind] ⊆ Δtest[ind]) && continue
-            vv[ind] = hull(Δ[ind], Δtest[ind])
-        end
-        Δtest = IntervalBox(vv)
-    end
-
-    # NOTE: Return after 100 iterations; this should be changed
-    # to ensure convergence. Perhaps shrink δt ?
-    @warn("Maximum number of iterations reached")
-
-    return Δtest
-end
-#
-function remainder_taylorstep(dx::Vector{Taylor1{TaylorModelN{N,T,T}}},
-        δI::IntervalBox{N,T}, δt) where {N,T}
-
-    orderT = get_order(dx[1])
-    aux = δt^orderT / (orderT+1)
-    last_coeffTM = getcoeff.(dx, orderT)
-    last_coeff_I = evaluate(last_coeffTM, δI) .* aux
-    vv = Vector{Interval{T}}(undef, N)
-    Δtest = zero.(δI)
-
-    # This mimics the Schauder's fix point theorem (100 iterations)
-    for i = 1:100
-        # Only the remainders (Picard's integrationto order orderT) are included
-        Δ = δt .* (Δtest .+ last_coeff_I )
-
-        # This enlarges Δtest in all directions, and returns
-        if Δ == Δtest
-            @inbounds for ind in eachindex(vv)
-                vv[ind] = Interval(prevfloat(vv[ind].lo), nextfloat(vv[ind].hi))
-            end
-            Δtest = IntervalBox(vv)
-            return Δtest
-        end
+        # If there is no improvement in the Picard iteration, return
+        Δ == Δtest && return Δtest
 
         # If needed, the tested remainder is enlarged
         @inbounds for ind in eachindex(vv)
@@ -141,6 +95,7 @@ function TaylorIntegration.taylorstep!(f!, t::Taylor1{R},
 
     return δt
 end
+
 
 function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
@@ -204,16 +159,16 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
         # Validate the solution: build a tight remainder (based on Schauder thm)
         # This is to compute dx[:][orderT] (now zero), needed for the remainder
         f!(t, x, dx)
-        Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0,δt)) # remainder of integration step
-        # @assert all(0..0 .⊆ Δ)
+        Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0, δt)) # remainder of integration step
+        @assert all(0..0 .⊆ Δ)
 
-        # Evaluate the solution (TaylorModelN) at δt including remainder Δ
+        # Evaluate the solution x[:] at δt including remainder Δ
         # New initial conditions and output
         t0 += δt
         nsteps += 1
         @inbounds begin
             for i in eachindex(x)
-                tmp1 = evaluate(x[i], Interval(0,δt))
+                tmp1 = evaluate(x[i], Interval(0, δt))
                 xTMNv[i,nsteps] = TaylorModelN(tmp1.pol, tmp1.rem + Δ[i], tmp1.x0, tmp1.I)
                 tmp = evaluate( x[i], δt )
                 xTMN[i] = TaylorModelN(tmp.pol, tmp.rem + Δ[i], tmp.x0, tmp.I)
@@ -236,7 +191,7 @@ function validated_integ(f!, q0::IntervalBox{N,T}, δq0::IntervalBox{N,T},
     return view(tv,1:nsteps), view(xv,1:nsteps)
     # return view(tv,1:nsteps), view(transpose(view(xTMNv,:,1:nsteps)),1:nsteps,:)
 end
-#
+
 function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
         maxsteps::Int=500, parse_eqs::Bool=true, sym_norm::Bool=true) where {N, T<:Real}
@@ -299,19 +254,19 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         # Validate the solution: build a tight remainder (based on Schauder thm)
         # This is to compute dx[:][orderT] (now zero), needed for the remainder
         f!(t, x, dx)
-        Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0,δt)) # remainder of integration step
-        # @assert all(0..0 .⊆ Δ)
+        Δ = remainder_taylorstep(dx, δq_norm, Interval(0.0, δt)) # remainder of integration step
+        @assert all(0..0 .⊆ Δ)
 
-        # Evaluate the solution (TaylorModelN) at δt including remainder Δ
+        # Evaluate the solution x[:] at δt including remainder Δ
         # New initial conditions and output
         t0 += δt
         nsteps += 1
         @inbounds begin
             for i in eachindex(x)
-                tmp1 = fp_rpa( evaluate(x[i], Interval(0,δt)) )
+                tmp1 = fp_rpa( evaluate(x[i], Interval(0, δt)) )
                 xTMNv[i,nsteps] = TaylorModelN(tmp1.pol, tmp1.rem + Δ[i], tmp1.x0, tmp1.I)
                 tmp = evaluate( x[i], δt )
-                xTMN[i] = TaylorModelN(tmp.pol, tmp.rem+Δ[i], tmp.x0, tmp.I)
+                xTMN[i] = TaylorModelN(tmp.pol, tmp.rem + Δ[i], tmp.x0, tmp.I)
                 x[i]  = Taylor1( xTMN[i], orderT )
                 dx[i] = Taylor1( zero(xTMN[i]), orderT )
             end
