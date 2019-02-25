@@ -198,9 +198,15 @@ function integral_bound(f::TaylorModelN, which)
 
     high_order_term = f.pol[end]  # a HomogeneousPolynomial
 
-    Δ = ( bound(high_order_term, f.x0, f.I) + f.rem ) * diam(f.I[which])
+    B = bound(high_order_term, f.x0, f.I)
+    Δ = f.rem
+    w = diam(f.I[which])
 
-    return Δ
+    @show B, Δ, w
+
+    Δ_new = ( B + Δ ) * w
+
+    return Δ_new
 end
 
 
