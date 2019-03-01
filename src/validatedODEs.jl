@@ -14,32 +14,37 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
     orderT = get_order(dx[1])
     aux = δt^(orderT+1)
     Δx  = IntervalBox( [  xI[i][orderT+1] * aux for i in eachindex(xI)] )
-    Δ0  = IntervalBox( [  dx[i][orderT](δI) * aux / (orderT+1) for i in eachindex(xI)] )
+    Δ0  = IntervalBox( [  dx[i][orderT](δI) * aux / (orderT+1) for i in eachindex(x)] )
     Δdx = IntervalBox( [ dxI[i][orderT+1] * aux for i in eachindex(xI)] )
+    Δ = Δ0 + Δdx * δt
 
     # Checking existence and uniqueness
-    all(Δx .⊂ (Δdx .+ Δ0)) && return Δx
+    all(Δ .⊂ Δx) && return Δx
 
     # If the check didn't work, compute new remainders. A new Δx is proposed,
     # and the corresponding Δdx is computed
-    @info("Checking unicity and existence the hard way")
     xxI  = Array{Taylor1{TaylorN{Interval{T}}}}(undef, N)
     dxxI = Array{Taylor1{TaylorN{Interval{T}}}}(undef, N)
     for its = 1:10
         # Extend `x` and `dx` to have interval coefficients
-        Δx = Δdx + Δ0
-        for ind in eachindex(xI)
+        @inbounds for ind in eachindex(x)
             xxI[ind]  = x[ind] + Δx[ind]
-            dxxI[ind] = dx[ind] + zero(Δdx[ind])
+            dxxI[ind] = dx[ind] + zero(Δx[ind])
         end
 
         # Compute `dxxI` from the equations of motion
         f!(t, xxI, dxxI)
-        # Compute a bound of the equations of motion
-        Δ = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) ) + Δ0
+        # Picard iteration, considering only the bound of `f` and the last coeff of f
+        Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
+        Δ = Δdx*δt + Δ0
 
         # Checking existence and uniqueness
-        all(Δx .⊂ Δ) && return Δx
+        all(Δ .⊂ Δx) && return Δx
+        if Δ == Δx
+            Δx = IntervalBox(widen.(Δ[:]))
+            continue
+        end
+        Δx = Δ
     end
 
     # If it doesn't work during 10 iterates, throw an error
