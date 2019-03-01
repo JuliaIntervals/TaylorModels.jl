@@ -52,9 +52,54 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
 end
 
 
+"""
+    absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
+
+Returns a TaylorModelN, equivalent to `a`, such that the remainder
+is mostly absorbed in the coefficients. The linear shift assumes
+that `a` is normalized to the `IntervalBox(-1..1, Val(N))`.
+
+Ref: Xin Chen, Erika Abraham, and Sriram Sankaranarayanan,
+"Taylor Model Flowpipe Construction for Non-linear Hybrid
+Systems", in Real Time Systems Symposium (RTSS), pp. 183-192 (2012),
+IEEE Press.
+"""
+function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
+    Δ = remainder(a)
+    orderQ = get_order(a)
+    δ = IntervalBox(Interval{T}(-1,1), Val(N))
+    aux = diam(Δ)/(2N)
+    rem = Interval{T}(0, 0)
+
+    # Linear shift
+    lin_shift = mid(Δ) + sum((aux*TaylorN(i, order=orderQ) for i in 1:N))
+    bpol = a.pol + lin_shift
+
+    # Compute the new remainder
+    aI = a(δ)
+    bI = bpol(δ)
+
+    if bI ⊆ aI
+        rem = Interval(aI.lo-bI.lo, aI.hi-bI.hi)
+    elseif aI ⊆ bI
+        rem = Interval(bI.lo-aI.lo, bI.hi-aI.hi)
+    else
+        r_lo = aI.lo-bI.lo
+        r_hi = aI.hi-bI.hi
+        if r_lo > 0
+            rem = Interval(-r_lo, r_hi)
+        else
+            rem = Interval( r_lo, -r_hi)
+        end
+    end
+
+    return TaylorModelN(bpol, rem, a.x0, a.I)
+end
+
+
 function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
-        maxsteps::Int=500, parse_eqs::Bool=true, #sym_norm::Bool=true,
+        maxsteps::Int=500, parse_eqs::Bool=true,
         check_property::Function=x->true) where {N, T<:Real}
 
     # Set proper parameters for jet transport
@@ -69,7 +114,6 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     q0 = IntervalBox(qq0)
     t   = t0 + Taylor1(orderT)
     tI  = t0 + Taylor1(orderT+1)
-    # δq_norm = sym_norm ? IntervalBox(-1..1, Val(N)) : IntervalBox(0..1, Val(N))
     δq_norm = IntervalBox(Interval{T}(-1, 1), Val(N))
     q0box = q0 .+ δq_norm
 
@@ -93,6 +137,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     # Set initial conditions
     zI = zero(R)
     Δ = zero.(q0)
+    rem = Array{Interval{T}}(undef, dof)
     @inbounds for i in eachindex(x)
         qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
         x[i] = Taylor1( qaux, orderT)
@@ -103,6 +148,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         xI[i] = Taylor1( q0box[i], orderT+1 )
         dxI[i] = xI[i]
         x0I[i] = qaux(δq_norm)
+        rem[i] = zI
     end
 
     # Output vectors
@@ -139,14 +185,20 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         nsteps += 1
         issatisfied = false
         for nchecks = 1:25
-            # Validate the solution: build a tight remainder (based on Schauder thm)
+            # Validate the solution: remainder consistent with Schauder thm
             Δ = remainder_taylorstep(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
 
             # Create TaylorModelN to store remainders and evaluation
             @inbounds begin
                 for i in eachindex(x)
-                    auxTM = fp_rpa( TaylorModelN(x[i](0..δt), Δ[i], q0, q0box) )
-                    xTMN[i] = TaylorModelN(auxTM.pol, remainder(auxTM), q0, q0box)
+                    auxTM = fp_rpa( TaylorModelN(x[i](0..δt), rem[i]+Δ[i], q0, q0box) )
+                    xTMN[i] = absorb_remainder(auxTM)
+                    rem[i] = remainder(xTMN[i])
+                    # If remainder is still too big, do it again
+                    if mag(rem[i]) > 1.0e-10
+                        xTMN[i] = absorb_remainder(xTMN[i])
+                        rem[i] = remainder(xTMN[i])
+                    end
                 end
                 xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
 
@@ -166,7 +218,6 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
                 $t0 $nsteps $δt
                 $(xv[nsteps])
                 $(check_property(xv[nsteps]))""")
-            return view(tv,1:nsteps), view(xv,1:nsteps)
         end
 
         # New initial conditions and time
@@ -179,6 +230,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
             x[i]  = Taylor1( aux, orderT )
             dx[i] = Taylor1( zero(aux), orderT )
         end
+        # @show(IntervalBox(rem))
         # @inbounds xTMNv[:, nsteps] .= xTMN[:]
 
         # println(nsteps, "\t", t0, "\t", remainder.(xTMN[:]), "\t", diam(Δ))
