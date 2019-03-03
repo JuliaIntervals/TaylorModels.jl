@@ -24,7 +24,7 @@ end
 function _rpaar(f::Function, x0::T, I::Interval{T}, _order::Integer) where {T}
     polf  = f( x0+Taylor1(T, _order) )
     polfI = f( I+Taylor1(Interval{T}, _order+1) )
-    Δ = bound_absrem(f, polf, polfI, x0, I)
+    Δ = bound_absrem(f, polf, polfI, Interval(x0), I)
     return TaylorModel1(polf, Δ, Interval(x0), I)
 end
 
