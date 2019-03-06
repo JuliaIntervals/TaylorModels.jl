@@ -100,7 +100,7 @@ end
 function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
         maxsteps::Int=500, parse_eqs::Bool=true,
-        check_property::Function=x->true) where {N, T<:Real}
+        check_property::Function=(t, x)->true) where {N, T<:Real}
 
     # Set proper parameters for jet transport
     @assert N == get_numvars()
@@ -202,7 +202,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
                 end
                 xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
 
-                if !check_property(xv[nsteps])
+                if !check_property(t0+δt, xv[nsteps])
                     δt = δt/2
                     continue
                 end
