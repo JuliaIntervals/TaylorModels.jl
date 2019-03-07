@@ -19,7 +19,7 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
     Δ = Δ0 + Δdx * δt
 
     # Checking existence and uniqueness
-    all(Δ .⊂ Δx) && return Δx
+    iscontractive(Δ, Δx) && return Δx
 
     # If the check didn't work, compute new remainders. A new Δx is proposed,
     # and the corresponding Δdx is computed
@@ -39,9 +39,17 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
         Δ = Δdx*δt + Δ0
 
         # Checking existence and uniqueness
-        all(Δ .⊂ Δx) && return Δx
-        if Δ == Δx
-            Δx = IntervalBox(widen.(Δ[:]))
+        iscontractive(Δ, Δx) && return Δx
+        if Δ ⊆ Δx
+            vv = Array{Interval{T}}(undef, N)
+            @inbounds for ind in 1:N
+                # Widen the directions where == holds
+                if Δ[ind] == Δx[ind]
+                    vv[ind] = widen.(Δ[ind])
+                end
+            end
+            Δx = IntervalBox(vv)
+            # Δx = IntervalBox(widen.(Δ[:]))
             continue
         end
         Δx = Δ
@@ -49,6 +57,22 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
 
     # If it doesn't work during 10 iterates, throw an error
     error("Error: it cannot prove existence and unicity of the solution")
+end
+
+
+function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
+    all(Δ .⊂ Δx) && return true
+    zi = Interval{T}(0, 0)
+    if Δ ⊆ Δx
+        @inbounds for ind in 1:N
+            Δ[ind] ⊂ Δx[ind] && continue
+            Δ[ind] == Δx[ind] == zi && continue
+            return false
+        end
+    else
+        return false
+    end
+    return true
 end
 
 
