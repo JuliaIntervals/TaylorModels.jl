@@ -121,6 +121,76 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
 end
 
 
+"""
+    validated-step!
+"""
+function validated_step!(f!, t::Taylor1{T},
+        x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}}, xaux::Vector{Taylor1{TaylorN{T}}},
+        tI::Taylor1{T},
+        xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}}, xauxI::Vector{Taylor1{Interval{T}}},
+        t0::T, tmax::T, x0::Vector{TaylorN{T}}, x0I::Vector{Interval{T}},
+        xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
+        rem::Vector{Interval{T}}, δq_norm::IntervalBox{N,T},
+        q0::IntervalBox{N,T}, q0box::IntervalBox{N,T}, nsteps::Int,
+        orderT::Int, abstol::T, parse_eqs::Bool,
+        check_property::Function=(t, x)->true) where {N,T}
+    #
+    # One step integration (non-validated)
+    δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux,
+        t0, tmax, x0, orderT, abstol, parse_eqs)
+    # One step integration for the initial box
+    δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI,
+        t0, tmax, x0I, orderT+1, abstol, parse_eqs)
+
+    # This updates the `dx[:][orderT]` and `dxI[:][orderT+1]`, which are currently zero
+    f!(t, x, dx)
+    f!(tI, xI, dxI)
+
+    # Test if `check_property` is satisfied; if not, half the integration time.
+    # If after 25 checks `check_property` is not satisfied, thow an error.
+    nsteps += 1
+    issatisfied = false
+    Δ = zero.(δq_norm)
+    for nchecks = 1:25
+        # Validate the solution: remainder consistent with Schauder thm
+        Δ = remainder_taylorstep(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
+
+        # Create TaylorModelN to store remainders and evaluation
+        @inbounds begin
+            for i in eachindex(x)
+                auxTM = fp_rpa( TaylorModelN(x[i](0..δt), rem[i]+Δ[i], q0, q0box) )
+                xTMN[i] = absorb_remainder(auxTM)
+                rem[i] = remainder(xTMN[i])
+                # If remainder is still too big, do it again
+                if mag(rem[i]) > 1.0e-10
+                    xTMN[i] = absorb_remainder(xTMN[i])
+                    rem[i] = remainder(xTMN[i])
+                end
+            end
+            xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
+
+            if !check_property(t0+δt, xv[nsteps])
+                δt = δt/2
+                continue
+            end
+        end # @inbounds
+
+        issatisfied = true
+        break
+    end
+
+    if !issatisfied
+        error("""
+            `check_property` is not satisfied:
+            $t0 $nsteps $δt
+            $(xv[nsteps])
+            $(check_property(xv[nsteps]))""")
+    end
+
+    return δt
+end
+
+
 function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
         maxsteps::Int=500, parse_eqs::Bool=true,
@@ -193,58 +263,14 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     # Integration
     nsteps = 1
     while t0 < tmax
-        # One step integration (non-validated)
-        δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux,
-            t0, tmax, x0, orderT, abstol, parse_eqs)
-        # One step integration for the initial box
-        δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI,
-            t0, tmax, x0I, orderT+1, abstol, parse_eqs)
 
-        # This updates the `dx[:][orderT]` and `dxI[:][orderT+1]`, which are currently zero
-        f!(t, x, dx)
-        f!(tI, xI, dxI)
-
-        # Test if `check_property` is satisfied; if not, half the integration time.
-        # If after 25 checks `check_property` is not satisfied, thow an error.
-        nsteps += 1
-        issatisfied = false
-        for nchecks = 1:25
-            # Validate the solution: remainder consistent with Schauder thm
-            Δ = remainder_taylorstep(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
-
-            # Create TaylorModelN to store remainders and evaluation
-            @inbounds begin
-                for i in eachindex(x)
-                    auxTM = fp_rpa( TaylorModelN(x[i](0..δt), rem[i]+Δ[i], q0, q0box) )
-                    xTMN[i] = absorb_remainder(auxTM)
-                    rem[i] = remainder(xTMN[i])
-                    # If remainder is still too big, do it again
-                    if mag(rem[i]) > 1.0e-10
-                        xTMN[i] = absorb_remainder(xTMN[i])
-                        rem[i] = remainder(xTMN[i])
-                    end
-                end
-                xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
-
-                if !check_property(t0+δt, xv[nsteps])
-                    δt = δt/2
-                    continue
-                end
-            end # @inbounds
-
-            issatisfied = true
-            break
-        end
-
-        if !issatisfied
-            error("""
-                `check_property` is not satisfied:
-                $t0 $nsteps $δt
-                $(xv[nsteps])
-                $(check_property(xv[nsteps]))""")
-        end
+        # Validated step of the integration
+        δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
+            t0, tmax, x0, x0I, xTMN, xv, rem, δq_norm,
+            q0, q0box, nsteps, orderT, abstol, parse_eqs, check_property)
 
         # New initial conditions and time
+        nsteps += 1
         t0 += δt
         @inbounds t[0] = t0
         @inbounds tI[0] = t0
