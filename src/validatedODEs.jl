@@ -184,7 +184,7 @@ function validated_step!(f!, t::Taylor1{T},
             `check_property` is not satisfied:
             $t0 $nsteps $δt
             $(xv[nsteps])
-            $(check_property(xv[nsteps]))""")
+            $(check_property(t0+δt, xv[nsteps]))""")
     end
 
     return δt
