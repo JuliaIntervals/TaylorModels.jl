@@ -27,17 +27,8 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
     xxI  = Array{Taylor1{TaylorN{Interval{T}}}}(undef, N)
     dxxI = Array{Taylor1{TaylorN{Interval{T}}}}(undef, N)
     for its = 1:10
-        # Extend `x` and `dx` to have interval coefficients
-        @inbounds for ind in eachindex(x)
-            xxI[ind]  = x[ind] + Δx[ind]
-            dxxI[ind] = dx[ind] + zero(Δx[ind])
-        end
-
-        # Compute `dxxI` from the equations of motion
-        f!(t, xxI, dxxI)
-        # Picard iteration, considering only the bound of `f` and the last coeff of f
-        Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
-        Δ = Δ0 + Δdx * δt
+        # Remainder of Picard iteration
+        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
 
         # Checking existence and uniqueness
         iscontractive(Δ, Δx) && return Δx
@@ -83,6 +74,35 @@ function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
         return false
     end
     return true
+end
+
+
+"""
+    picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
+
+Return the remainder of Picard operator
+"""
+function picard_remainder!(f!::Function, t::Taylor1{T},
+    x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
+    xxI::Vector{Taylor1{TaylorN{Interval{T}}}},
+    dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
+    δI::IntervalBox{N,T}, δt::Interval{T},
+    Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}) where {N,T}
+
+    # Extend `x` and `dx` to have interval coefficients
+    zI = zero(Δx[1])
+    @inbounds for ind in eachindex(x)
+        xxI[ind]  = x[ind] + Δx[ind]
+        dxxI[ind] = dx[ind] + zI
+    end
+
+    # Compute `dxxI` from the equations of motion
+    f!(t, xxI, dxxI)
+
+    # Picard iteration, considering only the bound of `f` and the last coeff of f
+    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
+    Δ = Δ0 + Δdx * δt
+    return Δ
 end
 
 
