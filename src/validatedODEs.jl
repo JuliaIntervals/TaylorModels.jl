@@ -1,12 +1,12 @@
 # Some methods for validated integration of ODEs
 
 """
-    remainder_taylorstep(f!, t, x, dx, xI, dxI, δI, δt)
+    remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt)
 
 Returns a remainder for the integration step for the dependent variables (`x`)
 checking that the solution satisfies the criteria for existence and uniqueness.
 """
-function remainder_taylorstep(f!::Function, t::Taylor1{T},
+function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
         δI::IntervalBox{N,T}, δt::Interval{T}) where {N,T}
@@ -17,6 +17,7 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
     Δ0  = IntervalBox( [  dx[i][orderT](δI) * aux / (orderT+1) for i in eachindex(x)] )
     Δdx = IntervalBox( [ dxI[i][orderT+1] * aux for i in eachindex(xI)] )
     Δ = Δ0 + Δdx * δt
+    Δxold = Δx
 
     # Checking existence and uniqueness
     iscontractive(Δ, Δx) && return Δx
@@ -36,10 +37,11 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
         f!(t, xxI, dxxI)
         # Picard iteration, considering only the bound of `f` and the last coeff of f
         Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
-        Δ = Δdx*δt + Δ0
+        Δ = Δ0 + Δdx * δt
 
         # Checking existence and uniqueness
         iscontractive(Δ, Δx) && return Δx
+
         if Δ ⊆ Δx
             vv = Array{Interval{T}}(undef, N)
             @inbounds for ind in 1:N
@@ -52,24 +54,32 @@ function remainder_taylorstep(f!::Function, t::Taylor1{T},
             # Δx = IntervalBox(widen.(Δ[:]))
             continue
         end
+        Δxold = Δx
         Δx = Δ
     end
 
     # If it doesn't work during 10 iterates, throw an error
-    error("Error: it cannot prove existence and unicity of the solution")
+    error("""
+    Error: it cannot prove existence and unicity of the solution:
+        t0 = $(t[0])
+        δt = $(δt)
+        Δ  = $(Δ)
+        Δx = $(Δxold)
+    """)
 end
 
 
+"""
+    iscontractive(Δ, Δx)
+
+Checks if `Δ .⊂ Δx` is satisfied. If ``Δ ⊆ Δx` is satisfied, it returns
+`true` if all cases where `==` holds corresponds to the zero `Interval`.
+"""
 function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
-    all(Δ .⊂ Δx) && return true
     zi = Interval{T}(0, 0)
-    if Δ ⊆ Δx
-        @inbounds for ind in 1:N
-            Δ[ind] ⊂ Δx[ind] && continue
-            Δ[ind] == Δx[ind] == zi && continue
-            return false
-        end
-    else
+    @inbounds for ind in 1:N
+        Δ[ind] ⊂ Δx[ind] && continue
+        Δ[ind] == Δx[ind] == zi && continue
         return false
     end
     return true
@@ -153,7 +163,7 @@ function validated_step!(f!, t::Taylor1{T},
     Δ = zero.(δq_norm)
     for nchecks = 1:25
         # Validate the solution: remainder consistent with Schauder thm
-        Δ = remainder_taylorstep(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
+        Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
 
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
