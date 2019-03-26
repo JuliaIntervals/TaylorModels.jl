@@ -18,6 +18,8 @@ for TM in tupleTMs
 
     @eval (tm::$TM{T,S})(a) where {T,S} = evaluate(tm, a)
 
+    @eval evaluate(tm::Vector{$TM{T,S}}, a) where {T,S} = evaluate.(tm, a)
+
 
     # _evaluate corresponds to composition: substitute tmf into tmg
     # It **does not** include the remainder
@@ -25,7 +27,7 @@ for TM in tupleTMs
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
 
-        tmres = $TM(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.I)
+        tmres = $TM(Taylor1(zero(constant_term(tmg.pol)), _order), zero(tmf.x0), tmf.x0, tmf.I)
         @inbounds for k = _order:-1:0
             tmres = tmres * tmf
             tmres = tmres + tmg.pol[k]
@@ -42,7 +44,7 @@ end
 
 
 # Substitute a TaylorModelN into a TM1; it **does not** include the remainder
-function _evaluate(tmg::TaylorModel1, tmf::TaylorModelN)
+function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
@@ -81,3 +83,6 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
 end
 
 (tm::TaylorModelN{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)
+
+evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
+    IntervalBox( [ tm[i](a) for i in eachindex(tm) ] )

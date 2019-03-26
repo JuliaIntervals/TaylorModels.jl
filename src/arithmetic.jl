@@ -83,7 +83,7 @@ function *(a::TaylorModel1, b::TaylorModel1)
     bext = Taylor1( copy(res.coeffs[1:order+1]) )
 
     # Bound for the neglected part of the product of polynomials
-    res[0:order] .= zero(eltype(res))
+    res[0:order] .= zero(res[0])
     aux = a.I - a.x0
     Δnegl = res(aux)
 
@@ -119,7 +119,6 @@ function *(a::RTaylorModel1, b::RTaylorModel1)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
 
     return RTaylorModel1(bext, Δ, a.x0, a.I)
-
 end
 
 
@@ -220,7 +219,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     bext = TaylorN( copy(res.coeffs[1:order+1]) )
 
     # Bound for the neglected part of the product of polynomials
-    res[0:order] .= zero(eltype(res))
+    res[0:order] .= zero(res[0])
     aux = a.I - a.x0
     Δnegl = res(aux)
 

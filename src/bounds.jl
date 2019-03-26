@@ -14,7 +14,7 @@ to compute the Lagrange remainder.
 
 """
 function bound_absrem(f::Function, polf::Taylor1, polfI::Taylor1,
-        x0::Interval, I::Interval)
+        x0, I::Interval)
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order]

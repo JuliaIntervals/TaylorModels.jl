@@ -21,6 +21,12 @@ function _rpaar(f::Function, x0::Interval{T}, I::Interval{T}, _order::Integer) w
     Δ = bound_absrem(f, polf, polfI, x0, I)
     return TaylorModel1(polf, Δ, x0, I)
 end
+function _rpaar(f::Function, x0::T, I::Interval{T}, _order::Integer) where {T}
+    polf  = f( x0+Taylor1(T, _order) )
+    polfI = f( I+Taylor1(Interval{T}, _order+1) )
+    Δ = bound_absrem(f, polf, polfI, Interval(x0), I)
+    return TaylorModel1(polf, Δ, Interval(x0), I)
+end
 
 
 """
@@ -34,7 +40,7 @@ exploiting monotonicity if possible, otherwise, it uses the Lagrange
 coefficient.
 
 """
-function _rparr(f::Function, x0::Interval{T}, I::Interval{T}, _order::Integer) where {T}
+function _rparr(f::Function, x0, I::Interval{T}, _order::Integer) where {T}
     polf  = f( x0+Taylor1(Interval{T}, _order) )
     polfI = f( I+Taylor1(Interval{T}, _order+2) )
     Δ = bound_relrem(f, polf, polfI, x0, I)
@@ -178,8 +184,8 @@ end
     fp_rpa(tm::TaylorModel1{Interval{T},T})
     fp_rpa(tm::RTaylorModel1{Interval{T},T})
 
-Convert a `tm` TaylorModel to a TaylorModel whose polynomial coefficients
-of type `T<:Real`. The accumulated error is added to the remainder. The
+Convert a `tm` TaylorModel1 to a TaylorModel1 whose polynomial coefficients
+are `Float64`. The accumulated error is added to the remainder. The
 mid point of the expansion interval is preferentially rounded down
 if it is not an exactly representable value.
 
@@ -190,11 +196,11 @@ function fp_rpa(tm::TaylorModel1{Interval{T},T}) where {T}
     x0 = tm.x0
     I = tm.I
     order = get_order(tm)
-    ξ0 = mid(x0, α_mid)
+    # ξ0 = mid(x0, α_mid)
 
     b = Taylor1(Interval{T}, order)
     t = Taylor1(T, order)
-    for ind=0:order
+    @inbounds for ind=order:-1:0
         t[ind] = mid(fT[ind], α_mid)
         b[ind] = fT[ind] - Interval(t[ind])
     end
@@ -209,11 +215,11 @@ function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
     x0 = tm.x0
     I = tm.I
     order = get_order(tm)
-    ξ0 = mid(x0, α_mid)
+    # ξ0 = mid(x0, α_mid)
 
     b = Taylor1(Interval{T}, order)
     t = Taylor1(T, order)
-    for ind=0:order
+    @inbounds for ind=order:-1:0
         t[ind] = mid(fT[ind], α_mid)
         b[ind] = fT[ind] - Interval(t[ind])
     end
@@ -221,6 +227,25 @@ function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
     # Is the following correct for RTaylorModel1?
     Δ = Δ + δ
     return RTaylorModel1(t, Δ, x0, I)
+end
+
+function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
+    fT = tm.pol
+    Δ = remainder(tm)
+    x0 = tm.x0
+    I = tm.I
+    order = get_order(tm)
+
+    b = zero(fT)
+    t = TaylorN([HomogeneousPolynomial(zeros(T,N))], order)
+    for ind = 0:order
+        @inbounds for homPol in 1:length(fT[ind])
+            t[ind][homPol] = mid(fT[ind][homPol])
+            b[ind][homPol] = fT[ind][homPol] - t[ind][homPol]
+        end
+    end
+    Δ = Δ + b(I-x0)
+    return TaylorModelN(t, Δ, x0, I)
 end
 
 
