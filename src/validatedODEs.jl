@@ -26,36 +26,41 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
     # and the corresponding Δdx is computed
     xxI  = Array{Taylor1{TaylorN{Interval{T}}}}(undef, N)
     dxxI = Array{Taylor1{TaylorN{Interval{T}}}}(undef, N)
+    vv = Array{Interval{T}}(undef, N)
     for its = 1:10
         # Remainder of Picard iteration
         Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
 
         # Checking existence and uniqueness
         iscontractive(Δ, Δx) && return Δx
+        # iscontractive(Δ, Δx) && return _contract_iteration!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δdx, Δ0)
 
+        # Expand Δx in the directions needed
+        Δxold = Δx
         if Δ ⊆ Δx
-            vv = Array{Interval{T}}(undef, N)
             @inbounds for ind in 1:N
-                # Widen the directions where == holds
+                # Widen the directions where ⊂ does not hold
+                vv[ind] = Δx[ind]
                 if Δ[ind] == Δx[ind]
                     vv[ind] = widen.(Δ[ind])
                 end
             end
             Δx = IntervalBox(vv)
-            # Δx = IntervalBox(widen.(Δ[:]))
             continue
         end
-        Δxold = Δx
         Δx = Δ
     end
 
-    # If it doesn't work during 10 iterates, throw an error
+    # If it didn't work, throw an error
+    @format full
     error("""
     Error: it cannot prove existence and unicity of the solution:
         t0 = $(t[0])
         δt = $(δt)
         Δ  = $(Δ)
-        Δx = $(Δxold)
+        Δxo = $(Δxold)
+        Δx = $(Δx)
+        $(Δ .⊆ Δxold)
     """)
 end
 
@@ -103,6 +108,36 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
     Δ = Δ0 + Δdx * δt
     return Δ
+end
+
+
+# Picard iterations to contract further Δx, once Δ ⊂ Δx holds
+# **Currently not used**
+function _contract_iteration!(f!::Function, t::Taylor1{T},
+        x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
+        xxI::Vector{Taylor1{TaylorN{Interval{T}}}}, dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
+        δI::IntervalBox{N,T}, δt::Interval{T},
+        Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}) where {N,T}
+
+    # Some abbreviations
+    zI = zero(Δx[1])
+    Δ = Δ0 + Δdx * δt
+    Δxold = Δx
+
+    # Picard contractions
+    for its = 1:10
+        # Remainder of Picard iteration
+        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
+
+        # If contraction doesn't hold, return old bound
+        iscontractive(Δ, Δx) || return Δxold
+
+        # Contract estimate
+        Δxold = Δx
+        Δx = Δ
+    end
+
+    return Δxold
 end
 
 
