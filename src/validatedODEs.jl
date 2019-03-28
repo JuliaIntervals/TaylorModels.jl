@@ -216,26 +216,29 @@ function validated_step!(f!, t::Taylor1{T},
     # If after 25 checks `check_property` is not satisfied, thow an error.
     nsteps += 1
     issatisfied = false
-    Δ = zero.(δq_norm)
+    # Δ = zero.(δq_norm)
     for nchecks = 1:25
         # Validate the solution: remainder consistent with Schauder thm
         Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
+        # @show(rem, Δ)
+        rem .= rem .+ Δ
+        # @show(rem)
 
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
             for i in eachindex(x)
-                auxTM = fp_rpa( TaylorModelN(x[i](0..δt), rem[i]+Δ[i], q0, q0box) )
+                auxTM = fp_rpa( TaylorModelN(x[i](0..δt), rem[i], q0, q0box) )
                 xTMN[i] = absorb_remainder(auxTM)
                 rem[i] = remainder(xTMN[i])
                 # If remainder is still too big, do it again
                 j = 0
                 while (j < 10) && (mag(rem[i]) > 1.0e-10)
-                    # @show(i, j, rem[i], diam(evaluate(xTMN, δq_norm)[2]))
                     xTMN[i] = absorb_remainder(xTMN[i])
                     rem[i] = remainder(xTMN[i])
                     j += 1
                 end
             end
+            # @show(rem)
             xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
 
             if !check_property(t0+δt, xv[nsteps])
@@ -269,9 +272,6 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     # Set proper parameters for jet transport
     @assert N == get_numvars()
     dof = N
-    # if get_order() != orderQ
-    #     set_variables("δ", numvars=dof, order=orderQ)
-    # end
 
     # Some variables
     R   = Interval{T}
@@ -285,7 +285,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
-    # xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
+    xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
     # xTMNv = Array{TaylorModelN{N,T,T}}(undef, dof, maxsteps+1)
     # Internals: jet transport integration
     x     = Array{Taylor1{TaylorN{T}}}(undef, dof)
@@ -301,7 +301,6 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
     # Set initial conditions
     zI = zero(R)
-    Δ = zero.(q0)
     rem = Array{Interval{T}}(undef, dof)
     @inbounds for i in eachindex(x)
         qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
@@ -315,7 +314,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         x0I[i] = qaux(δq_norm)
         rem[i] = zI
         #
-        # xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
         # xTMNv[i, 1] .= xTMN[i]
     end
 
@@ -341,6 +340,8 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
             t0, tmax, x0, x0I, xTMN, xv, rem, δq_norm,
             q0, q0box, nsteps, orderT, abstol, parse_eqs, check_property)
+        # @show(rem)
+        # println()
 
         # New initial conditions and time
         nsteps += 1
@@ -349,7 +350,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         @inbounds tI[0] = t0
         @inbounds tv[nsteps] = t0
         @inbounds for i in eachindex(x)
-            # xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i]+Δ[i], 0..0, -δt ..δt)
+            xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], 0..0, -δt ..δt)
             # xTMNv[i, nsteps] = xTMN[i]
             aux = x[i](δt)
             x[i]  = Taylor1( aux, orderT )
@@ -366,5 +367,5 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
     end
 
-    return view(tv,1:nsteps), view(xv,1:nsteps)#, view(xTM1v, :, 1:nsteps)
+    return view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v, :, 1:nsteps)
 end
