@@ -13,7 +13,7 @@
 [travis_url]: https://travis-ci.org/JuliaIntervals/TaylorModels.jl
 
 [appveyor_badge]: https://ci.appveyor.com/api/projects/status/github/dpsanders/TaylorModels.jl?svg=true&branch=master
-[appveyor_url]: https://ci.appveyor.com/project/dpsanders/taylormodels-jl
+[appveyor_url]: https://ci.appveyor.com/project/dpsanders/taylormodels-jl-8keb2
 
 [codecov_badge]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl/coverage.svg?branch=master
 [codecov_url]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl?branch=master
