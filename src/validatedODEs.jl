@@ -229,6 +229,7 @@ function validated_step!(f!, t::Taylor1{T},
                 # If remainder is still too big, do it again
                 j = 0
                 while (j < 10) && (mag(rem[i]) > 1.0e-10)
+                    j += 1
                     xTMN[i] = absorb_remainder(xTMN[i])
                     rem[i] = remainder(xTMN[i])
                 end
