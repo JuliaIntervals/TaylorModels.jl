@@ -18,7 +18,8 @@ import Base: setindex!, getindex, copy,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 
-import TaylorSeries: integrate, get_order, evaluate, pretty_print
+import TaylorSeries: integrate, get_order, evaluate, pretty_print,
+    constant_term, linear_polynomial
 
 import IntervalArithmetic: showfull
 
