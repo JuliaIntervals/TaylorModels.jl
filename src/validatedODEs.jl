@@ -142,7 +142,7 @@ end
 
 
 """
-    absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
+    absorb_remainder(a::TaylorModelN)
 
 Returns a TaylorModelN, equivalent to `a`, such that the remainder
 is mostly absorbed in the coefficients. The linear shift assumes
@@ -187,6 +187,97 @@ end
 
 
 """
+    shrink_wrapping!(xTMN::TaylorModelN)
+
+Returns a modified inplace `xTMN`, which has absorbed the remainder
+by the modified shrink-wrapping method of Florian Bünger.
+
+Ref: Florian B\"unger, Shrink wrapping for Taylor models revisited,
+Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
+"""
+function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
+    # Original domain of TaylorModelN
+    B = IntervalBox(Interval{T}(-1,1), Val(N))
+
+    # Vector of independent TaylorN variables
+    order = get_order(xTMN[1])
+    X = [TaylorN(T, i, order=order) for i in 1:N]
+
+    # Remainder of original TaylorModelN and componentwise mag
+    rem = remainder.(xTMN)
+    r = mag.(rem)
+    qB = r .* B
+
+    # Shift to remove constant term
+    xTN0 = constant_term.(xTMN)
+    xTNcent = polynomial.(xTMN) .- xTN0
+
+    # Jacobian (at zero) and its inverse
+    jac = TaylorSeries.jacobian(xTNcent)
+    invjac = inv(jac)
+
+    # Componentwise bound
+    # r̃ = abs.(invjac) * r
+    r̃ = mag.(invjac * qB) # qB = r .* B
+    @assert all(invjac * qB .⊆ r̃ .* B)
+
+    # Nonlinear part (linear part is close to identity)
+    g = invjac*xTNcent .- X
+    # g = invjac*(xTNcent .- linear_polynomial.(xTNcent))
+    # ... and its jacobian matrix (full dependence!)
+    jacmatrix_g = TaylorSeries.jacobian(g, X)
+
+    # Estimate shrink-wrap vector; step 7 of Bünger algorithm
+    # Some constants/parameters
+    iter_max = 20
+    q_tol = 1.0e-15
+    improve = true
+    q = 1 .+ r̃
+    q_max = 1.1 .* q
+    zs = zero(q)
+    s = similar(zs)
+    q_old = similar(q)
+
+    iter = 0
+    while improve && iter < iter_max
+        qB .= q .* B
+        s .= zs
+        @inbounds for i in eachindex(xTMN)
+            q_old[i] = q[i]
+            @inbounds for j in eachindex(xTMN)
+                tt = mag(jacmatrix_g[i,j](qB))
+                s[i] += tt * (q_old[j] - 1)
+            end
+            q[i] = 1.0 + r̃[i] + s[i]
+            @assert (q[i] < q_max[i])
+        end
+        improve = any( ((q .- q_old)./q) .> q_tol )
+        iter += 1
+    end
+    @show iter
+
+    # Compute final q and rescale X
+    @. q = 1 + r̃ + 1.01 * s
+    # @. qB = q * B
+    @. X = q * X
+    # @inbounds for i in eachindex(xTMN)
+    #     q[i] = 1 + r̃[i] + 1.01 * s[i]
+    #     # qB[i] = q[i] * B[i]
+    #     X[i] = q[i] * X[i]
+    # end
+
+    # Postverify and define Taylor models to be returned
+    @inbounds for i in eachindex(xTMN)
+        pol = polynomial(xTMN[i])(X) # rescaled polynomial
+        @assert xTMN[i](B) ⊆ pol(B) # zero remainder!
+        xTMN[i] = TaylorModelN( pol, 0..0, xTMN[i].x0, xTMN[i].I )
+    end
+
+    return xTMN
+end
+
+
+"""
     validated-step!
 """
 function validated_step!(f!, t::Taylor1{T},
@@ -201,6 +292,8 @@ function validated_step!(f!, t::Taylor1{T},
         check_property::Function=(t, x)->true) where {N,T}
     #
     # One step integration (non-validated)
+    # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux)
+    # δt = stepsize(x, abstol)
     δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux,
         t0, tmax, orderT, abstol, params, parse_eqs)
     # One step integration for the initial box
