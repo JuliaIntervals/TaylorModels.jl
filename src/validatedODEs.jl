@@ -206,7 +206,8 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # Remainder of original TaylorModelN and componentwise mag
     rem = remainder.(xTMN)
     r = mag.(rem)
-    qB = r .* B
+    # qB = r .* B
+    qB = [ r[i]*B[i] for i in 1:N ]
 
     # Shift to remove constant term
     xTN0 = constant_term.(xTMN)
@@ -218,8 +219,9 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
 
     # Componentwise bound
     # r̃ = abs.(invjac) * r
-    r̃ = mag.(invjac * qB) # qB = r .* B
-    @assert all(invjac * qB .⊆ r̃ .* B)
+    r̃ = mag.(invjac * qB) # qB <-- r .* B
+    qB´ = [ r̃[i]*B[i] for i in 1:N ]
+    @assert all(invjac * qB .⊆ qB´)
 
     # Nonlinear part (linear part is close to identity)
     g = invjac*xTNcent .- X
@@ -240,7 +242,8 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
 
     iter = 0
     while improve && iter < iter_max
-        qB .= q .* B
+        # qB .= q .* B
+        qB .= [ q[i]*B[i] for i in 1:N ]
         s .= zs
         @inbounds for i in eachindex(xTMN)
             q_old[i] = q[i]
@@ -254,17 +257,11 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
         improve = any( ((q .- q_old)./q) .> q_tol )
         iter += 1
     end
-    @show iter
 
     # Compute final q and rescale X
     @. q = 1 + r̃ + 1.01 * s
-    # @. qB = q * B
     @. X = q * X
-    # @inbounds for i in eachindex(xTMN)
-    #     q[i] = 1 + r̃[i] + 1.01 * s[i]
-    #     # qB[i] = q[i] * B[i]
-    #     X[i] = q[i] * X[i]
-    # end
+    @show(iter, q)
 
     # Postverify and define Taylor models to be returned
     @inbounds for i in eachindex(xTMN)
@@ -366,7 +363,8 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     t   = t0 + Taylor1(orderT)
     tI  = t0 + Taylor1(orderT+1)
     δq_norm = IntervalBox(Interval{T}(-1, 1), Val(N))
-    q0box = q0 .+ δq_norm
+    # q0box = q0 .+ δq_norm
+    q0box = IntervalBox([q0[i] + δq_norm[i] for i in 1:N])
 
     # Allocation of vectors
     # Output
