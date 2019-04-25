@@ -209,6 +209,8 @@ function fp_rpa(tm::TaylorModel1{Interval{T},T}) where {T}
     return TaylorModel1(t, Δ, x0, I)
 end
 
+fp_rpa(tm::TaylorModel1{T, T}) where {T} = tm
+
 function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
@@ -229,6 +231,8 @@ function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
     return RTaylorModel1(t, Δ, x0, I)
 end
 
+fp_rpa(tm::RTaylorModel1{T, T}) where {T} = tm
+
 function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     fT = tm.pol
     Δ = remainder(tm)
@@ -248,6 +252,7 @@ function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     return TaylorModelN(t, Δ, x0, I)
 end
 
+fp_rpa(tm::TaylorModelN{N, T, T}) where {N, T} = tm
 
 # Elementary functions
 fnlist = (:inv, :sqrt, :exp, :log, :sin, :cos, :tan,

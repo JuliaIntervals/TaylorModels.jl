@@ -112,6 +112,9 @@ end
             @test check_containment(ftest, tma)
         end
 
+        # test for TM with scalar coefficients
+        @test fp_rpa(tmc) == tmc
+
         order = 2
         ii = ii1
         xx = x1
