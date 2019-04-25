@@ -116,6 +116,10 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test check_containment(ftest, xx, tma)
         end
 
+        # test for TM with scalar coefficients
+        tmc = fp_rpa(tma)
+        @test fp_rpa(tmc) == tmc
+
         ftest = x -> exp(x)
         xx = xm + 2*ym
         tma = rpa(ftest, xx)
