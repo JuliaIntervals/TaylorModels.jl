@@ -61,20 +61,20 @@ function rpa(g::Function, tmf::TaylorModel1)
     _order = get_order(tmf)
 
     # # Avoid overestimations:
-    # if tmf == TaylorModel1(_order, tmf.x0, tmf.I)
+    # if tmf == TaylorModel1(_order, tmf.x0, tmf.dom)
     #     # ... if `tmf` is the independent variable
-    #     return _rpaar(g, tmf.x0, tmf.I, _order)
-    # elseif tmf == TaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
+    #     return _rpaar(g, tmf.x0, tmf.dom, _order)
+    # elseif tmf == TaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.dom)
     #     # ... in case `tmf` is a simple constant polynomial
-    #     range_g = bound_taylor1(g(tmf.pol), tmf.I-tmf.x0) + remainder(tmf)
-    #     return TaylorModel1(range_g, _order, tmf.x0, tmf.I)
+    #     range_g = bound_taylor1(g(tmf.pol), tmf.dom-tmf.x0) + remainder(tmf)
+    #     return TaylorModel1(range_g, _order, tmf.x0, tmf.dom)
     # end
 
     f_pol = tmf.pol
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
     x0 = tmf.x0
-    I = tmf.I
+    I = tmf.dom
 
     # Range of tmf including remainder (Δf)
     # range_tmf = bound_taylor1(f_pol, I-x0) + Δf
@@ -98,20 +98,20 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     _order = get_order(tmf)
 
     # # Avoid overestimations
-    # if tmf == TaylorModelN(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
+    # if tmf == TaylorModelN(constant_term(tmf.pol), _order, tmf.x0, tmf.dom)
     #     # ... in case `tmf` is a simple constant polynomial
-    #     range_g = (g(tmf.pol))(tmf.I-tmf.x0) + remainder(tmf)
-    #     return TaylorModelN(range_g, _order, tmf.x0, tmf.I)
+    #     range_g = (g(tmf.pol))(tmf.dom-tmf.x0) + remainder(tmf)
+    #     return TaylorModelN(range_g, _order, tmf.x0, tmf.dom)
     # else
     #     v = get_variables(T, _order)
-    #     any( tmf.pol .== v ) && _rpaar(g, tmf.x0, tmf.I, _order)
+    #     any( tmf.pol .== v ) && _rpaar(g, tmf.x0, tmf.dom, _order)
     # end
 
     f_pol = tmf.pol
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
     x0 = tmf.x0
-    I = tmf.I
+    I = tmf.dom
 
     # Range of tmf including remainder (Δf)
     range_tmf = f_pol(I-x0) + Δf
@@ -144,20 +144,20 @@ function rpa(g::Function, tmf::RTaylorModel1)
     _order = get_order(tmf)
 
     # # Avoid overestimations:
-    # if tmf == RTaylorModel1(_order, tmf.x0, tmf.I)
+    # if tmf == RTaylorModel1(_order, tmf.x0, tmf.dom)
     #     # ... if `tmf` is the independent variable
-    #     return _rparr(g, tmf.x0, tmf.I, _order)
-    # elseif tmf == RTaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.I)
+    #     return _rparr(g, tmf.x0, tmf.dom, _order)
+    # elseif tmf == RTaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.dom)
     #     # ... in case `tmf` is a simple constant polynomial
-    #     range_g = bound_taylor1(g(tmf.pol), tmf.I-tmf.x0) + remainder(tmf)
-    #     return RTaylorModel1(range_g, _order, tmf.x0, tmf.I)
+    #     range_g = bound_taylor1(g(tmf.pol), tmf.dom-tmf.x0) + remainder(tmf)
+    #     return RTaylorModel1(range_g, _order, tmf.x0, tmf.dom)
     # end
 
     f_pol = tmf.pol
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
     x0 = tmf.x0
-    I = tmf.I
+    I = tmf.dom
 
     # Range of tmf including remainder (Δf)
     # range_tmf = bound_taylor1(f_pol, I-x0) + Δf * (I-x0)^(_order+1)
@@ -170,7 +170,7 @@ function rpa(g::Function, tmf::RTaylorModel1)
     tm1 = tmf - f_pol0   # OVER-ESTIMATION; IMPROVE
     tmres = tmg( tm1 )
 
-    tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.I)
+    tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, tm1.x0, tm1.dom)
     for i = 1:_order
         tmn = tmn * tm1
     end
@@ -194,7 +194,7 @@ function fp_rpa(tm::TaylorModel1{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
-    I = tm.I
+    I = tm.dom
     order = get_order(tm)
     # ξ0 = mid(x0, α_mid)
 
@@ -215,7 +215,7 @@ function fp_rpa(tm::RTaylorModel1{Interval{T},T}) where {T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
-    I = tm.I
+    I = tm.dom
     order = get_order(tm)
     # ξ0 = mid(x0, α_mid)
 
@@ -237,7 +237,7 @@ function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     fT = tm.pol
     Δ = remainder(tm)
     x0 = tm.x0
-    I = tm.I
+    I = tm.dom
     order = get_order(tm)
 
     b = zero(fT)

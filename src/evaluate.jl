@@ -27,7 +27,7 @@ for TM in tupleTMs
         _order = get_order(tmf)
         @assert _order == get_order(tmg)
 
-        tmres = $TM(Taylor1(zero(constant_term(tmg.pol)), _order), zero(tmf.x0), tmf.x0, tmf.I)
+        tmres = $TM(Taylor1(zero(constant_term(tmg.pol)), _order), zero(tmf.x0), tmf.x0, tmf.dom)
         @inbounds for k = _order:-1:0
             tmres = tmres * tmf
             tmres = tmres + tmg.pol[k]
@@ -48,7 +48,7 @@ function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
-    tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.I)
+    tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.dom)
     @inbounds for k = _order:-1:0
         tmres = tmres * tmf
         tmres = tmres + tmg.pol[k]

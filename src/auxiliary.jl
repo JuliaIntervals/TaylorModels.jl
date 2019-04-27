@@ -3,7 +3,7 @@
 # getindex
 for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
     @eval begin
-        copy(f::$TM) = $TM(copy(f.pol), f.rem, f.x0, f.I)
+        copy(f::$TM) = $TM(copy(f.pol), f.rem, f.x0, f.dom)
 
         getindex(a::$TM, n::Integer) = a.pol[n]
         getindex(a::$TM, u::UnitRange) = view(a.pol, u .+ 1 )

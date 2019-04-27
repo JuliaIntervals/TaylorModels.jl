@@ -28,7 +28,7 @@ import IntervalArithmetic: showfull
 
 export TaylorModel1, RTaylorModel1, TaylorModelN
 
-export remainder, polynomial,
+export remainder, polynomial, domain,
     rpa, fp_rpa, bound_absrem, bound_relrem,
     validated_integ
 
