@@ -182,7 +182,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
         end
     end
 
-    return TaylorModelN(bpol, rem, a.x0, a.I)
+    return TaylorModelN(bpol, rem, a.x0, a.dom)
 end
 
 
