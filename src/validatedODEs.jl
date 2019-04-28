@@ -267,7 +267,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     @inbounds for i in eachindex(xTMN)
         pol = polynomial(xTMN[i])(X) # rescaled polynomial
         @assert xTMN[i](B) ⊆ pol(B) # zero remainder!
-        xTMN[i] = TaylorModelN( pol, 0..0, xTMN[i].x0, xTMN[i].I )
+        xTMN[i] = TaylorModelN( pol, 0..0, xTMN[i].x0, xTMN[i].dom )
     end
 
     return xTMN
