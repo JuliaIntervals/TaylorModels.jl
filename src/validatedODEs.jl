@@ -95,7 +95,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
     # Extend `x` and `dx` to have interval coefficients
-    zI = zero(Δx[1])
+    zI = zero(Interval{T})
     @inbounds for ind in eachindex(x)
         xxI[ind]  = x[ind] + Δx[ind]
         dxxI[ind] = dx[ind] + zI
@@ -120,7 +120,6 @@ function _contract_iteration!(f!::Function, t::Taylor1{T},
         Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
     # Some abbreviations
-    zI = zero(Δx[1])
     Δ = Δ0 + Δdx * δt
     Δxold = Δx
 
@@ -145,7 +144,7 @@ end
     absorb_remainder(a::TaylorModelN)
 
 Returns a TaylorModelN, equivalent to `a`, such that the remainder
-is mostly absorbed in the coefficients. The linear shift assumes
+is mostly absorbed in the constant and linear coefficients. The linear shift assumes
 that `a` is normalized to the `IntervalBox(-1..1, Val(N))`.
 
 Ref: Xin Chen, Erika Abraham, and Sriram Sankaranarayanan,
@@ -198,6 +197,7 @@ Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # Original domain of TaylorModelN
     B = IntervalBox(Interval{T}(-1,1), Val(N))
+    zI = zero(Interval{T})
 
     # Vector of independent TaylorN variables
     order = get_order(xTMN[1])
@@ -206,8 +206,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # Remainder of original TaylorModelN and componentwise mag
     rem = remainder.(xTMN)
     r = mag.(rem)
-    # qB = r .* B
-    qB = [ r[i]*B[i] for i in 1:N ]
+    qB = r .* B
 
     # Shift to remove constant term
     xTN0 = constant_term.(xTMN)
@@ -215,13 +214,25 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
 
     # Jacobian (at zero) and its inverse
     jac = TaylorSeries.jacobian(xTNcent)
+    ## If conditional number is too large, use absorb_remainder
+    if cond(jac) > 1.0e4
+        for i in eachindex(xTMN)
+            # If remainder is still too big, do it again
+            j = 0
+            while (j < 10) && (mag(rem[i]) > 1.0e-12)
+                j += 1
+                xTMN[i] = absorb_remainder(xTMN[i])
+                rem[i] = remainder(xTMN[i])
+            end
+        end
+        return xTMN
+    end
     invjac = inv(jac)
 
     # Componentwise bound
-    # r̃ = abs.(invjac) * r
     r̃ = mag.(invjac * qB) # qB <-- r .* B
-    qB´ = [ r̃[i]*B[i] for i in 1:N ]
-    @assert all(invjac * qB .⊆ qB´)
+    qB´ = r̃ .* B
+    @assert invjac * qB ⊆ qB´
 
     # Nonlinear part (linear part is close to identity)
     g = invjac*xTNcent .- X
@@ -229,45 +240,51 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # ... and its jacobian matrix (full dependence!)
     jacmatrix_g = TaylorSeries.jacobian(g, X)
 
-    # Estimate shrink-wrap vector; step 7 of Bünger algorithm
+    # Step 7 of Bünger algorithm: obtain an estimate of `q`
     # Some constants/parameters
-    iter_max = 20
-    q_tol = 1.0e-15
-    improve = true
-    q = 1 .+ r̃
-    q_max = 1.1 .* q
+    q_tol = 1.0e-12
+    q = 1.0 .+ r̃
+    ff = 65/64
+    q_max = ff .* q
     zs = zero(q)
-    s = similar(zs)
+    s = similar(q)
     q_old = similar(q)
+    q_1 = similar(q)
+    jaq_q1 = jacmatrix_g * r̃
 
+    iter_max = 100
+    improve = true
     iter = 0
     while improve && iter < iter_max
-        # qB .= q .* B
-        qB .= [ q[i]*B[i] for i in 1:N ]
+        qB .= q .* B
         s .= zs
+        q_old .= q
+        q_1 .= q_old .- 1.0
+        mul!(jaq_q1, jacmatrix_g, q_1)
         @inbounds for i in eachindex(xTMN)
-            q_old[i] = q[i]
-            @inbounds for j in eachindex(xTMN)
-                tt = mag(jacmatrix_g[i,j](qB))
-                s[i] += tt * (q_old[j] - 1)
-            end
+            s[i] = mag( jaq_q1[i](qB) )
             q[i] = 1.0 + r̃[i] + s[i]
-            @assert (q[i] < q_max[i])
+            # If q is too large, return xTMN unchanged
+            q[i] > q_max[i] && return xTMN
         end
         improve = any( ((q .- q_old)./q) .> q_tol )
         iter += 1
     end
+    # (improve || q == one.(q)) && return xTMN
 
     # Compute final q and rescale X
-    @. q = 1 + r̃ + 1.01 * s
+    @. q = 1.0 + r̃ + ff * s
     @. X = q * X
-    @show(iter, q)
 
     # Postverify and define Taylor models to be returned
     @inbounds for i in eachindex(xTMN)
-        pol = polynomial(xTMN[i])(X) # rescaled polynomial
-        @assert xTMN[i](B) ⊆ pol(B) # zero remainder!
-        xTMN[i] = TaylorModelN( pol, 0..0, xTMN[i].x0, xTMN[i].dom )
+        pol = polynomial(xTMN[i])
+        ppol = fp_rpa(TaylorModelN(pol(X), zI, xTMN[i].x0, xTMN[i].dom ))
+        if xTMN[i](B) ⊆ polynomial(ppol)(B) # assumes zero remainder
+            xTMN[i] = TaylorModelN(pol, zI, xTMN[i].x0, xTMN[i].dom )
+        else
+            xTMN[i] = fp_rpa(TaylorModelN(xTMN[i](X), zI, xTMN[i].x0, xTMN[i].dom ))
+        end
     end
 
     return xTMN
@@ -281,21 +298,27 @@ function validated_step!(f!, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}}, xaux::Vector{Taylor1{TaylorN{T}}},
         tI::Taylor1{T},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}}, xauxI::Vector{Taylor1{Interval{T}}},
-        t0::T, tmax::T, x0::Vector{TaylorN{T}}, x0I::Vector{Interval{T}},
-        xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
+        t0::T, tmax::T, xTMN::Vector{TaylorModelN{N,T,T}},
+        xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, δq_norm::IntervalBox{N,T},
         q0::IntervalBox{N,T}, q0box::IntervalBox{N,T}, nsteps::Int,
         orderT::Int, abstol::T, params, parse_eqs::Bool,
         check_property::Function=(t, x)->true) where {N,T}
-    #
+
     # One step integration (non-validated)
-    # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux)
-    # δt = stepsize(x, abstol)
+    # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux, params)
+    # δt = TaylorIntegration.stepsize(x, abstol)
     δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux,
         t0, tmax, orderT, abstol, params, parse_eqs)
     # One step integration for the initial box
+    # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, tI, xI, dxI, xauxI, params)
+    # δtI = TaylorIntegration.stepsize(xI, abstol)
     δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI,
         t0, tmax, orderT+1, abstol, params, parse_eqs)
+
+    # # Step size
+    # δt = min(δt, tmax-t0, inf(δtI))
+    δtI = Interval{T}(0.0, δt)
 
     # This updates the `dx[:][orderT]` and `dxI[:][orderT+1]`, which are currently zero
     f!(dx, x, params, t)
@@ -305,34 +328,36 @@ function validated_step!(f!, t::Taylor1{T},
     # If after 25 checks `check_property` is not satisfied, thow an error.
     nsteps += 1
     issatisfied = false
-    # Δ = zero.(δq_norm)
+    rem_old = copy(rem)
     for nchecks = 1:25
         # Validate the solution: remainder consistent with Schauder thm
-        Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt), params)
-        rem .= rem .+ Δ
+        Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, δtI, params)
+        rem .= rem_old .+ Δ
 
         # Create TaylorModelN to store remainders and evaluation
-        @inbounds begin
-            for i in eachindex(x)
-                xTMN[i] = fp_rpa( TaylorModelN(x[i](0..δt), rem[i], q0, q0box) )
+        @inbounds for i in eachindex(x)
+            xTMN[i] = fp_rpa( TaylorModelN(x[i](δtI), rem[i], q0, q0box) )
+        end
 
-                # If remainder is still too big, do it again
-                j = 0
-                while (j < 10) && (mag(rem[i]) > 1.0e-10)
-                    j += 1
-                    xTMN[i] = absorb_remainder(xTMN[i])
-                    rem[i] = remainder(xTMN[i])
-                end
-            end
-            xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
+        # Interval box overapproximation for flowpipe (output)
+        @inbounds xv[nsteps] = evaluate(xTMN, δq_norm)
 
-            if !check_property(t0+δt, xv[nsteps])
-                δt = δt/2
-                continue
-            end
-        end # @inbounds
-
+        if !check_property(t0+δt, xv[nsteps])
+            δt = δt/2
+            continue
+        end
         issatisfied = true
+
+        # Update xTMN so it is used as a new initial condition
+        @inbounds for i in eachindex(x)
+            xTMN[i] = fp_rpa( TaylorModelN(x[i](δt), rem[i], q0, q0box) )
+        end
+
+        if maximum(mag.(rem)) > 1.0e-12
+            shrink_wrapping!(xTMN)
+            rem .= remainder.(xTMN) # reset remainder
+        end
+
         break
     end
 
@@ -358,55 +383,46 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     dof = N
 
     # Some variables
-    R   = Interval{T}
+    zI = zero(Interval{T})
     q0 = IntervalBox(qq0)
     t   = t0 + Taylor1(orderT)
     tI  = t0 + Taylor1(orderT+1)
     δq_norm = IntervalBox(Interval{T}(-1, 1), Val(N))
-    # q0box = q0 .+ δq_norm
-    q0box = IntervalBox([q0[i] + δq_norm[i] for i in 1:N])
+    q0box = q0 .+ δq_norm
 
     # Allocation of vectors
     # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
-    # xTMNv = Array{TaylorModelN{N,T,T}}(undef, dof, maxsteps+1)
     # Internals: jet transport integration
     x     = Array{Taylor1{TaylorN{T}}}(undef, dof)
     dx    = Array{Taylor1{TaylorN{T}}}(undef, dof)
     xaux  = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    x0    = Array{TaylorN{T}}(undef, dof)
     xTMN  = Array{TaylorModelN{N,T,T}}(undef, dof)
     # Internals: Taylor1{Interval{T}} integration
     xI    = Array{Taylor1{Interval{T}}}(undef, dof)
     dxI   = Array{Taylor1{Interval{T}}}(undef, dof)
     xauxI = Array{Taylor1{Interval{T}}}(undef, dof)
-    x0I   = Array{Interval{T}}(undef, dof)
 
     # Set initial conditions
-    zI = zero(R)
     rem = Array{Interval{T}}(undef, dof)
     @inbounds for i in eachindex(x)
         qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
         x[i] = Taylor1( qaux, orderT)
         dx[i] = x[i]
-        x0[i] = copy(qaux)
-        xTMN[i] = TaylorModelN(x[i][0], zI, q0, q0box)
+        xTMN[i] = TaylorModelN(qaux, zI, q0, q0box)
         #
-        xI[i] = Taylor1( q0box[i], orderT+1 )
+        xI[i] = Taylor1( q0[i]+δq0[i], orderT+1 )
         dxI[i] = xI[i]
-        x0I[i] = qaux(δq_norm)
         rem[i] = zI
         #
         xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
-        # xTMNv[i, 1] .= xTMN[i]
     end
 
     # Output vectors
     @inbounds tv[1] = t0
-    @inbounds xv[1] = IntervalBox( evaluate(xTMN, δq_norm) )
-    # @inbounds xTMNv[:, 1] .= xTMN[:]
+    @inbounds xv[1] = evaluate(xTMN, δq_norm)
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
@@ -424,10 +440,8 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
         # Validated step of the integration
         δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
-            t0, tmax, x0, x0I, xTMN, xv, rem, δq_norm,
-            q0, q0box, nsteps, orderT, abstol, params, parse_eqs, check_property)
-        # @show(rem)
-        # println()
+            t0, tmax, xTMN, xv, rem, δq_norm, q0, q0box,
+            nsteps, abstol, params, parse_eqs, check_property)
 
         # New initial conditions and time
         nsteps += 1
@@ -436,16 +450,15 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         @inbounds tI[0] = t0
         @inbounds tv[nsteps] = t0
         @inbounds for i in eachindex(x)
-            xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], 0..0, 0 ..δt)
-            # xTMNv[i, nsteps] = xTMN[i]
-            aux = x[i](δt)
+            xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], zI, Interval{T}(0, δt))
+            aux = polynomial(xTMN[i])
             x[i]  = Taylor1( aux, orderT )
             dx[i] = Taylor1( zero(aux), orderT )
+            auxI = xTMN[i](δq_norm)
+            xI[i] = Taylor1( auxI, orderT+1 )
+            dxI[i] = xI[i]
         end
-        # @show(IntervalBox(rem))
-        # @inbounds xTMNv[:, nsteps] .= xTMN[:]
 
-        # println(nsteps, "\t", t0, "\t", remainder.(xTMN[:]), "\t", diam(Δ))
         if nsteps > maxsteps
             @info("""
             Maximum number of integration steps reached; exiting.
