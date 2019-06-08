@@ -26,6 +26,15 @@ SUITE["Arithmetic"]["pointwise multiplication"] = @benchmarkable B1 .* B2
 SUITE["Arithmetic"]["division by scalar"] = @benchmarkable $B1 / 2
 SUITE["Arithmetic"]["pointwise division"] = @benchmarkable $B1 ./ $B2
 SUITE["Arithmetic"]["power function"] = @benchmarkable $B1.^3
-SUITE["Arithmetic"]["sine function"] = @benchmarkable sin.($B1)
-SUITE["Arithmetic"]["combination of functions"] = @benchmarkable sin($B1[1, 1]) + 
+SUITE["Arithmetic"]["sine function with vector input"] = @benchmarkable sin.($B1)
+SUITE["Arithmetic"]["combination of functions"] = @benchmarkable sin($B1[1, 1]) +
                                             $B1[2, 1].^2  - transpose($B1) * $B2
+
+SUITE["Arithmetic"]["scalar addition"] = @benchmarkable $b1 + $b2
+SUITE["Arithmetic"]["scalar multiplication"] = @benchmarkable $b1 * $b2
+SUITE["Arithmetic"]["scalar by number"] = @benchmarkable $b1 / 2
+SUITE["Arithmetic"]["scalar division by scalar"] = @benchmarkable $b1 / $b2
+SUITE["Arithmetic"]["power function of scalar"] = @benchmarkable $b1^3
+SUITE["Arithmetic"]["sine function with scalar input"] = @benchmarkable sin($b1)
+SUITE["Arithmetic"]["combination of scalar functions"] = @benchmarkable sin($b1[1]) +
+                                                                $b1[2]^2  -  $b1*$b2
