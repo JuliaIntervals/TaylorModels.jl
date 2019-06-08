@@ -1,20 +1,33 @@
+## How to run the benchmarks
 
-## This file defines a benchmark suite with the tools provided by `PkgBenchmark` and `BenchmarkTools`.
+The files in this folder define a benchmark suite with the tools provided by [PkgBenchmark](https://github.com/JuliaCI/PkgBenchmark.jl) and [BenchmarkTools](https://github.com/JuliaCI/BenchmarkTools.jl).
 
 To run the benchmarks, execute:
+
 ```julia
-using PkgBenchmark
-results = benchmarkpkg("LazySets")
+julia> using PkgBenchmark
 
-#To compare current version to another tagged version, commit or branch:
+julia> results = benchmarkpkg("TaylorModels.jl")
+```
 
-julia> results = judge("LazySets", <tagged-version-or-branch>)
+## How to compare benchmarks
 
-#To export the benchmark results to a Markdown file:
+To compare current version to another tagged version, commit or branch:
 
+```julia
+julia> results = judge("TaylorModels.jl", <tagged-version-or-branch>)
+```
+
+## Exporting results
+
+To export the benchmark results to a Markdown file:
+
+```julia
 julia> export_markdown("results.md", results)
+```
 
+To export the benchmark results to a JSON file:
 
-#To export the benchmark results to a JSON file:
+```julia
 julia> writeresults("results.json", results)
 ```
