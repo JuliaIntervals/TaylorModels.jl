@@ -7,7 +7,7 @@ To run the benchmarks, execute:
 ```julia
 julia> using PkgBenchmark
 
-julia> results = benchmarkpkg("TaylorModels.jl")
+julia> results = benchmarkpkg("TaylorModels")
 ```
 
 ## How to compare benchmarks
@@ -15,7 +15,7 @@ julia> results = benchmarkpkg("TaylorModels.jl")
 To compare current version to another tagged version, commit or branch:
 
 ```julia
-julia> results = judge("TaylorModels.jl", <tagged-version-or-branch>)
+julia> results = judge("TaylorModels", <tagged-version-or-branch>)
 ```
 
 ## Exporting results
