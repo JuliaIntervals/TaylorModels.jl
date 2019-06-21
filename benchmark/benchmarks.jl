@@ -1,5 +1,6 @@
 using BenchmarkTools, TaylorModels
 
-SUITE = BenchmarkGroup()  
+SUITE = BenchmarkGroup()
 
 include("arithmetic.jl")
+include("daisy.jl")
