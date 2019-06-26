@@ -23,20 +23,20 @@ for name in keys(DAISY_1D)
     RELPREC[name] = Dict()
     dom = DAISY_1D[name]["dom"]
     ref = DAISY_1D[name]["ref"]
-    for m in [2, 5, 10]
-        x = Taylor1(m)
+    for ord in [2, 5, 10]
+        x = TaylorModel1(Taylor1(2*ord), 0..0, Interval(mid(dom)), dom)
         p = DAISY_1D[name]["f"](x)
 
-        RESULTS[name]["order $m"] = BenchmarkGroup()
-        RELPREC[name]["order $m"] = Dict()
+        RESULTS[name]["order $ord"] = BenchmarkGroup()
+        RELPREC[name]["order $ord"] = Dict()
 
-        RESULTS[name]["order $m"]["evaluate"] = @benchmarkable evaluate($p, $dom)
+        RESULTS[name]["order $ord"]["evaluate"] = @benchmarkable evaluate($p, $dom)
         approx = evaluate(p, dom)
-        RELPREC[name]["order $m"]["evaluate"] = relative_precision(approx, ref)
+        RELPREC[name]["order $ord"]["evaluate"] = relative_precision(approx, ref)
 
-        RESULTS[name]["order $m"]["normalize and evaluate"] = @benchmarkable normalize_and_evaluate($p, $dom)
-        approx = normalize_and_evaluate(p, dom)
-        RELPREC[name]["order $m"]["normalize and evaluate"] = relative_precision(approx, ref)
+        RESULTS[name]["order $ord"]["normalize and evaluate"] = @benchmarkable normalize_and_evaluate($(p.pol), $dom)
+        approx = normalize_and_evaluate(p.pol, dom)
+        RELPREC[name]["order $ord"]["normalize and evaluate"] = relative_precision(approx, ref)
     end
 end
 
@@ -48,23 +48,24 @@ for name in keys(DAISY_ND)
     RELPREC[name] = Dict()
     dom = DAISY_ND[name]["dom"]
     ref = DAISY_ND[name]["ref"]
-    for m in [2, 5, 10]
+    for ord in [2, 5, 10]
         varnames, numvars = DAISY_ND[name]["vars"], DAISY_ND[name]["numvars"]
-        vars = set_variables(Float64, varnames, order=m, numvars=numvars)
+
+        vars = set_variables(Float64, varnames, order=ord, numvars=numvars)
         f = DAISY_ND[name]["f"]
         p = f(vars...)
 
-        RESULTS[name]["order $m"] = BenchmarkGroup()
-        RELPREC[name]["order $m"] = Dict()
+        RESULTS[name]["order $ord"] = BenchmarkGroup()
+        RELPREC[name]["order $ord"] = Dict()
 
-        RESULTS[name]["order $m"]["evaluate"] = @benchmarkable evaluate($p, $dom) setup=(
-            vars = set_variables(Float64, $varnames, order=$m, numvars=$numvars); p = $f(vars...))
+        RESULTS[name]["order $ord"]["evaluate"] = @benchmarkable evaluate($p, $dom) setup=(
+            vars = set_variables(Float64, $varnames, order=$ord, numvars=$numvars); p = $f(vars...))
         approx = evaluate(p, dom)
-        RELPREC[name]["order $m"]["evaluate"] = relative_precision(approx, ref)
+        RELPREC[name]["order $ord"]["evaluate"] = relative_precision(approx, ref)
 
-        RESULTS[name]["order $m"]["normalize and evaluate"] = @benchmarkable normalize_and_evaluate($p, $dom) setup=(
-            vars = set_variables(Float64, $varnames, order=$m, numvars=$numvars); p =$f(vars...))
+        RESULTS[name]["order $ord"]["normalize and evaluate"] = @benchmarkable normalize_and_evaluate($p, $dom) setup=(
+            vars = set_variables(Float64, $varnames, order=$ord, numvars=$numvars); p =$f(vars...))
         approx = normalize_and_evaluate(p, dom)
-        RELPREC[name]["order $m"]["normalize and evaluate"] = relative_precision(approx, ref)
+        RELPREC[name]["order $ord"]["normalize and evaluate"] = relative_precision(approx, ref)
     end
 end
