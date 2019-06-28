@@ -12,18 +12,6 @@ e = Interval(-10.0, 8.0)
 f = Interval(1.0, 2.0)
 
 # ======================
-# Normalization
-# ======================
-symmetric_domain(dom::Interval) = Interval(-1, 1)
-symmetric_domain(dom::IntervalBox) = IntervalBox(-1..1, length(dom))
-
-# Helper function to evaluate after normalization
-function normalize_and_evaluate(p, dom)
-    dom_sym = symmetric_domain(dom)
-    evaluate(normalize_taylor(p, dom, true), dom_sym)
-end
-
-# ======================
 # Relative precision
 # ======================
 # Dictionary to hold the vector of relative precision intervals for each benchmark
