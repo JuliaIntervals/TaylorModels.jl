@@ -1,58 +1,58 @@
 # integration.jl
 
 """
-    integrate(a::T, c0::Interval)
+    integrate(a, c0)
 
 Integrates the one-variable Taylor Model (`TaylorModel1`
 or `RTaylorModel1`) with respect to the independent variable; `c0` is
 the interval representing the integration constant; if omitted
 it is considered as the zero interval.
 """
-function integrate(a::TaylorModel1{T,S}, c0::Interval{S}) where {T,S}
-    order = get_order(a)
+function integrate(a::TaylorModel1{T,S}, c0::T) where {T,S}
     integ_pol = integrate(a.pol, c0)
-    aux = a.I-a.x0
+    δ = a.dom-a.x0
 
-    # Remainder bound after integrating. This is tighter
-    # that the one used by Berz+Makino, which corresponds to:
-    # Δ = aux * remainder(a) +  a.pol[order] * aux^(order+1)
-    Δ = aux * remainder(a) +  a.pol[order] * aux^(order+1) / (order+1)
+    # Remainder bound after integrating.
+    Δ = bound_integration(a, δ)
 
-    return TaylorModel1( integ_pol, Δ, a.x0, a.I )
+    return TaylorModel1( integ_pol, Δ, a.x0, a.dom )
 end
-integrate(a::TaylorModel1{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
+integrate(a::TaylorModel1{T,S}) where {T,S} = integrate(a, zero(T))
 
-function integrate(a::RTaylorModel1{T,S}, c0::Interval{S}) where {T,S}
+function integrate(a::RTaylorModel1{T,S}, c0::T) where {T,S}
     order = get_order(a)
     integ_pol = integrate(a.pol, c0)
-    Δ = (a.I-a.x0) * remainder(a)
 
     # Remainder bound after integrating...
+    Δ = (a.dom-a.x0) * remainder(a)
     Δ = Δ/(order+2) + a.pol[order]/(order+1)
 
-    return RTaylorModel1( integ_pol, Δ, a.x0, a.I )
+    return RTaylorModel1( integ_pol, Δ, a.x0, a.dom )
 end
-integrate(a::RTaylorModel1{T,S}) where {T,S} = integrate(a, Interval(zero(S)))
+integrate(a::RTaylorModel1{T,S}) where {T,S} = integrate(a, zero(T))
 
 
-function integrate(a::TaylorModel1{TaylorModelN{N,Interval{T},S}}) where {N,T,S}
+"""
+    bound_integration(xTM1::TaylorModel1{Interval{S},S}, δt::Interval{S})
+    bound_integration(xTM1::Vector{TaylorModel1{Interval{S},S}}, δt::Interval{S})
+
+Remainder bound for the integration of a series, given by
+``δ * remainder(a) +  a.pol[order] * δ^(order+1) / (order+1)``.
+This is tighter that the one used by Berz+Makino, which corresponds to
+``Δ = aux * remainder(a) +  a.pol[order] * aux^(order+1)``.
+
+"""
+function bound_integration(a::TaylorModel1{T,S}, δ) where {T,S}
     order = get_order(a)
-    aa = a.pol[0] / 1
-    coeffs = Array{typeof(aa)}(order+1)
-    fill!(coeffs, zero(aa))
-    @inbounds for i = 1:order
-        coeffs[i+1] = a.pol[i-1] / i
-    end
-    aux = (a.I-a.x0)
-    δTMN = a.pol[order](a.pol[order].I-a.pol[order].x0) + remainder(a.pol[order])
-    Δ = aux * remainder(a) +  δTMN * aux^(order+1) / (order+1)
-    return TaylorModel1( Taylor1(coeffs, order), Δ, a.x0, a.I )
+    aux = δ^order / (order+1)
+    Δ = δ * (remainder(a) + getcoeff(polynomial(a),order) * aux)
+    return Δ
 end
-function integrate(a::TaylorModel1{TaylorModelN{N,Interval{T},S}},
-        c0::TaylorModelN{N,Interval{T},S}) where {N,T,S}
-    res = integrate(a)
-    res.pol[0] = c0
-    return res
+function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
+    order = get_order(a[1])
+    aux = δ^order / (order+1)
+    Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
+    return IntervalBox(Δ)
 end
 
 
@@ -91,7 +91,7 @@ function check_existence(f, tm::T, xm::T, x0::Interval, x_test::Interval,
         max_steps::Integer=20) where {T<:Union{TaylorModel1, RTaylorModel1}}
 
     pl = 𝒫(f, tm, xm, x0)
-    tt = shrink_for_existance(pl, tm.I, x_test, max_steps)
+    tt = shrink_for_existance(pl, tm.dom, x_test, max_steps)
     if pl(tt-tm.x0) ⊆ x_test
         return tt
     else
@@ -162,7 +162,7 @@ function tight_remainder(f, tm::T, xm::T, x0::Interval, max_steps::Integer=20) w
         xNew = 𝒫(f, tm, xOld, x0)
         if diam(remainder(xNew)) ≥ diam(remainder(xOld))
             xOld == xNew && return xOld
-            return T(xOld.pol, emptyinterval(xOld.rem), xOld.x0, xOld.I)
+            return T(xOld.pol, emptyinterval(xOld.rem), xOld.x0, xOld.dom)
         end
         xOld = xNew
     end

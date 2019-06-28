@@ -11,7 +11,7 @@ using RecipesBase
     alpha --> 0.3
     seriestype := :shape
 
-    xs = range(f.I.lo, stop=f.I.hi, length=100)
+    xs = range(f.dom.lo, stop=f.dom.hi, length=100)
     evals = fT.(xs .- ξ0) .+ Δ
 
     # make polygon:
@@ -31,12 +31,13 @@ end
     alpha --> 0.5
     seriestype := :shape
 
-    xs = range(f.I.lo, stop=f.I.hi, length=100)
+    xs = range(f.dom.lo, stop=f.dom.hi, length=100)
     evals = fT.(xs .- ξ0)
+
     corrs = (xs .- ξ0) .^ order
     Δrel = Δ .* corrs
-    evalslo = evals .+ inf.( Δrel )
-    evalshi = evals .+ sup.( Δrel )
+    evalslo = inf.(evals + Δrel)
+    evalshi = sup.(evals + Δrel)
 
     xs = [xs; reverse(xs); xs[1]]
     ys = [evalslo; reverse(evalshi); evalslo[1]]

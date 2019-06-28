@@ -10,7 +10,7 @@ setformat(:full)
 
 
 function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
-    xfp = diam.(tma.I) .* (rand(N) .- 0.5) .+ mid(tma.x0)
+    xfp = diam.(tma.dom) .* (rand(N) .- 0.5) .+ mid(tma.x0)
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
     range = evaluate(tma, ib-tma.x0)
@@ -87,8 +87,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test remainder(ym / (1-xm)) == Interval(-0.25, 0.25)
 
         @test remainder(xm^2) == remainder(ym^2)
-        @test (xm.I[1]-xm.x0[1])^3 == remainder(xm^3)
-        @test (ym.I[2]-ym.x0[2])^4 ⊆ remainder(ym^4)
+        @test (xm.dom[1]-xm.x0[1])^3 == remainder(xm^3)
+        @test (ym.dom[2]-ym.x0[2])^4 ⊆ remainder(ym^4)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -115,6 +115,10 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+
+        # test for TM with scalar coefficients
+        tmc = fp_rpa(tma)
+        @test fp_rpa(tmc) == tmc
 
         ftest = x -> exp(x)
         xx = xm + 2*ym

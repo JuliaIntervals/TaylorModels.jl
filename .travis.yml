@@ -6,22 +6,32 @@ os:
   - osx
 
 julia:
-  - 0.7
   - 1.0
   - 1.1
   - nightly
 
 matrix:
    allow_failures:
-     - julia: 1.0
-     - julia: 1.1
      - julia: nightly
 
 notifications:
   email: false
 
+env:
+  global:
+    - DOCUMENTER_DEBUG=true
+
+jobs:
+  include:
+    - stage: "Documentation"
+      julia: 1.1
+      os: linux
+      script:
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        - julia --project=docs/ docs/make.jl
+      after_success: skip
+
 after_success:
-# build documentation
-  - julia -e 'using Pkg; Pkg.add("Documenter"); cd(Pkg.dir("TaylorModels")); include(joinpath("docs", "make.jl"))'
-# push coverage results to Codecov
-  - julia -e 'cd(Pkg.dir("TaylorModels")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(process_folder())'
+  - julia -e 'import Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+
+sudo: false

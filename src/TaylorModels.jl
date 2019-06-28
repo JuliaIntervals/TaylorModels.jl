@@ -2,7 +2,11 @@ module TaylorModels
 
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
+@reexport using TaylorIntegration
+
 # using IntervalRootFinding
+using LinearAlgebra: norm
+
 using RecipesBase
 
 using Markdown
@@ -24,9 +28,9 @@ import IntervalArithmetic: showfull
 
 export TaylorModel1, RTaylorModel1, TaylorModelN
 
-export remainder, polynomial,
-    rpa, fp_rpa, bound_absrem, bound_relrem
-
+export remainder, polynomial, domain,
+    rpa, fp_rpa, bound_absrem, bound_relrem,
+    validated_integ
 
 include("constructors.jl")
 include("auxiliary.jl")
@@ -38,6 +42,7 @@ include("arithmetic.jl")
 include("integration.jl")
 include("recipe.jl")
 include("show.jl")
+include("validatedODEs.jl")
 
 # include("Taylor1/Taylor1.jl")
 # include("TaylorN/TaylorN.jl")

@@ -11,8 +11,8 @@ setformat(:full)
 
 
 function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
-    ii = tma.I
-    xfp = diam(tma.I)*(rand()-0.5) + mid(tma.x0)
+    ii = tma.dom
+    xfp = diam(tma.dom)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
     range = tma(@interval(xfp)-tma.x0)
     bb = ftest(xbf) ∈ range
@@ -56,9 +56,11 @@ end
         @test_throws AssertionError TaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0)
         @test_throws AssertionError TaylorModel1(5, x1, ii0)
 
-        # Tests for get_order and remainder
+        # Tests for get_order, remainder, polynomial and domain
         @test get_order(tv) == 5
         @test remainder(tv) == interval(0.0)
+        @test polynomial(tv) == Taylor1(Interval{Float64},5)
+        @test domain(tv) == ii0
     end
 
     @testset "Arithmetic operations" begin
@@ -112,6 +114,9 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+
+        # test for TM with scalar coefficients
+        @test fp_rpa(tmc) == tmc
 
         order = 2
         ii = ii1
