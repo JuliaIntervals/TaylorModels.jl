@@ -46,6 +46,7 @@ end
         @test tv == TaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TaylorModel1(5, x0, ii0)
         @test tv == TaylorModel1(5, ii0)
+        @test tv == TaylorModel1(5, 0.0, ii0)
         @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
 
         @test isa(tv, AbstractSeries)

@@ -34,7 +34,7 @@ for TM in tupleTMs
 
         # Short-cut for independent variable
         $(TM)(ord::Integer, x0, dom::Interval{T}) where {T} =
-            $(TM)(interval(x0) + Taylor1(Interval{T}, ord), zero(dom), x0, dom)
+            $(TM)(interval(x0) + Taylor1(Interval{T}, ord), zero(dom), interval(x0), dom)
 
         # Short-cut for a constructor expanding around midpoint by default
         $(TM)(ord::Integer, dom::Interval{T}) where {T} =
