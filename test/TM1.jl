@@ -48,6 +48,7 @@ end
         @test tv == TaylorModel1(5, ii0)
         @test tv == TaylorModel1(5, 0.0, ii0)
         @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
+        @test TaylorModel1(5, 0.7, ii1) == TaylorModel1(5, interval(0.7), ii1)
 
         @test isa(tv, AbstractSeries)
         @test TaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
@@ -304,7 +305,10 @@ end
         tv = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == RTaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == RTaylorModel1(5, x0, ii0)
+        @test tv == RTaylorModel1(5, ii0)
+        @test tv == RTaylorModel1(5, 0.0, ii0)
         @test RTaylorModel1(x1, 5, x0, ii0) == RTaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
+        @test RTaylorModel1(5, 0.7, ii1) == RTaylorModel1(5, interval(0.7), ii1)
 
         @test isa(tv, AbstractSeries)
         @test RTaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
