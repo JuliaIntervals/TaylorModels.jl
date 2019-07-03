@@ -325,7 +325,7 @@ function validated_step!(f!, t::Taylor1{T},
     f!(dxI, xI, params, tI)
 
     # Test if `check_property` is satisfied; if not, half the integration time.
-    # If after 25 checks `check_property` is not satisfied, thow an error.
+    # If after 25 checks `check_property` is not satisfied, throw an error.
     nsteps += 1
     issatisfied = false
     rem_old = copy(rem)
@@ -335,29 +335,27 @@ function validated_step!(f!, t::Taylor1{T},
         rem .= rem_old .+ Δ
 
         # Create TaylorModelN to store remainders and evaluation
-        @inbounds for i in eachindex(x)
-            xTMN[i] = fp_rpa( TaylorModelN(x[i](δtI), rem[i], q0, q0box) )
-        end
+        @inbounds begin
+            for i in eachindex(x)
+                xTMN[i] = fp_rpa( TaylorModelN(x[i](0..δt), rem[i], q0, q0box) )
 
-        # Interval box overapproximation for flowpipe (output)
-        @inbounds xv[nsteps] = evaluate(xTMN, δq_norm)
+                # If remainder is still too big, do it again
+                j = 0
+                while (j < 10) && (mag(rem[i]) > 1.0e-10)
+                    j += 1
+                    xTMN[i] = absorb_remainder(xTMN[i])
+                    rem[i] = remainder(xTMN[i])
+                end
+            end
+            xv[nsteps] = evaluate(xTMN, δq_norm) # IntervalBox
 
-        if !check_property(t0+δt, xv[nsteps])
-            δt = δt/2
-            continue
-        end
+            if !check_property(t0+δt, xv[nsteps])
+                δt = δt/2
+                continue
+            end
+        end # @inbounds
+
         issatisfied = true
-
-        # Update xTMN so it is used as a new initial condition
-        @inbounds for i in eachindex(x)
-            xTMN[i] = fp_rpa( TaylorModelN(x[i](δt), rem[i], q0, q0box) )
-        end
-
-        if maximum(mag.(rem)) > 1.0e-12
-            shrink_wrapping!(xTMN)
-            rem .= remainder.(xTMN) # reset remainder
-        end
-
         break
     end
 
@@ -441,7 +439,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         # Validated step of the integration
         δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
             t0, tmax, xTMN, xv, rem, δq_norm, q0, q0box,
-            nsteps, abstol, params, parse_eqs, check_property)
+            nsteps, orderT, abstol, params, parse_eqs, check_property)
 
         # New initial conditions and time
         nsteps += 1
@@ -451,7 +449,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         @inbounds tv[nsteps] = t0
         @inbounds for i in eachindex(x)
             xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], zI, Interval{T}(0, δt))
-            aux = polynomial(xTMN[i])
+            aux = x[i](δt)
             x[i]  = Taylor1( aux, orderT )
             dx[i] = Taylor1( zero(aux), orderT )
             auxI = xTMN[i](δq_norm)
