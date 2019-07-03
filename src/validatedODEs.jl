@@ -1,7 +1,7 @@
 # Some methods for validated integration of ODEs
 
 """
-    remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt)
+    remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt, params)
 
 Returns a remainder for the integration step for the dependent variables (`x`)
 checking that the solution satisfies the criteria for existence and uniqueness.
@@ -9,7 +9,7 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::IntervalBox{N,T}, δt::Interval{T}) where {N,T}
+        δI::IntervalBox{N,T}, δt::Interval{T}, params) where {N,T}
 
     orderT = get_order(dx[1])
     aux = δt^(orderT+1)
@@ -29,11 +29,11 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
     vv = Array{Interval{T}}(undef, N)
     for its = 1:10
         # Remainder of Picard iteration
-        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
+        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
         # Checking existence and uniqueness
         iscontractive(Δ, Δx) && return Δx
-        # iscontractive(Δ, Δx) && return _contract_iteration!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δdx, Δ0)
+        # iscontractive(Δ, Δx) && return _contract_iteration!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δdx, Δ0, params)
 
         # Expand Δx in the directions needed
         Δxold = Δx
@@ -83,7 +83,7 @@ end
 
 
 """
-    picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
+    picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
 Return the remainder of Picard operator
 """
@@ -92,7 +92,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     xxI::Vector{Taylor1{TaylorN{Interval{T}}}},
     dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
     δI::IntervalBox{N,T}, δt::Interval{T},
-    Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}) where {N,T}
+    Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
     # Extend `x` and `dx` to have interval coefficients
     zI = zero(Δx[1])
@@ -102,7 +102,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     end
 
     # Compute `dxxI` from the equations of motion
-    f!(t, xxI, dxxI)
+    f!(dxxI, xxI, params, t)
 
     # Picard iteration, considering only the bound of `f` and the last coeff of f
     Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
@@ -117,7 +117,7 @@ function _contract_iteration!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xxI::Vector{Taylor1{TaylorN{Interval{T}}}}, dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
         δI::IntervalBox{N,T}, δt::Interval{T},
-        Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}) where {N,T}
+        Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
     # Some abbreviations
     zI = zero(Δx[1])
@@ -127,7 +127,7 @@ function _contract_iteration!(f!::Function, t::Taylor1{T},
     # Picard contractions
     for its = 1:10
         # Remainder of Picard iteration
-        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0)
+        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
         # If contraction doesn't hold, return old bound
         iscontractive(Δ, Δx) || return Δxold
@@ -197,19 +197,19 @@ function validated_step!(f!, t::Taylor1{T},
         xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, δq_norm::IntervalBox{N,T},
         q0::IntervalBox{N,T}, q0box::IntervalBox{N,T}, nsteps::Int,
-        orderT::Int, abstol::T, parse_eqs::Bool,
+        orderT::Int, abstol::T, params, parse_eqs::Bool,
         check_property::Function=(t, x)->true) where {N,T}
     #
     # One step integration (non-validated)
     δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux,
-        t0, tmax, x0, orderT, abstol, parse_eqs)
+        t0, tmax, orderT, abstol, params, parse_eqs)
     # One step integration for the initial box
     δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI,
-        t0, tmax, x0I, orderT+1, abstol, parse_eqs)
+        t0, tmax, orderT+1, abstol, params, parse_eqs)
 
     # This updates the `dx[:][orderT]` and `dxI[:][orderT+1]`, which are currently zero
-    f!(t, x, dx)
-    f!(tI, xI, dxI)
+    f!(dx, x, params, t)
+    f!(dxI, xI, params, tI)
 
     # Test if `check_property` is satisfied; if not, half the integration time.
     # If after 25 checks `check_property` is not satisfied, thow an error.
@@ -218,7 +218,7 @@ function validated_step!(f!, t::Taylor1{T},
     # Δ = zero.(δq_norm)
     for nchecks = 1:25
         # Validate the solution: remainder consistent with Schauder thm
-        Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt))
+        Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, Interval(0.0, δt), params)
         rem .= rem .+ Δ
 
         # Create TaylorModelN to store remainders and evaluation
@@ -259,7 +259,7 @@ end
 
 
 function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
-        t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T;
+        t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
         maxsteps::Int=500, parse_eqs::Bool=true,
         check_property::Function=(t, x)->true) where {N, T<:Real}
 
@@ -321,7 +321,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
     if parse_eqs
         try
-            TaylorIntegration.jetcoeffs!(Val(f!), t, x, dx)
+            TaylorIntegration.jetcoeffs!(Val(f!), t, x, dx, params)
         catch
             parse_eqs = false
         end
@@ -334,7 +334,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         # Validated step of the integration
         δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
             t0, tmax, x0, x0I, xTMN, xv, rem, δq_norm,
-            q0, q0box, nsteps, orderT, abstol, parse_eqs, check_property)
+            q0, q0box, nsteps, orderT, abstol, params, parse_eqs, check_property)
         # @show(rem)
         # println()
 
