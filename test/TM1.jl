@@ -62,6 +62,8 @@ end
         @test remainder(tv) == interval(0.0)
         @test polynomial(tv) == Taylor1(Interval{Float64},5)
         @test domain(tv) == ii0
+        @test constant_term(tv) == interval(0.0)
+        @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
     end
 
     @testset "Arithmetic operations" begin
@@ -79,6 +81,8 @@ end
         @test b/tv == TaylorModel1(a.pol, Interval(-0.78125, 0.84375), x1, ii1)
         b = a * a.pol[0]
         @test b == a
+        @test constant_term(a) == x1
+        @test linear_polynomial(a) == Taylor1(5)
 
         a = TaylorModel1(x0, 5, x0, ii0)
         @test a^2 == TaylorModel1(x0^2, 5, x0, ii0)
@@ -322,6 +326,8 @@ end
         # Tests for get_order and remainder
         @test get_order(tv) == 5
         @test remainder(tv) == interval(0.0)
+        @test constant_term(tv) == interval(0.0)
+        @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
     end
 
     @testset "Arithmetic operations" begin
@@ -340,6 +346,8 @@ end
         @test b/tv == RTaylorModel1(a.pol, Interval(-2.75, 4.75), x1, ii1)
         b = a * a.pol[0]
         @test b == a
+        @test constant_term(a) == x1
+        @test linear_polynomial(a) == Taylor1(5)
 
         a = RTaylorModel1(x0, 5, x0, ii0)
         @test a^2 == RTaylorModel1(x0^2, 5, x0, ii0)

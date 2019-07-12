@@ -8,6 +8,9 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
         getindex(a::$TM, n::Integer) = a.pol[n]
         getindex(a::$TM, u::UnitRange) = view(a.pol, u .+ 1 )
         getindex(a::$TM, c::Colon) = view(a.pol, c)
+
+        constant_term(a::$TM) = constant_term(polynomial(a))
+        linear_polynomial(a::$TM) = linear_polynomial(polynomial(a))
     end
 end
 

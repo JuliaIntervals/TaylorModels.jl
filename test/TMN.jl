@@ -56,6 +56,11 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test get_order() == 6
         @test get_order(xm) == 2
         @test remainder(ym) == zi
+        @test constant_term(xm) == interval(0.0)
+        @test constant_term(ym) == interval(0.0)
+        @test linear_polynomial(xm) == xT
+        @test linear_polynomial(ym) == yT
+        @test linear_polynomial(xm^2) == zero(xT)
     end
 
     @testset "Arithmetic operations" begin
@@ -70,6 +75,11 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test a - a == TaylorModelN(zero(a.pol), 2*Δ, b1, ib1)
         @test b1[2] + ym == TaylorModelN(b1[2] + yT, zi, b1, ib1)
         @test a - b1[1] == TaylorModelN(zero(b1[1])+xT, Δ, b1, ib1)
+        @test constant_term(a) == b1[1]
+        @test constant_term(b1[2] + ym) == b1[2]
+        @test linear_polynomial(a) == xT
+        @test linear_polynomial(b1[2] + ym) == yT
+        @test linear_polynomial(ym^2) == zero(yT)
 
         @test xm * ym == TaylorModelN( xT * yT, zi, b1, ib1)
         b = a * ym
