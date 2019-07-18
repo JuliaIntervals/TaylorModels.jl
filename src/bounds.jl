@@ -137,3 +137,13 @@ function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
     end
     return fT(I)
 end
+
+"""
+    bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval)
+
+Compute a *tight* polynomial bound for the Taylor model `fT`
+in the interval `I`, considering whether its derivative `ftd` has
+a definite sign.
+
+"""
+bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomial(fT), I)

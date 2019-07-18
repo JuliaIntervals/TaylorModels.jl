@@ -14,26 +14,29 @@ function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorM
     ii = tma.dom
     xfp = diam(tma.dom)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
-    range = tma(@interval(xfp)-tma.x0)
+    range = tma((xfp .. xfp)-tma.x0)
     bb = ftest(xbf) ∈ range
     bb || @show(ftest, xfp, xbf, ftest(xbf), range)
     return bb
 end
 
-# @testset "Test `bound_taylor1`" begin
-#     x0 = Interval(0.0)
-#     ii0 = Interval(-0.5, 0.5)
-#
-#     tpol = exp( Taylor1(2) )
-#     @test TaylorModels.bound_taylor1( tpol, ii0) ==
-#         @interval(tpol(ii0.lo), tpol(ii0.hi))
-#     @test TaylorModels.bound_taylor1( exp( Taylor1(Interval{Float64}, 2) ),
-#         ii0) == @interval(tpol(ii0.lo), tpol(ii0.hi))
-#
-#     # An uncomfortable example from Makino
-#     t = Taylor1(5)
-#     @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(1-t^4+t^5, 0..1)
-# end
+@testset "Test `bound_taylor1`" begin
+    x0 = Interval(0.0)
+    ii0 = Interval(-0.5, 0.5)
+
+    tpol = exp( Taylor1(2) )
+    @test TaylorModels.bound_taylor1( tpol, ii0) == tpol(ii0.lo) .. tpol(ii0.hi)
+    @test TaylorModels.bound_taylor1( exp( Taylor1(Interval{Float64}, 2) ),
+        ii0) == tpol(ii0.lo) .. tpol(ii0.hi)
+
+    # An uncomfortable example from Makino
+    t = Taylor1(5)
+    f(x) = 1 - x^4 + x^5
+    @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(f(t), 0..1)
+    tm = TaylorModel1(5, x0, ii0)
+    @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(f(tm))
+    @test interval(1-4^4/5^5,1) ⊆ TaylorModels.bound_taylor1(f(tm), 0..1)
+end
 
 @testset "Tests for TaylorModel1 " begin
     x0 = Interval(0.0)
