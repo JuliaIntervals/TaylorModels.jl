@@ -4,7 +4,7 @@ using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
 @reexport using TaylorIntegration
 
-# using IntervalRootFinding
+using IntervalRootFinding
 using LinearAlgebra: norm, mul!, cond
 
 using RecipesBase
