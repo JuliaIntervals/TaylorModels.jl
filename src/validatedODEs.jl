@@ -458,7 +458,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         end
 
         if nsteps > maxsteps
-            @info("""
+            @warn("""
             Maximum number of integration steps reached; exiting.
             """)
             break
