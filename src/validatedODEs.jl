@@ -294,10 +294,10 @@ end
 """
     validated-step!
 """
-function validated_step!(f!, t::Taylor1{T},
-        x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}}, xaux::Vector{Taylor1{TaylorN{T}}},
-        tI::Taylor1{T},
-        xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}}, xauxI::Vector{Taylor1{Interval{T}}},
+function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
+        dx::Vector{Taylor1{TaylorN{T}}}, xaux::Vector{Taylor1{TaylorN{T}}},
+        tI::Taylor1{T}, xI::Vector{Taylor1{Interval{T}}},
+        dxI::Vector{Taylor1{Interval{T}}}, xauxI::Vector{Taylor1{Interval{T}}},
         t0::T, tmax::T, xTMN::Vector{TaylorModelN{N,T,T}},
         xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, δq_norm::IntervalBox{N,T},
@@ -308,13 +308,11 @@ function validated_step!(f!, t::Taylor1{T},
     # One step integration (non-validated)
     # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux, params)
     # δt = TaylorIntegration.stepsize(x, abstol)
-    δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux,
-        t0, tmax, orderT, abstol, params, parse_eqs)
+    δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
     # One step integration for the initial box
     # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, tI, xI, dxI, xauxI, params)
     # δtI = TaylorIntegration.stepsize(xI, abstol)
-    δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI,
-        t0, tmax, orderT+1, abstol, params, parse_eqs)
+    δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI, abstol, params, parse_eqs)
 
     # # Step size
     # δt = min(δt, tmax-t0, inf(δtI))
