@@ -298,8 +298,8 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         dx::Vector{Taylor1{TaylorN{T}}}, xaux::Vector{Taylor1{TaylorN{T}}},
         tI::Taylor1{T}, xI::Vector{Taylor1{Interval{T}}},
         dxI::Vector{Taylor1{Interval{T}}}, xauxI::Vector{Taylor1{Interval{T}}},
-        t0::T, tmax::T, xTMN::Vector{TaylorModelN{N,T,T}},
-        xv::Vector{IntervalBox{N,T}},
+        t0::T, tmax::T, sign_tstep::Int,
+        xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, δq_norm::IntervalBox{N,T},
         q0::IntervalBox{N,T}, q0box::IntervalBox{N,T}, nsteps::Int,
         orderT::Int, abstol::T, params, parse_eqs::Bool,
@@ -309,14 +309,15 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux, params)
     # δt = TaylorIntegration.stepsize(x, abstol)
     δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
+
     # One step integration for the initial box
     # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, tI, xI, dxI, xauxI, params)
     # δtI = TaylorIntegration.stepsize(xI, abstol)
     δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI, abstol, params, parse_eqs)
 
     # # Step size
-    # δt = min(δt, tmax-t0, inf(δtI))
-    δtI = Interval{T}(0.0, δt)
+    δt = min(δt, sign_tstep*(tmax-t0))
+    δt = sign_tstep * δt
 
     # This updates the `dx[:][orderT]` and `dxI[:][orderT+1]`, which are currently zero
     f!(dx, x, params, t)
@@ -329,13 +330,14 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     rem_old = copy(rem)
     for nchecks = 1:25
         # Validate the solution: remainder consistent with Schauder thm
+        δtI = sign_tstep * Interval(0, sign_tstep*δt) # (0 .. abs(δt))
         Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, δq_norm, δtI, params)
         rem .= rem_old .+ Δ
 
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
             for i in eachindex(x)
-                xTMN[i] = fp_rpa( TaylorModelN(x[i](0..δt), rem[i], q0, q0box) )
+                xTMN[i] = fp_rpa( TaylorModelN(x[i](δtI), rem[i], q0, q0box) )
 
                 # If remainder is still too big, do it again
                 j = 0
@@ -413,8 +415,10 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         dxI[i] = xI[i]
         rem[i] = zI
         #
-        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, Interval(t0,t0),
+            Interval(t0,t0))
     end
+    sign_tstep = copysign(1, tmax-t0)
 
     # Output vectors
     @inbounds tv[1] = t0
@@ -432,11 +436,11 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
     # Integration
     nsteps = 1
-    while t0 < tmax
+    while sign_tstep*t0 < sign_tstep*tmax
 
         # Validated step of the integration
         δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
-            t0, tmax, xTMN, xv, rem, δq_norm, q0, q0box,
+            t0, tmax, sign_tstep, xTMN, xv, rem, δq_norm, q0, q0box,
             nsteps, orderT, abstol, params, parse_eqs, check_property)
 
         # New initial conditions and time
@@ -446,7 +450,8 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         @inbounds tI[0] = t0
         @inbounds tv[nsteps] = t0
         @inbounds for i in eachindex(x)
-            xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], zI, Interval{T}(0, δt))
+            δtI = sign_tstep * Interval{T}(0, sign_tstep*δt)
+            xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], zI, δtI)
             aux = x[i](δt)
             x[i]  = Taylor1( aux, orderT )
             dx[i] = Taylor1( zero(aux), orderT )
