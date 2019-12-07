@@ -6,6 +6,11 @@ using Test
 
 setformat(:full)
 
+# NOTE: IntervalArithmetic v0.16.0 includes this function; but
+# IntervalRootFinding is bounded to use v0.15.x
+interval_rand(X::Interval{T}) where {T} = X.lo + rand(T) * (X.hi - X.lo)
+interval_rand(X::IntervalBox) = interval_rand.(X)
+
 @testset "Tests for `validated_integ`" begin
     @testset "Forward integration" begin
         @taylorize function falling_ball!(dx, x, p, t)
@@ -36,8 +41,8 @@ setformat(:full)
 
         for n = 2:length(tTM)
             for it = 1:10
-                δt = rand(domain(qTM[1,n]))
-                q0ξ = rand(δq0)
+                δt = interval_rand(domain(qTM[1,n]))
+                q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
                 @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
             end
@@ -72,8 +77,8 @@ setformat(:full)
 
         for n = 2:length(tTM)
             for it = 1:10
-                δt = rand(domain(qTM[1,n]))
-                q0ξ = rand(δq0)
+                δt = interval_rand(domain(qTM[1,n]))
+                q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
                 @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
             end
