@@ -35,7 +35,7 @@ export remainder, polynomial, domain,
 
 include("constructors.jl")
 include("auxiliary.jl")
-include("promotion.jl")
+# include("promotion.jl")
 include("bounds.jl")
 include("evaluate.jl")
 include("rpa_functions.jl")
