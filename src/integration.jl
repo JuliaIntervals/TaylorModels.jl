@@ -31,6 +31,18 @@ function integrate(a::RTaylorModel1{T,S}, c0::T) where {T,S}
 end
 integrate(a::RTaylorModel1{T,S}) where {T,S} = integrate(a, zero(T))
 
+function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
+        c0::TaylorModelN{N,T,S}) where {N,T,S}
+    integ_pol = integrate(a.pol, c0)
+    δ = a.dom-a.x0
+
+    # Remainder bound after integrating
+    Δ = bound_integration(a, δ)
+    ΔN = Δ(a[0].dom - a[0].x0)
+
+    return TaylorModel1( integ_pol, ΔN, a.x0, a.dom )
+end
+
 
 """
     bound_integration(xTM1::TaylorModel1{Interval{S},S}, δt::Interval{S})

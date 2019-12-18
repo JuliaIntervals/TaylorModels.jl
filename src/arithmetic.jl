@@ -95,6 +95,36 @@ function *(a::TaylorModel1, b::TaylorModel1)
     return TaylorModel1(bext, Δ, a.x0, a.dom)
 end
 
+function *(a::TaylorModel1{TaylorModelN{N,T,S},S},
+        b::TaylorModel1{TaylorModelN{N,T,S},S}) where{N,T,S}
+    @assert tmdata(a) == tmdata(b)
+
+    # Polynomial product with extended order
+    order = max(get_order(a), get_order(b))
+    aext = Taylor1(copy(a.pol.coeffs), 2*order)
+    bext = Taylor1(copy(b.pol.coeffs), 2*order)
+    res = aext * bext
+
+    # Returned polynomial
+    bext = Taylor1( copy(res.coeffs[1:order+1]) )
+
+    # Bound for the neglected part of the product of polynomials
+    res[0:order] .= zero(res[0])
+    aux = a.dom - a.x0
+    Δnegl = res(aux)
+
+    # Remainder of the product
+    Δa = a.pol(aux)
+    Δb = b.pol(aux)
+    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
+
+    # Evaluate at the TMN centered domain
+    auxN = a[0].dom - a[0].x0
+    ΔN = Δ(auxN)
+
+    return TaylorModel1(bext, ΔN, a.x0, a.dom)
+end
+
 function *(a::RTaylorModel1, b::RTaylorModel1)
     @assert tmdata(a) == tmdata(b)
 
