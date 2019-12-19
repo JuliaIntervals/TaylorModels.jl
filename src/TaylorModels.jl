@@ -11,7 +11,7 @@ using RecipesBase
 
 using Markdown
 
-import Base: setindex!, getindex, copy,
+import Base: setindex!, getindex, copy, firstindex, lastindex,
     ==, +, -, *, /, ^,
     zero, one, findfirst, #iszero,
     promote, show,
@@ -19,7 +19,7 @@ import Base: setindex!, getindex, copy,
     asin, acos, atan, sinh, cosh, tanh
 
 import TaylorSeries: integrate, get_order, evaluate, pretty_print,
-    constant_term, linear_polynomial
+    constant_term, linear_polynomial, fixorder
 
 import IntervalArithmetic: showfull
 
@@ -30,7 +30,7 @@ import IntervalArithmetic: showfull
 export TaylorModel1, RTaylorModel1, TaylorModelN
 
 export remainder, polynomial, domain,
-    rpa, fp_rpa, bound_absrem, bound_relrem,
+    rpa, fp_rpa, bound_remainder,
     validated_integ
 
 include("constructors.jl")

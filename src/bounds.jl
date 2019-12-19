@@ -1,7 +1,7 @@
 # bounds.jl
 
 """
-   bound_absrem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
+   bound_remainder(::Type{TaylorModel1}f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
 
 Bound the absolute remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
@@ -13,8 +13,7 @@ If `polfI[end]` has a definite sign, then it is monotonic in the intervals
 to compute the Lagrange remainder.
 
 """
-function bound_absrem(f::Function, polf::Taylor1, polfI::Taylor1,
-        x0, I::Interval)
+function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
@@ -37,7 +36,7 @@ end
 
 
 """
-   bound_relrem(f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
+   bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
 
 Bound the relative remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
@@ -49,8 +48,7 @@ which is exploited; otherwise, the last coefficients bounds the relative
 remainder.
 
 """
-function bound_relrem(f::Function, polf::Taylor1, polfI::Taylor1,
-        x0::Interval, I::Interval)
+function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order+1]
