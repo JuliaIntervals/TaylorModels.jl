@@ -67,6 +67,18 @@ end
         @test domain(tv) == ii0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
+
+        # Tests related to fixorder
+        a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb) == 1
+        @test isa(aa, TaylorModel1) == isa(bb, TaylorModel1) == true
+        @test aa == a
+        @test bb == TaylorModel1(Taylor1([1.0, 1, 0]), -1 .. 2, 0..0, -1 .. 1)
+        # a and b remain the same
+        @test a == TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
     end
 
     @testset "Arithmetic operations" begin
@@ -93,6 +105,29 @@ end
         a = TaylorModel1(x1, 5, x1, ii1)
         @test a^2 == TaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == TaylorModel1(x1^3, 5, x1, ii1)
+
+        # Tests involving TM1s with different orders
+        a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb)
+        @test get_order(bb) == 1
+        @test a + b == aa + bb
+        @test a - b == aa - bb
+        res1 = a * b
+        res2 = aa * bb
+        @test res1 == TaylorModel1(Taylor1([1.0, 2]), -2 .. 9 , 0..0, -1 .. 1)
+        @test res2 == TaylorModel1(Taylor1([1.0, 2]), -3 .. 9 , 0..0, -1 .. 1)
+        res1 = a / b
+        res2 = aa / bb
+        @test res1 == TaylorModel1(Taylor1([1.0, 0]), entireinterval() , 0..0, -1 .. 1)
+        @test res2 == res1
+        # a and b remain the same
+        @test a == TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+
+        @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 1..1, -1..1)
+        @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 0..0, -2..2)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -331,6 +366,18 @@ end
         @test remainder(tv) == interval(0.0)
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
+
+        # Tests related to fixorder
+        a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb) == 1
+        @test isa(aa, RTaylorModel1) == isa(bb, RTaylorModel1) == true
+        @test aa == a
+        @test bb == RTaylorModel1(Taylor1([1.0, 1]), -1 .. 2, 0..0, -1 .. 1)
+        # a and b remain the same
+        @test a == RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
     end
 
     @testset "Arithmetic operations" begin
@@ -358,6 +405,29 @@ end
         a = RTaylorModel1(x1, 5, x1, ii1)
         @test a^2 == RTaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == RTaylorModel1(x1^3, 5, x1, ii1)
+
+        # Tests involving TM1s with different orders
+        a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb)
+        @test get_order(bb) == 1
+        @test a + b == aa + bb
+        @test a - b == aa - bb
+        res1 = a * b
+        res2 = aa * bb
+        @test res1 == RTaylorModel1(Taylor1([1.0, 2]), -1 .. 9 , 0..0, -1 .. 1)
+        @test res2 == RTaylorModel1(Taylor1([1.0, 2]), -2 .. 9 , 0..0, -1 .. 1)
+        res1 = a / b
+        res2 = aa / bb
+        @test res1 == RTaylorModel1(Taylor1([1.0, 0]), entireinterval() , 0..0, -1 .. 1)
+        @test res2 == res1
+        # a and b remain the same
+        @test a == RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+
+        @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 1..1, -1..1)
+        @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 0..0, -2..2)
     end
 
     @testset "RPAs, functions and remainders" begin
