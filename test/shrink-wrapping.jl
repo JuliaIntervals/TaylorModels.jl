@@ -1,7 +1,7 @@
 # Tests related to validated integration
 
 using TaylorModels
-# using LinearAlgebra: norm
+using LinearAlgebra: norm
 using Test
 
 # const _num_tests = 1000
@@ -59,8 +59,9 @@ end
         return v
     end
 
+    local B = IntervalBox( -1 .. 1, 2)
     local δ = 0.05
-    local ib = IntervalBox( -δ .. δ, 2)
+    local ib = δ * B
     local mib = IntervalBox( 0..0, 2)
 
     # Diverges using naive Interval arithmetic methods
@@ -71,17 +72,23 @@ end
     end
     @test minimum(diam.(ib0)) > 1e6
 
-    # Taylor model controls grow and behaves as identity for after two iterates
+    # Taylor model controls grow and behaves *essentially* as the identity
+    # (due to the normalization to the symmetric box) after two iterates
     order = 10
     set_variables("x y", order=2*order)
-    vm = [TaylorModelN(TaylorN(i, order=order), 0..0, mib, ib) for i = 1:2]
-    vm0 = [deepcopy(vm)...]
+    vm = [TaylorModelN(normalize_taylor(TaylorN(i, order=order), ib, true),
+        0..0, mib, B) for i = 1:2]
+    vm0 = deepcopy(vm)
     for iter = 1:1_000
         two_state1!(vm0)
         two_state2!(vm0)
     end
-    @test maximum(remainder.(vm0)) < 1e-6 # 2.2e-7
-    @test all(polynomial.(vm0) .== polynomial.(vm)) # only remainder grows!
+    @test maximum(remainder.(vm0)) < 1e-6 # 2.08e-7
+    # Constant and linear terms are identic to the initial ones
+    @test all(constant_term.(vm0) .== constant_term.(vm))
+    @test all(linear_polynomial.(vm0) .== linear_polynomial.(vm))
+    # Maximum difference of polynomials is very small
+    @test norm(polynomial(vm0[1] - vm[1]), Inf) < 1e-19
 
     # Taylor model with shrink-wrapping after two iterates
     vm0 .= [deepcopy(vm)...]
@@ -91,6 +98,9 @@ end
         TaylorModels.shrink_wrapping!(vm0)
     end
     @test maximum(remainder.(vm0)) < 1e-8 #2.2e-13
+    # The dominating difference is in the linear term
+    @test norm(polynomial(vm0[1] - vm[1]), Inf) == norm(vm0[1][1] - vm[1][1], Inf)
+
 
     # Taylor model with shrink-wrapping after each iterate
     vm0 .= [deepcopy(vm)...]
@@ -101,4 +111,10 @@ end
         TaylorModels.shrink_wrapping!(vm0)
     end
     @test maximum(remainder.(vm0)) < 2.2e-13
+    # The dominating difference is in the linear term
+    @test norm(polynomial(vm0[1] - vm[1]), Inf) == norm(vm0[1][1] - vm[1][1], Inf)
+
+    # Test AssertionError
+    vm = [TaylorModelN(TaylorN(i, order=order), 0..0, mib, ib) for i = 1:2]
+    @test_throws AssertionError TaylorModels.shrink_wrapping!(vm)
 end

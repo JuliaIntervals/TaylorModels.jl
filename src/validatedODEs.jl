@@ -190,13 +190,15 @@ end
 
 Returns a modified inplace `xTMN`, which has absorbed the remainder
 by the modified shrink-wrapping method of Florian Bünger.
+The domain of `xTMN` is the normalized interval box `[-1,1]^N`.
 
 Ref: Florian B\"unger, Shrink wrapping for Taylor models revisited,
 Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
 function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
-    # Original domain of TaylorModelN
+    # Original domain of TaylorModelN; should be the symmetric normalized
     B = IntervalBox(Interval{T}(-1,1), Val(N))
+    @assert all(domain.(xTMN) .== (B,))
     zI = zero(Interval{T})
 
     # Vector of independent TaylorN variables
@@ -227,6 +229,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
         end
         return xTMN
     end
+    # Inverse of the Jacobian
     invjac = inv(jac)
 
     # Componentwise bound
@@ -281,13 +284,13 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
         pol = polynomial(xTMN[i])
         ppol = fp_rpa(TaylorModelN(pol(X), zI, xTMN[i].x0, xTMN[i].dom ))
         if xTMN[i](B) ⊆ polynomial(ppol)(B) # assumes zero remainder
-            xTMN[i] = TaylorModelN(pol, zI, xTMN[i].x0, xTMN[i].dom )
+            xTMN[i] = TaylorModelN(polynomial(ppol), zI, xTMN[i].x0, xTMN[i].dom)
         else
-            xTMN[i] = fp_rpa(TaylorModelN(xTMN[i](X), zI, xTMN[i].x0, xTMN[i].dom ))
+            xTMN[i] = copy(ppol)
         end
     end
 
-    return xTMN
+    return q
 end
 
 
