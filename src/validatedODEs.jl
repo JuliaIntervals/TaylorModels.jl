@@ -185,6 +185,28 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
 end
 
 
+# Postverify and define Taylor models to be returned
+function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,T,T}},
+        X::Vector{TaylorN{T}}) where {N,T}
+    postverify = true
+    x0 = xTMN[1].x0
+    B = domain(xTMN[1])
+    zI = zero(B[1])
+    @inbounds for i in eachindex(xTMN)
+        pol = polynomial(xTMN[i])
+        ppol = fp_rpa(TaylorModelN(pol(X), zI, x0, B ))
+        postverify = postverify && (xTMN[i](B) ⊆ ppol(B))
+        xTMN[i] = copy(ppol)
+    end
+    @assert postverify """
+        Failed to post-verify shrink-wrapping:
+        X = $(linear_polynomial(X))
+        $(xTMN)
+        """
+    return postverify
+end
+
+
 """
     shrink_wrapping!(xTMN::TaylorModelN)
 
@@ -196,10 +218,11 @@ Ref: Florian B\"unger, Shrink wrapping for Taylor models revisited,
 Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
 function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
-    # Original domain of TaylorModelN; should be the symmetric normalized
+    # Original domain of TaylorModelN should be the symmetric normalized box
     B = IntervalBox(Interval{T}(-1,1), Val(N))
     @assert all(domain.(xTMN) .== (B,))
     zI = zero(Interval{T})
+    x0 = xTMN[1].x0
 
     # Vector of independent TaylorN variables
     order = get_order(xTMN[1])
@@ -216,18 +239,10 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
 
     # Jacobian (at zero) and its inverse
     jac = TaylorSeries.jacobian(xTNcent)
-    ## If conditional number is too large, use absorb_remainder
+    # If conditional number is too large (inverse of jac is ill defined),
+    # don't change xTMN
     if cond(jac) > 1.0e4
-        for i in eachindex(xTMN)
-            # If remainder is still too big, do it again
-            j = 0
-            while (j < 10) && (mag(rem[i]) > 1.0e-12)
-                j += 1
-                xTMN[i] = absorb_remainder(xTMN[i])
-                rem[i] = remainder(xTMN[i])
-            end
-        end
-        return xTMN
+        return ones(eltype(r), N)
     end
     # Inverse of the Jacobian
     invjac = inv(jac)
@@ -280,15 +295,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     @. X = q * X
 
     # Postverify and define Taylor models to be returned
-    @inbounds for i in eachindex(xTMN)
-        pol = polynomial(xTMN[i])
-        ppol = fp_rpa(TaylorModelN(pol(X), zI, xTMN[i].x0, xTMN[i].dom ))
-        if xTMN[i](B) ⊆ polynomial(ppol)(B) # assumes zero remainder
-            xTMN[i] = TaylorModelN(polynomial(ppol), zI, xTMN[i].x0, xTMN[i].dom)
-        else
-            xTMN[i] = copy(ppol)
-        end
-    end
+    scalepostverify_sw!(xTMN, X)
 
     return q
 end

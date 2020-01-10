@@ -9,26 +9,32 @@ using Test
 
 setformat(:full)
 
-# This is based on the examples from Buenger, Numer Algor (2018) 78:1001–1017,
-# showing efectivity of shrink-wrapping
+# This is based on an example from Buenger, Numer Algor (2018) 78:1001–1017,
+# which shows the efectivity of shrink-wrapping
 @testset "Testing `shrink_wrapping` 1" begin
     _order = 2
     set_variables("x", numvars=1, order=2*_order)
     x0 = IntervalBox(0..0, 1)
     dom = IntervalBox(-1..1, 1)
     for δ in 1/16:1/16:1
-        rem = δ * Interval(-1, 1)
-        p1 = TaylorModelN(TaylorN(1, order=_order), rem, x0, dom)
-        p2 = deepcopy(p1)
-        res = p1 * p2
-        bound_prod = dom[1]^2 + δ*(2+δ)*dom[1]
-        @test res(dom) ⊆ polynomial(res)(dom) + bound_prod
-        @test remainder(res) ⊆ bound_prod
-        q = [ res ]
+        Δ = @interval(-δ, δ)
+        p = TaylorModelN(TaylorN(1, order=_order), Δ, x0, dom)
+        # Usual TM case
+        result = p * p
+        rem_result = δ*(2+δ)*dom[1]
+        range_result = dom[1]^2 + rem_result
+        @test result(dom) == range_result
+        @test remainder(result) == rem_result
+        # Shrink-wrapping:
+        q = [ p ]
         TaylorModels.shrink_wrapping!(q)
-        @test q[1](dom) ⊆ res.pol(dom) + bound_prod
-        @test remainder(q[1]) ⊆ bound_prod
-        @test remainder(q[1]) == 0..0
+        @test p(dom) == q[1](dom)
+        @test remainder(q[1]) ⊆ Δ
+        @test remainder(q[1]) == x0[1]
+        # Result using shrink-wrapped variables
+        result_sw = q[1] * q[1]
+        @test remainder(result_sw) ⊆ rem_result
+        @test result_sw(dom) ⊆ range_result
     end
 end
 
