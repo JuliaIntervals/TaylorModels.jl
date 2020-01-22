@@ -100,7 +100,6 @@ function *(a::TaylorModel1{TaylorModelN{N,T,S},S},
     order, ordermax = minmax(get_order(a), get_order(b))
 
     # Polynomial product with extended order
-    order = max(get_order(a), get_order(b))
     aext = Taylor1(copy(a.pol.coeffs), order+ordermax)
     bext = Taylor1(copy(b.pol.coeffs), order+ordermax)
     res = aext * bext
