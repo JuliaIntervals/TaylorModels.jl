@@ -14,6 +14,9 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
 
         constant_term(a::$TM) = constant_term(polynomial(a))
         linear_polynomial(a::$TM) = linear_polynomial(polynomial(a))
+
+        # norm
+        norm(x::$TM, p::Real=2) = norm(polynomial(x), p)
     end
 end
 

@@ -23,6 +23,8 @@ import TaylorSeries: integrate, get_order, evaluate, pretty_print,
 
 import IntervalArithmetic: showfull
 
+import LinearAlgebra: norm
+
 # export Taylor1Model, bound, make_Taylor_model, TMcomposition,
 #         taylor1_var, integrate, degree,
 #         calculate_set, Taylor_step
@@ -35,7 +37,7 @@ export remainder, polynomial, domain,
 
 include("constructors.jl")
 include("auxiliary.jl")
-# include("promotion.jl")
+include("promotion.jl")
 include("bounds.jl")
 include("evaluate.jl")
 include("rpa_functions.jl")
