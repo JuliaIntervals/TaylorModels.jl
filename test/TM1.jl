@@ -100,9 +100,13 @@ end
         @test linear_polynomial(a) == Taylor1(5)
 
         a = TaylorModel1(x0, 5, x0, ii0)
+        @test a^0 == TaylorModel1(x0^0, 5, x0, ii0)
+        @test a^1 == TaylorModel1(x0^1, 5, x0, ii0)
         @test a^2 == TaylorModel1(x0^2, 5, x0, ii0)
         @test a^3 == TaylorModel1(x0^3, 5, x0, ii0)
         a = TaylorModel1(x1, 5, x1, ii1)
+        @test a^0 == TaylorModel1(x1^0, 5, x1, ii1)
+        @test a^1 == TaylorModel1(x1^1, 5, x1, ii1)
         @test a^2 == TaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == TaylorModel1(x1^3, 5, x1, ii1)
 
@@ -137,6 +141,15 @@ end
             TaylorModel1(5+x1, 4, x1, ii1)
         @test rpa(x->5*x, TaylorModel1(4, x1, ii1)) ==
             TaylorModel1(5.0*(x1+Taylor1(4)), x0, x1, ii1)
+        @test rpa(x->5*x^0, TaylorModel1(4, x0, ii0)) == 5*TaylorModel1(4, x0, ii0)^0
+        @test rpa(x->5*x^0, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^0, x0, x0, ii0)
+        @test rpa(x->5*x^1, TaylorModel1(4, x0, ii0)) == 5*TaylorModel1(4, x0, ii0)^1
+        @test rpa(x->5*x^1, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^1, x0, x0, ii0)
+        @test rpa(x->5*x^2, TaylorModel1(4, x0, ii0)) == 5*TaylorModel1(4, x0, ii0)^2
+        @test rpa(x->5*x^2, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^2, x0, x0, ii0)
         @test rpa(x->5*x^4, TaylorModel1(4, x0, ii0)) ==
             TaylorModel1( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
         @test rpa(x->5*x^4, TaylorModel1(3, x0, ii0)) ==
@@ -364,6 +377,8 @@ end
         # Tests for get_order and remainder
         @test get_order(tv) == 5
         @test remainder(tv) == interval(0.0)
+        @test polynomial(tv) == Taylor1(Interval{Float64},5)
+        @test domain(tv) == ii0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
 
@@ -400,9 +415,13 @@ end
         @test linear_polynomial(a) == Taylor1(5)
 
         a = RTaylorModel1(x0, 5, x0, ii0)
+        @test a^0 == RTaylorModel1(x0^0, 5, x0, ii0)
+        @test a^1 == RTaylorModel1(x0^1, 5, x0, ii0)
         @test a^2 == RTaylorModel1(x0^2, 5, x0, ii0)
         @test a^3 == RTaylorModel1(x0^3, 5, x0, ii0)
         a = RTaylorModel1(x1, 5, x1, ii1)
+        @test a^0 == RTaylorModel1(x1^0, 5, x1, ii1)
+        @test a^1 == RTaylorModel1(x1^1, 5, x1, ii1)
         @test a^2 == RTaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == RTaylorModel1(x1^3, 5, x1, ii1)
 
@@ -433,8 +452,19 @@ end
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), RTaylorModel1(4, x0, ii0)) ==
             RTaylorModel1(interval(5.0), 4, x0, ii0)
+        @test rpa(x->5+one(x), RTaylorModel1(4, x1, ii1)) ==
+            RTaylorModel1(5+x1, 4, x1, ii1)
         @test rpa(x->5*x, RTaylorModel1(4, x1, ii1)) ==
             RTaylorModel1(5.0*(x1+Taylor1(4)), x0, x1, ii1)
+        @test rpa(x->5*x^0, RTaylorModel1(4, x0, ii0)) == 5*RTaylorModel1(4, x0, ii0)^0
+        @test rpa(x->5*x^0, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^0, x0, x0, ii0)
+        @test rpa(x->5*x^1, RTaylorModel1(4, x0, ii0)) == 5*RTaylorModel1(4, x0, ii0)^1
+        @test rpa(x->5*x^1, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^1, x0, x0, ii0)
+        @test rpa(x->5*x^2, RTaylorModel1(4, x0, ii0)) == 5*RTaylorModel1(4, x0, ii0)^2
+        @test rpa(x->5*x^2, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^2, x0, x0, ii0)
         @test rpa(x->5*x^4, RTaylorModel1(4, x0, ii0)) ==
             RTaylorModel1( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
         @test rpa(x->5*x^4, RTaylorModel1(3, x0, ii0)) ==
@@ -456,6 +486,9 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+
+        # test for TM with scalar coefficients
+        @test fp_rpa(tmc) == tmc
 
         order = 2
         ii = ii1

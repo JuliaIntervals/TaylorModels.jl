@@ -62,9 +62,19 @@ for TM in tupleTMs
 
 
         # Power
-        ^(a::$TM, r) = rpa(x->x^r, a)
+        function ^(a::$TM, r::Number)
+            r == zero(r) && return one(a)
+            r == 1 && return a
+            r == 2 && return a*a
+            return rpa(x->x^r, a)
+        end
 
-        ^(a::$TM, n::Integer) = rpa(x->x^n, a)
+        function ^(a::$TM, n::Integer)
+            n == 0 && return one(a)
+            n == 1 && return a
+            n == 2 && return a*a
+            return rpa(x->x^n, a)
+        end
     end
 end
 
@@ -282,5 +292,15 @@ end
 
 
 # Power
-^(a::TaylorModelN, r) = rpa(x->x^r, a)
-^(a::TaylorModelN, n::Integer) = rpa(x->x^n, a)
+function ^(a::TaylorModelN{N,T,S}, r::Number) where {N,T,S}
+    r == 0 && return one(a)
+    r == 1 && return a
+    r == 2 && return a*a
+    return rpa(x->x^r, a)
+end
+function ^(a::TaylorModelN{N,T,S}, n::Integer) where {N,T,S}
+    n == 0 && return one(a)
+    n == 1 && return a
+    n == 2 && return a*a
+    return rpa(x->x^n, a)
+end
