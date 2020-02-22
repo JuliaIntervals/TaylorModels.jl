@@ -1,7 +1,7 @@
 The TaylorModels.jl package is licensed under the MIT "Expat" License:
 
 
-> Copyright (c) 2018-2019: David Sanders and Luis Benet.
+> Copyright (c) 2018-2020: David Sanders and Luis Benet.
 >
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy
