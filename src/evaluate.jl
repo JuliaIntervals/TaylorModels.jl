@@ -86,3 +86,12 @@ end
 
 evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
     IntervalBox( [ tm[i](a) for i in eachindex(tm) ] )
+
+
+function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N, T<:Number, S<:Number}
+    @inbounds suma = a[end]*one(dx)
+    @inbounds for k in a.order-1:-1:0
+        suma = suma*dx + a[k]
+    end
+    suma
+end

@@ -67,6 +67,18 @@ end
         @test domain(tv) == ii0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
+
+        # Tests related to fixorder
+        a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb) == 1
+        @test isa(aa, TaylorModel1) == isa(bb, TaylorModel1) == true
+        @test aa == a
+        @test bb == TaylorModel1(Taylor1([1.0, 1, 0]), -1 .. 2, 0..0, -1 .. 1)
+        # a and b remain the same
+        @test a == TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
     end
 
     @testset "Arithmetic operations" begin
@@ -88,11 +100,38 @@ end
         @test linear_polynomial(a) == Taylor1(5)
 
         a = TaylorModel1(x0, 5, x0, ii0)
+        @test a^0 == TaylorModel1(x0^0, 5, x0, ii0)
+        @test a^1 == TaylorModel1(x0^1, 5, x0, ii0)
         @test a^2 == TaylorModel1(x0^2, 5, x0, ii0)
         @test a^3 == TaylorModel1(x0^3, 5, x0, ii0)
         a = TaylorModel1(x1, 5, x1, ii1)
+        @test a^0 == TaylorModel1(x1^0, 5, x1, ii1)
+        @test a^1 == TaylorModel1(x1^1, 5, x1, ii1)
         @test a^2 == TaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == TaylorModel1(x1^3, 5, x1, ii1)
+
+        # Tests involving TM1s with different orders
+        a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb)
+        @test get_order(bb) == 1
+        @test a + b == aa + bb
+        @test a - b == aa - bb
+        res1 = a * b
+        res2 = aa * bb
+        @test res1 == TaylorModel1(Taylor1([1.0, 2]), -2 .. 9 , 0..0, -1 .. 1)
+        @test res2 == TaylorModel1(Taylor1([1.0, 2]), -3 .. 9 , 0..0, -1 .. 1)
+        res1 = a / b
+        res2 = aa / bb
+        @test res1 == TaylorModel1(Taylor1([1.0, 0]), entireinterval() , 0..0, -1 .. 1)
+        @test res2 == res1
+        # a and b remain the same
+        @test a == TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+
+        @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 1..1, -1..1)
+        @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 0..0, -2..2)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -102,6 +141,15 @@ end
             TaylorModel1(5+x1, 4, x1, ii1)
         @test rpa(x->5*x, TaylorModel1(4, x1, ii1)) ==
             TaylorModel1(5.0*(x1+Taylor1(4)), x0, x1, ii1)
+        @test rpa(x->5*x^0, TaylorModel1(4, x0, ii0)) == 5*TaylorModel1(4, x0, ii0)^0
+        @test rpa(x->5*x^0, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^0, x0, x0, ii0)
+        @test rpa(x->5*x^1, TaylorModel1(4, x0, ii0)) == 5*TaylorModel1(4, x0, ii0)^1
+        @test rpa(x->5*x^1, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^1, x0, x0, ii0)
+        @test rpa(x->5*x^2, TaylorModel1(4, x0, ii0)) == 5*TaylorModel1(4, x0, ii0)^2
+        @test rpa(x->5*x^2, TaylorModel1(4, x0, ii0)) ==
+            TaylorModel1( interval(5.0)*Taylor1(4)^2, x0, x0, ii0)
         @test rpa(x->5*x^4, TaylorModel1(4, x0, ii0)) ==
             TaylorModel1( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
         @test rpa(x->5*x^4, TaylorModel1(3, x0, ii0)) ==
@@ -329,8 +377,22 @@ end
         # Tests for get_order and remainder
         @test get_order(tv) == 5
         @test remainder(tv) == interval(0.0)
+        @test polynomial(tv) == Taylor1(Interval{Float64},5)
+        @test domain(tv) == ii0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
+
+        # Tests related to fixorder
+        a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb) == 1
+        @test isa(aa, RTaylorModel1) == isa(bb, RTaylorModel1) == true
+        @test aa == a
+        @test bb == RTaylorModel1(Taylor1([1.0, 1]), -1 .. 2, 0..0, -1 .. 1)
+        # a and b remain the same
+        @test a == RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
     end
 
     @testset "Arithmetic operations" begin
@@ -353,18 +415,56 @@ end
         @test linear_polynomial(a) == Taylor1(5)
 
         a = RTaylorModel1(x0, 5, x0, ii0)
+        @test a^0 == RTaylorModel1(x0^0, 5, x0, ii0)
+        @test a^1 == RTaylorModel1(x0^1, 5, x0, ii0)
         @test a^2 == RTaylorModel1(x0^2, 5, x0, ii0)
         @test a^3 == RTaylorModel1(x0^3, 5, x0, ii0)
         a = RTaylorModel1(x1, 5, x1, ii1)
+        @test a^0 == RTaylorModel1(x1^0, 5, x1, ii1)
+        @test a^1 == RTaylorModel1(x1^1, 5, x1, ii1)
         @test a^2 == RTaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == RTaylorModel1(x1^3, 5, x1, ii1)
+
+        # Tests involving TM1s with different orders
+        a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+        aa, bb = TaylorModels.fixorder(a, b)
+        @test get_order(aa) == get_order(bb)
+        @test get_order(bb) == 1
+        @test a + b == aa + bb
+        @test a - b == aa - bb
+        res1 = a * b
+        res2 = aa * bb
+        @test res1 == RTaylorModel1(Taylor1([1.0, 2]), -1 .. 9 , 0..0, -1 .. 1)
+        @test res2 == RTaylorModel1(Taylor1([1.0, 2]), -2 .. 9 , 0..0, -1 .. 1)
+        res1 = a / b
+        res2 = aa / bb
+        @test res1 == RTaylorModel1(Taylor1([1.0, 0]), entireinterval() , 0..0, -1 .. 1)
+        @test res2 == res1
+        # a and b remain the same
+        @test a == RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
+        @test b == RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
+
+        @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 1..1, -1..1)
+        @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 0..0, -2..2)
     end
 
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), RTaylorModel1(4, x0, ii0)) ==
             RTaylorModel1(interval(5.0), 4, x0, ii0)
+        @test rpa(x->5+one(x), RTaylorModel1(4, x1, ii1)) ==
+            RTaylorModel1(5+x1, 4, x1, ii1)
         @test rpa(x->5*x, RTaylorModel1(4, x1, ii1)) ==
             RTaylorModel1(5.0*(x1+Taylor1(4)), x0, x1, ii1)
+        @test rpa(x->5*x^0, RTaylorModel1(4, x0, ii0)) == 5*RTaylorModel1(4, x0, ii0)^0
+        @test rpa(x->5*x^0, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^0, x0, x0, ii0)
+        @test rpa(x->5*x^1, RTaylorModel1(4, x0, ii0)) == 5*RTaylorModel1(4, x0, ii0)^1
+        @test rpa(x->5*x^1, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^1, x0, x0, ii0)
+        @test rpa(x->5*x^2, RTaylorModel1(4, x0, ii0)) == 5*RTaylorModel1(4, x0, ii0)^2
+        @test rpa(x->5*x^2, RTaylorModel1(4, x0, ii0)) ==
+            RTaylorModel1( interval(5.0)*Taylor1(4)^2, x0, x0, ii0)
         @test rpa(x->5*x^4, RTaylorModel1(4, x0, ii0)) ==
             RTaylorModel1( interval(5.0)*Taylor1(4)^4, x0, x0, ii0)
         @test rpa(x->5*x^4, RTaylorModel1(3, x0, ii0)) ==
@@ -386,6 +486,9 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+
+        # test for TM with scalar coefficients
+        @test fp_rpa(tmc) == tmc
 
         order = 2
         ii = ii1
