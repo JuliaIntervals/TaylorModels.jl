@@ -33,10 +33,11 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
         normalized_box = IntervalBox(-1 .. 1, Val(orderQ))
 
-        tTM, qv, qTM = validated_integ(falling_ball!, q0, δq0,
+        tTM, qTM, qq = validated_integ(falling_ball!, q0, δq0,
             tini, tend, orderQ, orderT, abstol)
 
-        @test length(qv) == length(qTM[1, :]) == length(tTM)
+        @test size(qq) == size(qTM)
+        @test size(qq)[2] == size(qTM)[2] == length(tTM)
         @test length(tTM) < 501
 
         for n = 2:length(tTM)
@@ -69,10 +70,11 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
         normalized_box = IntervalBox(-1 .. 1, Val(orderQ))
 
-        tTM, qv, qTM = validated_integ(falling_ball!, q0, δq0,
+        tTM, qTM, qq = validated_integ(falling_ball!, q0, δq0,
             tini, tend, orderQ, orderT, abstol)
 
-        @test length(qv) == length(qTM[1, :]) == length(tTM)
+        @test size(qq) == size(qTM)
+        @test size(qq)[2] == size(qTM)[2] == length(tTM)
         @test length(tTM) < 501
 
         for n = 2:length(tTM)
