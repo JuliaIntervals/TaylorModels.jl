@@ -63,7 +63,8 @@ end
 function validate_solution!(f!,
         xTM1TMN  :: Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         dxTM1TMN :: Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        xTMN     :: Vector{TaylorModelN{N,T,T}},
+        xTMN     :: Vector{TaylorModelN{N,Interval{T},T}},
+        xv       :: Vector{IntervalBox{N,T}},
         t        :: Taylor1{T},
         symIbox  :: IntervalBox{N,T},
         sign_δt  :: Int,
@@ -101,18 +102,18 @@ function validate_solution!(f!,
             if solution_exists
                 if maximum(mag.(Δx)) > eps(maximum(constant_term.(constant_term.(xTM1TMN))))
                     # ts0 = time()
-                    iterate_picard_contraction!(f!, xTM1TMN, dxTM1TMN, t, symIbox, params)
+                    iterate_picard_contraction!(f!, xTM1TMN, dxTM1TMN, t, δtI, symIbox, params)
                     # ts1 = time()
                     # println("iterate_picard_contraction! ", ts1-ts0)
                     Δx = IntervalBox(remainder.(xTM1TMN))
                 end
                 # @show(iter_picard)
 
-                xTMN .= fp_rpa.(evaluate(xTM1TMN, (δtI,)))
+                xTMN .= evaluate(xTM1TMN, (δtI,))
                 # @show(Δx, remainder.(xTMN))
-                xv = evaluate(xTMN, symIbox)
+                xv[1] = evaluate(xTMN, symIbox)
                 δt  = sign_δt * mag(δtI)
-                checkprop_satisfied = check_property(t[0]+δt, xv)
+                checkprop_satisfied = check_property(t[0]+δt, xv[1])
                 if !(checkprop_satisfied)
                     time_reduct += 1
                     δtI = δtI / 2
@@ -164,10 +165,10 @@ function validate_solution!(f!,
         @format full
         error("""
         Error: `check_property` is not satisfied:
-            $t0
+            $(t[0])
             $δt
-            xv
-            check_property(t,xv)
+            $xv[1]
+            $(check_property(t, xv[1]))
             """)
     end
 
@@ -179,18 +180,19 @@ end
 function iterate_picard_contraction!(f!,
         xTM1TMN :: Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         dxTM1TMN:: Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        t :: Taylor1{T}, symIbox :: IntervalBox{N,T}, params=nothing) where {N,T}
+        t :: Taylor1{T},
+        δtI :: Interval{T}, symIbox :: IntervalBox{N,T}, params=nothing) where {N,T}
 
     # Some abbreviations
     @inbounds x0 = xTM1TMN[1].x0
-    @inbounds δtI = domain(xTM1TMN[1])
+    # @inbounds δtI = domain(xTM1TMN[1])
     Δx = IntervalBox(remainder.(xTM1TMN))
     Δx_picard = IntervalBox(remainder.(xTM1TMN))
 
     j = 0
     while true
         if maximum(mag.(Δx)) < eps(maximum(constant_term.(constant_term.(xTM1TMN))))
-            # @show(j)
+            @show(j)
             return nothing
         end
 
@@ -203,10 +205,11 @@ function iterate_picard_contraction!(f!,
         if Δx_picard == Δx
             Δx = widen.(Δx)
             update_remainder!(xTM1TMN, Δx)
-            # @show(j)
+            @show(j)
             return nothing
         end
     end
+    @show(j)
     return nothing
 end
 
@@ -414,63 +417,40 @@ end
 """
     validated_step!
 """
-function validated_step!(f!,
-        t::Taylor1{T}, tp1::Taylor1{T},
-        xT1TMN    :: Vector{Taylor1{TaylorModelN{N,T,T}}},
-        dxT1TMN   :: Vector{Taylor1{TaylorModelN{N,T,T}}},
-        xauxT1TMN :: Vector{Taylor1{TaylorModelN{N,T,T}}},
+function validated_step!(f!, t::Taylor1{T}, tp1::Taylor1{T},
+        x         :: Vector{Taylor1{TaylorN{T}}},
+        dx        :: Vector{Taylor1{TaylorN{T}}},
+        xaux      :: Vector{Taylor1{TaylorN{T}}},
         xTM1TMN   :: Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         dxTM1TMN  :: Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        xT1TN     :: Vector{Taylor1{TaylorN{T}}},
-        vv        :: Vector{TaylorN{T}},
-        xTMN      :: Vector{TaylorModelN{N,T,T}},
-        t0::T, tmax::T, sign_δt::Int,
-        symIbox::IntervalBox{N,T},
+        xTMN      :: Vector{TaylorModelN{N,Interval{T},T}},
+        xv        :: Vector{IntervalBox{N,T}},
+        t0 :: T, tmax :: T, sign_δt :: Int,
+        symIbox::IntervalBox{N,T}, zbox::IntervalBox{N,T}, zI::Interval{T},
         nsteps::Int, orderT::Int, abstol::T, params, parse_eqs::Bool,
         check_property::Function = (t, x)->true;
         max_checkprop::Int = 25) where {N,T}
 
     # One step integration (non-validated)
-    # ts0 = time()
-    TaylorIntegration.__jetcoeffs!(
-        Val(parse_eqs), f!, tp1, xT1TMN, dxT1TMN, xauxT1TMN, params)
-
-    # Reset auxiliary arrays
-    for ind in eachindex(xT1TMN)
-        for ord = 0:orderT
-            @inbounds vv[ord+1] = polynomial(xT1TMN[ind][ord])
-        end
-        @inbounds xT1TN[ind] = Taylor1(copy(vv))
-    end
+    δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
 
     # Proposed time step
-    zbox = zero(symIbox[1])
-    δt = TaylorIntegration.stepsize(xT1TN, abstol)
-    # ts1 = time()
-    # println("TaylorIntegration.taylorstep! ", ts1-ts0)
-    # ts0 = time()
-    # TaylorIntegration.taylorstep!(f!, tp1, xT1TMN, dxT1TMN, xauxT1TMN, abstol, params, parse_eqs)
-    # ts1 = time()
-    # println("TaylorIntegration.taylorstep! ", ts1-ts0)
     δt  = min(δt, sign_δt*(tmax-t0))
     δtI = sign_δt * Interval(0, δt)
 
-    # Construct xTM1TMN's of order `orderT`
-    # ts0 = time()
-    Δx = IntervalBox(remainder.(xTM1TMN))# Δx = IntervalBox(Interval{T}(0,0), N)
-    # @show(Δx)
+    # Construct xTM1TMN's
+    Δx = zbox
     @inbounds for ind in eachindex(xTM1TMN)
-        xTM1TMN[ind] = TaylorModel1(
-            Taylor1(copy(xT1TMN[ind].coeffs), orderT), Δx[ind], zbox, δtI)
+        xTM1TMN[ind] = TaylorModel1(Taylor1(
+            TaylorModelN.(x[ind].coeffs, zI, (zbox,), (symIbox,)), orderT),
+            Δx[ind], zI, δtI)
     end
-    # ts1 = time()
-    # println("Construct xTM1TMN ", ts1-ts0)
 
     # Validate (existence and unicity) of the solution; the function updates
     # `xTM1TMN` which contains the valid domain δtI where the solution is proved
     # to exist and satisfy unicity, and the remainder.
     # ts0 = time()
-    validate_solution!(f!, xTM1TMN, dxTM1TMN, xTMN, t, symIbox,
+    validate_solution!(f!, xTM1TMN, dxTM1TMN, xTMN, xv, t, symIbox,
         sign_δt, params, check_property=check_property)
     # ts1 = time()
     # println("validate_solution! ", ts1-ts0)
@@ -503,54 +483,40 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
     # Output
     tout = Array{T}(undef, maxsteps+1)
     xout = Array{TaylorModel1{TaylorModelN{N,T,T},T}}(undef, dof, maxsteps+1)
-    qout = Array{R}(undef, dof, maxsteps+1)
+    xBout = Array{IntervalBox{N,T}}(undef, maxsteps+1)
     #
     # Internals
-    xT1TMN    = Array{Taylor1{TaylorModelN{N,T,T}}}(undef, dof)
-    dxT1TMN   = Array{Taylor1{TaylorModelN{N,T,T}}}(undef, dof)
-    xauxT1TMN = Array{Taylor1{TaylorModelN{N,T,T}}}(undef, dof)
+    x     = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    dx    = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    xaux  = Array{Taylor1{TaylorN{T}}}(undef, dof)
     xTM1TMN   = Array{TaylorModel1{TaylorModelN{N,T,T},T}}(undef, dof)
     dxTM1TMN  = Array{TaylorModel1{TaylorModelN{N,T,T},T}}(undef, dof)
-    xTMN      = Array{TaylorModelN{N,T,T}}(undef, dof)
-    # xv        = Vector{R}(undef, dof)
-    xT1TN    = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    vv       = Array{TaylorN{T}}(undef, orderTp1)
-    rem      = Array{R}(undef, dof)
-    q_absrem = Array{T}(undef, dof)
-    q_shrink = Array{T}(undef, dof)
+    xTMN      = Array{TaylorModelN{N,R,T}}(undef, dof)
+    xv        = Vector{IntervalBox{N,T}}(undef, 1)
+    # q_absrem = Array{T}(undef, dof)
+    # q_shrink = Array{T}(undef, dof)
     # s_method = :shrink_wrapping
-    s_method = :absorb_remainder
+    # s_method = :absorb_remainder
 
     # Set initial conditions and output vectors
     # ts0 = time()
     @inbounds tout[1] = t0
     @inbounds for i in eachindex(xTM1TMN)
         qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
-        xT1TMN[i] = Taylor1(TaylorModelN(qaux, zI, zbox, symIbox), orderTp1)
-        xTM1TMN[i] = TaylorModel1(Taylor1(copy(xT1TMN[i].coeffs), orderT), zI, zI, zI)
-        rem[i] = zI
-        q_absrem[i] = zero(T)
-        q_shrink[i] = one(T)
-        xout[i,1] = TaylorModel1(Taylor1(copy(xT1TMN[i].coeffs), orderT), zI, zI, zI)
-        if s_method == :shrink_wrapping
-            qout[i,1] = copy(q_shrink[i])
-        else
-            qout[i,1] = copy(q_absrem[i])
-        end
+        x[i] = Taylor1( qaux, orderT)
+        dx[i] = x[i]
+        xTM1TMN[i] = TaylorModel1(Taylor1(TaylorModelN(qaux, zI, zbox, symIbox), orderT), zI, zI, zI)
+        xout[i,1] = deepcopy(xTM1TMN[i])
+        # q_absrem[i] = zero(T)
+        # q_shrink[i] = one(T)
+        # if s_method == :shrink_wrapping
+        #     qout[i,1] = copy(q_shrink[i])
+        # else
+        #     qout[i,1] = copy(q_absrem[i])
+        # end
     end
-    # ts1 = time()
-    # println("initial conditions ", ts1-ts0)
-
-    # Determine if specialized jetcoeffs! method exists (built by @taylorize)
-    parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
-    if parse_eqs
-        try
-            TaylorIntegration.jetcoeffs!(Val(f!), t, x, dx, params)
-        catch
-            parse_eqs = false
-        end
-    end
-    xBout[1] = evaluate(evaluate(xTM1TMN, zI), symIbox)
+    xv[1] = evaluate(evaluate(xTM1TMN, zI), symIbox)
+    xBout[1] = xv[1]
     # ts1 = time()
     # println("initial conditions ", ts1-ts0)
 
@@ -563,9 +529,10 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         # @show(t[0])
         # Validated step of the integration
         # ts0 = time()
-        δt = validated_step!(f!, t, tp1, xT1TMN, dxT1TMN, xauxT1TMN,
-            xTM1TMN, dxTM1TMN, xT1TN, vv, xTMN,
-            t0, tmax, sign_δt, symIbox,
+        δt = validated_step!(f!, t, tp1,
+            x, dx, xaux,
+            xTM1TMN, dxTM1TMN, xTMN, xv,
+            t0, tmax, sign_δt, symIbox, zbox, zI,
             nsteps, orderT, abstol, params, parse_eqs, check_property)
         # ts1 = time()
         # println("validated_step! ", ts1-ts0)
@@ -577,50 +544,19 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
         @inbounds t[0] = t0
         @inbounds tout[nsteps] = t0
         δtI = domain(xTM1TMN[1])
+        xBout[nsteps] = xv[1]#evaluate(evaluate(xTM1TMN, δtI), symIbox)
         @inbounds for i in eachindex(xTM1TMN)
-            qaux = fp_rpa( xTM1TMN[i](δt) )
-            xTMN[i] = qaux
-            rem[i] = remainder(qaux)
-            xT1TMN[i] = Taylor1(qaux, orderTp1)
+            aux = x[i](δt)
+            x[i]  = Taylor1( aux, orderT )
+            dx[i] = Taylor1( zero(aux), orderT )
+            # qaux = fp_rpa( xTM1TMN[i](δt) )
+            # xTMN[i] = qaux
             xout[i, nsteps] = deepcopy(xTM1TMN[i])
-            if s_method == :shrink_wrapping
-                qout[i, nsteps] = copy(q_shrink[i])
-            else
-                qout[i, nsteps] = copy(q_absrem[i])
-            end
-        end
-
-        # Use `absorb_remainder!` if necessary
-        if maximum(mag.(rem)) > 1.0e-6
-            # @show(rem)
-            # ts0 = time()
-            if s_method == :shrink_wrapping
-                q_shrink .= shrink_wrapping!(xTMN)
-            else
-                q_absrem .= absorb_remainder!(xTMN)
-            end
-            # ts1 = time()
-            @. rem = remainder(xTMN)
-            # @show(rem)
-            if s_method == :shrink_wrapping
-                # println("shrink_wrapping! ", ts1-ts0)
-                # @show(q_shrink)
-            else
-                # println("absorb_remainder! ", ts1-ts0)
-                # @show(q_absrem)
-            end
-            @inbounds for i in eachindex(xTM1TMN)
-                qaux = xTMN[i]
-                rem[i] = remainder(qaux)
-                xT1TMN[i] = Taylor1(qaux, orderTp1)
-                if s_method == :shrink_wrapping
-                    qout[i, nsteps] = copy(q_shrink[i])
-                    q_shrink[i] = one(T)
-                else
-                    qout[i, nsteps] = copy(q_absrem[i])
-                    q_absrem[i] = zero(T)
-                end
-            end
+            # if s_method == :shrink_wrapping
+            #     qout[i, nsteps] = copy(q_shrink[i])
+            # else
+            #     qout[i, nsteps] = copy(q_absrem[i])
+            # end
         end
         # println()
 
@@ -667,5 +603,5 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
     end
 
-    return view(tout, 1:nsteps), view(xout, :, 1:nsteps), view(qout, :, 1:nsteps)
+    return view(tout, 1:nsteps), view(xBout, 1:nsteps), view(xout, :, 1:nsteps)#, view(qout, :, 1:nsteps)
 end

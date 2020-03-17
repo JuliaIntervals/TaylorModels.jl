@@ -11,7 +11,7 @@ setformat(:full)
 interval_rand(X::Interval{T}) where {T} = X.lo + rand(T) * (X.hi - X.lo)
 interval_rand(X::IntervalBox) = interval_rand.(X)
 
-@testset "Tests for `validated_integ`" begin
+@testset "Tests for `validated_integ`: Harmonic oscillator" begin
     @testset "Forward integration" begin
         @taylorize function falling_ball!(dx, x, p, t)
             dx[1] = x[2]
@@ -33,19 +33,20 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
         normalized_box = IntervalBox(-1 .. 1, Val(orderQ))
 
-        tTM, qTM, qq = validated_integ(falling_ball!, q0, δq0,
+        tTM, qB, qTM = validated_integ(falling_ball!, q0, δq0,
             tini, tend, orderQ, orderT, abstol)
 
-        @test size(qq) == size(qTM)
-        @test size(qq)[2] == size(qTM)[2] == length(tTM)
+        @test length(qB) == size(qTM)[2] == length(tTM)
         @test length(tTM) < 501
 
         for n = 2:length(tTM)
             for it = 1:10
-                δt = interval_rand(domain(qTM[1,n]))
+                δtI = domain(qTM[1,n])
+                δt = interval_rand(δtI)
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
                 @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                @test all(q .⊆ qB[n])
             end
         end
     end
@@ -70,11 +71,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
         normalized_box = IntervalBox(-1 .. 1, Val(orderQ))
 
-        tTM, qTM, qq = validated_integ(falling_ball!, q0, δq0,
+        tTM, qB, qTM = validated_integ(falling_ball!, q0, δq0,
             tini, tend, orderQ, orderT, abstol)
 
-        @test size(qq) == size(qTM)
-        @test size(qq)[2] == size(qTM)[2] == length(tTM)
+        @test length(qB) == size(qTM)[2] == length(tTM)
         @test length(tTM) < 501
 
         for n = 2:length(tTM)
@@ -83,6 +83,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
                 @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                @test all(q .⊆ qB[n])
             end
         end
     end
