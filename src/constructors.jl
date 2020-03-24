@@ -31,6 +31,9 @@ for TM in tupleTMs
         # Outer constructors
         $(TM)(pol::Taylor1{T}, rem::Interval{S},
             x0::Interval{S}, dom::Interval{S}) where {T,S} = $(TM){T,S}(pol, rem, x0, dom)
+        
+        # Constructor just chainging the remainder
+        $(TM)(u::$(TM){T, S}, Δ::Interval{S}) where {T, S} = $(TM){T, S}(u.pol, Δ, u.x0, u.dom) 
 
         # Short-cut for independent variable
         $(TM)(ord::Integer, x0, dom::Interval{T}) where {T} =
@@ -47,7 +50,7 @@ for TM in tupleTMs
         # convenience constructors with same n, x0, I:
         # TaylorModel1(f, p, Δ) = TaylorModel1(f.n, f.x0, f.dom, p, Δ)
         # TaylorModel1(f, Δ) = TaylorModel1(f, f.p, Δ)
-
+    
         # Functions to retrieve the order and remainder
         get_order(tm::$TM) = get_order(tm.pol)
         remainder(tm::$TM) = tm.rem
@@ -124,6 +127,9 @@ end
 # Outer constructors
 TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S}, dom::IntervalBox{N,S}) where {N,T,S} =
     TaylorModelN{N,T,S}(pol, rem, x0, dom)
+
+# Constructor for just changing the remainder
+TaylorModelN(u::TaylorModelN{N, T, S}, Δ::R) where {N, T, S, R} = TaylorModelN{N, T, S}(u.pol, Δ, u.x0, u.dom) 
 
 # Short-cut for independent variable
 TaylorModelN(nv::Integer, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) where {N,T} =
