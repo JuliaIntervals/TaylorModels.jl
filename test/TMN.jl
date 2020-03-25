@@ -42,6 +42,10 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test ym == TaylorModelN(2, _order, b0, ib0)
         @test TaylorModelN( b1[1], 2, b0, ib0) ==
                 TaylorModelN(TaylorN(b1[1], _order), zi, b0, ib0)
+        
+        @test TaylorModelN(xm, -1..1) == TaylorModelN{2, Interval{Float64}, Float64}(xT, -1..1, b0, ib0)
+        @test TaylorModelN(1, _order, b0, ib0) == TaylorModelN(xm, zi)
+        @test TaylorModelN(2, _order, b0, ib0) == TaylorModelN(ym, zi)
 
         @test isa(xm, AbstractSeries)
         @test TaylorModelN{2, Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
