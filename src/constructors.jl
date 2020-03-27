@@ -30,10 +30,10 @@ for TM in tupleTMs
 
         # Outer constructors
         $(TM)(pol::Taylor1{T}, rem::Interval{S},
-            x0::Interval{S}, dom::Interval{S}) where {T,S} = $(TM){T,S}(pol, rem, x0, dom)
-        
+            x0, dom::Interval{S}) where {T,S} = $(TM){T,S}(pol, rem, interval(x0), dom)
+
         # Constructor just chainging the remainder
-        $(TM)(u::$(TM){T, S}, Δ::Interval{S}) where {T, S} = $(TM){T, S}(u.pol, Δ, u.x0, u.dom) 
+        $(TM)(u::$(TM){T,S}, Δ::Interval{S}) where {T,S} = $(TM){T,S}(u.pol, Δ, u.x0, u.dom)
 
         # Short-cut for independent variable
         $(TM)(ord::Integer, x0, dom::Interval{T}) where {T} =
@@ -44,13 +44,9 @@ for TM in tupleTMs
             $(TM)(ord, Interval(mid(dom)), dom)
 
         # Short-cut for a constant TM
-        $(TM)(a::Interval{T}, ord::Integer, x0::Interval{T},
-            dom::Interval{T}) where {T} = $(TM)(Taylor1([a], ord), zero(dom), x0, dom)
+        $(TM)(a::T, ord::Integer, x0::Interval{S}, dom::Interval{S}) where
+            {T,S} = $(TM)(Taylor1([a], ord), zero(dom), x0, dom)
 
-        # convenience constructors with same n, x0, I:
-        # TaylorModel1(f, p, Δ) = TaylorModel1(f.n, f.x0, f.dom, p, Δ)
-        # TaylorModel1(f, Δ) = TaylorModel1(f, f.p, Δ)
-    
         # Functions to retrieve the order and remainder
         get_order(tm::$TM) = get_order(tm.pol)
         remainder(tm::$TM) = tm.rem
@@ -63,10 +59,10 @@ end
 @doc doc"""
     TaylorModel1{T,S}
 
-Taylor model in 1 variable, providing a rigurous polynomial approximation
-(around `x_0`) and an absolute remainder `\Delta` for a function `f(x)` in one variable,
-valid in the interval `dom`. Corresponds to definition 2.1.3 of
-Mioara Joldes' thesis.
+Absolute Taylor model in 1 variable, providing a rigurous polynomial approximation
+given by a Taylor polynomial `pol` (around `x0`) and an absolute remainder
+`rem` for a function `f(x)` in one variable, valid in the interval `dom`.
+This corresponds to definition 2.1.3 of Mioara Joldes' thesis.
 
 Fields:
 - `pol`: polynomial approximation, represented as `TaylorSeries.Taylor1`
@@ -74,19 +70,19 @@ Fields:
 - `x0` : expansion point
 - `dom`: domain, interval over which the Taylor model is defined / valid
 
-The approximation `f(x) = \sum_{i=0}^n p_i (x - x_0)^i + \Delta` is
-satisfied for all `x\in dom` (`0\in\Delta`); `n` is the order (degree)
-of the polynomial `p(x)`.
+The approximation ``f(x) = p(x) + \Delta`` is satisfied for all
+``x\in \mathcal{D}`` (``0\in \Delta``); `n` is the order (degree)
+of the polynomial ``p(x)=\sum_{i=0}^n p_i (x - x_0)^i``.
 
 """ TaylorModel1
 
 @doc doc"""
     RTaylorModel1{T,S}
 
-Taylor model in 1 variable, providing a rigurous polynomial approximation
-(around `x_0`) and a relative remainder `\delta` for a function `f(x)` in one variable,
-valid in the interval `dom`. Corresponds to definition 2.3.2 of
-Mioara Joldes' thesis.
+Relative Taylor model in 1 variable, providing a rigurous polynomial approximation
+given by a Taylor polynomial `pol` (around `x0`) and a relative remainder
+`rem` for a function `f(x)` in one variable, valid in the interval `dom`.
+This corresponds to definition 2.3.2 of Mioara Joldes' thesis.
 
 Fields:
 - `pol`: polynomial approximation, represented as `TaylorSeries.Taylor1`
@@ -94,8 +90,9 @@ Fields:
 - `x0` : expansion point
 - `dom`: domain, interval over which the Taylor model is defined / valid
 
-The approximation `f(x) = \sum_i p_i (x - x_0)^i + \delta (x - x_0)^{n+1}` is
-satisfied for all `x\in dom`; `n` is the order (degree) of the polynomial `p(x)`.
+The approximation ``f(x) = p(x) + \delta (x - x_0)^{n+1}`` is satisfied for all
+``x\in \mathcal{D}``; `n` is the order (degree) of the polynomial
+``p(x)=\sum_{i=0}^n p_i (x - x_0)^i``.
 
 """ RTaylorModel1
 
@@ -125,11 +122,12 @@ struct TaylorModelN{N,T,S} <: AbstractSeries{T}
 end
 
 # Outer constructors
-TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S}, dom::IntervalBox{N,S}) where {N,T,S} =
-    TaylorModelN{N,T,S}(pol, rem, x0, dom)
+TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S},
+    dom::IntervalBox{N,S}) where {N,T,S} = TaylorModelN{N,T,S}(pol, rem, x0, dom)
 
 # Constructor for just changing the remainder
-TaylorModelN(u::TaylorModelN{N, T, S}, Δ::R) where {N, T, S, R} = TaylorModelN{N, T, S}(u.pol, Δ, u.x0, u.dom) 
+TaylorModelN(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
+    TaylorModelN{N,T,S}(u.pol, Δ, u.x0, u.dom)
 
 # Short-cut for independent variable
 TaylorModelN(nv::Integer, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) where {N,T} =
