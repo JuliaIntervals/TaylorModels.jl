@@ -48,10 +48,10 @@ for TM in tupleTMs
             {T,S} = $(TM)(Taylor1([a], ord), zero(dom), x0, dom)
 
         # Functions to retrieve the order and remainder
-        get_order(tm::$TM) = get_order(tm.pol)
-        remainder(tm::$TM) = tm.rem
-        polynomial(tm::$TM) = tm.pol
-        domain(tm::$TM) = tm.dom
+        @inline get_order(tm::$TM) = get_order(tm.pol)
+        @inline remainder(tm::$TM) = tm.rem
+        @inline polynomial(tm::$TM) = tm.pol
+        @inline domain(tm::$TM) = tm.dom
     end
 end
 
@@ -140,7 +140,7 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
 
 # Functions to retrieve the order and remainder
-get_order(tm::TaylorModelN) = tm.pol.order
-remainder(tm::TaylorModelN) = tm.rem
-polynomial(tm::TaylorModelN) = tm.pol
-domain(tm::TaylorModelN) = tm.dom
+@inline get_order(tm::TaylorModelN) = tm.pol.order
+@inline remainder(tm::TaylorModelN) = tm.rem
+@inline polynomial(tm::TaylorModelN) = tm.pol
+@inline domain(tm::TaylorModelN) = tm.dom
