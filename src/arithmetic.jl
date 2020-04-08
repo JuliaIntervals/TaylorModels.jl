@@ -54,12 +54,55 @@ for TM in tupleTMs
 
         *(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(a.pol*b, b*a.rem, a.x0, a.dom)
 
+        # Multiplication
+        function *(a::$TM, b::$TM)
+            @assert tmdata(a) == tmdata(b)
+            a_order = get_order(a)
+            b_order = get_order(b)
+            rnegl_order = a_order + b_order
+            aux = a.dom - a.x0
+
+            # Returned polynomial
+            res = a.pol * b.pol
+            order = res.order
+
+            # Remainder of the product
+            if $TM == TaylorModel1
+
+                # Remaing terms of the product as reduced Taylor1 (factored polynomial)
+                rnegl = Taylor1(zero(res[0]), rnegl_order)
+                for k in order+1:rnegl_order
+                    @inbounds for i = 0:k
+                        (i > a_order || k-i > b_order) && continue
+                        rnegl[k] += a.pol[i] * b.pol[k-i]
+                    end
+                end
+
+                # Bound for the neglected part of the product of polynomials
+                Δnegl = rnegl(aux)
+                Δ = remainder_product(a, b, aux, Δnegl)
+
+            else
+
+                # Remaing terms of the product as reduced Taylor1 (factored polynomial)
+                rnegl = Taylor1(zero(res[0]), rnegl_order-order)
+                for k in order+1:rnegl_order
+                    @inbounds for i = 0:k
+                        (i > a_order || k-i > b_order) && continue
+                        rnegl[k-order-1] += a.pol[i] * b.pol[k-i]
+                    end
+                end
+                Δnegl = rnegl(aux)
+                Δ = remainder_product(a, b, aux, Δnegl, order)
+            end
+
+            return $TM(res, Δ, a.x0, a.dom)
+        end
 
         # Division by numbers
         /(a::$TM, b::T) where {T<:NumberNotSeries} = a * inv(b)
 
         /(b::T, a::$TM) where {T<:NumberNotSeries} = b * inv(a)
-
 
         # Power
         function ^(a::$TM, r::Number)
@@ -78,51 +121,15 @@ for TM in tupleTMs
     end
 end
 
-
-# Multiplication
-function *(a::TaylorModel1, b::TaylorModel1)
-    @assert tmdata(a) == tmdata(b)
-    order, ordermax = minmax(get_order(a), get_order(b))
-
-    # Polynomial product with extended order
-    aext = Taylor1(copy(a.pol.coeffs), order+ordermax)
-    bext = Taylor1(copy(b.pol.coeffs), order+ordermax)
-    res = aext * bext
-
-    # Returned polynomial
-    bext = Taylor1( copy(res.coeffs[1:order+1]) )
-
-    # Bound for the neglected part of the product of polynomials
-    aux = a.dom - a.x0
-    Δnegl = bound_truncation(TaylorModel1, res, aux, order)
-
-    # Remainder of the product
+# Remainder of the product
+function remainder_product(a, b, aux, Δnegl)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
-
-    return TaylorModel1(bext, Δ, a.x0, a.dom)
+    return Δ
 end
-
-function *(a::TaylorModel1{TaylorModelN{N,T,S},S},
-        b::TaylorModel1{TaylorModelN{N,T,S},S}) where{N,T,S}
-    @assert tmdata(a) == tmdata(b)
-    order, ordermax = minmax(get_order(a), get_order(b))
-
-    # Polynomial product with extended order
-    aext = Taylor1(copy(a.pol.coeffs), order+ordermax)
-    bext = Taylor1(copy(b.pol.coeffs), order+ordermax)
-    res = aext * bext
-
-    # Returned polynomial
-    bext = Taylor1( copy(res.coeffs[1:order+1]) )
-
-    # Bound for the neglected part of the product of polynomials
-    aux = a.dom - a.x0
-    Δnegl = bound_truncation(TaylorModel1, res, aux, order)
-    # Δnegl = res(aux)
-
-    # Remainder of the product
+function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
+        b::TaylorModel1{TaylorModelN{N,T,S},S}, aux, Δnegl) where {N,T,S}
     Δa = a.pol(aux)
     Δb = b.pol(aux)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
@@ -130,35 +137,15 @@ function *(a::TaylorModel1{TaylorModelN{N,T,S},S},
     # Evaluate at the TMN centered domain
     auxN = a[0].dom - a[0].x0
     ΔN = Δ(auxN)
-
-    return TaylorModel1(bext, ΔN, a.x0, a.dom)
+    return ΔN
 end
-
-function *(a::RTaylorModel1, b::RTaylorModel1)
-    @assert tmdata(a) == tmdata(b)
-    order, ordermax = minmax(get_order(a), get_order(b))
-
-    # Polynomial product with extended order
-    aext = Taylor1(copy(a.pol.coeffs), order+ordermax)
-    bext = Taylor1(copy(b.pol.coeffs), order+ordermax)
-    res = aext * bext
-
-    # Returned polynomial
-    bext = Taylor1( copy(res.coeffs[1:order+1]) )
-
-    # Bound for the neglected part of the product (properly factorized)
-    aux = a.dom - a.x0
-    Δnegl = bound_truncation(RTaylorModel1, res, aux, order)
-
-    # Remainder of the product
+function remainder_product(a::RTaylorModel1, b::RTaylorModel1, aux, Δnegl, order)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
     V = aux^(order+1)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
-
-    return RTaylorModel1(bext, Δ, a.x0, a.dom)
+    return Δ
 end
-
 
 # Division
 function /(a::TaylorModel1, b::TaylorModel1)
