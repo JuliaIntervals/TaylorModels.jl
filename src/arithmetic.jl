@@ -234,6 +234,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     a_order = get_order(a)
     b_order = get_order(b)
     rnegl_order = a_order + b_order
+    @assert rnegl_order ≤ get_order()
     aux = a.dom - a.x0
 
     # Returned polynomial
