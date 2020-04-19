@@ -231,27 +231,33 @@ end
 # Multiplication
 function *(a::TaylorModelN, b::TaylorModelN)
     @assert tmdata(a) == tmdata(b)
-    order, ordermax = minmax(get_order(a), get_order(b))
-
-    # Polynomial product with extended order
-    @assert order+ordermax ≤ get_order()
-    aext = TaylorN(copy(a.pol.coeffs), order+ordermax)
-    bext = TaylorN(copy(b.pol.coeffs), order+ordermax)
-    res = aext * bext
+    a_order = get_order(a)
+    b_order = get_order(b)
+    rnegl_order = a_order + b_order
+    @assert rnegl_order ≤ get_order()
+    aux = a.dom - a.x0
 
     # Returned polynomial
-    bext = TaylorN( copy(res.coeffs[1:order+1]) )
+    res = a.pol * b.pol
+    order = res.order
+
+    # Remaing terms of the product
+    vv = Array{HomogeneousPolynomial{eltype(res)}}(undef, rnegl_order-order)
+    suma = Array{promote_type(eltype(res), eltype(a.dom))}(undef, rnegl_order-order)
+    for k in order+1:rnegl_order
+        vv[k-order] = HomogeneousPolynomial(zero(eltype(res)), k)
+        @inbounds for i = 0:k
+            (i > a_order || k-i > b_order) && continue
+            TaylorSeries.mul!(vv[k-order], a.pol[i], b.pol[k-i])
+        end
+        suma[k-order] = vv[k-order](aux)
+    end
 
     # Bound for the neglected part of the product of polynomials
-    aux = a.dom - a.x0
-    Δnegl = bound_truncation(TaylorModelN, res, aux, order)
+    Δnegl = sum( sort!(suma, by=abs2) )
+    Δ = remainder_product(a, b, aux, Δnegl)
 
-    # Remainder of the product
-    Δa = a.pol(aux)
-    Δb = b.pol(aux)
-    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
-
-    return TaylorModelN(bext, Δ, a.x0, a.dom)
+    return TaylorModelN(res, Δ, a.x0, a.dom)
 end
 
 
