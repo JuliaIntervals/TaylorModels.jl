@@ -120,9 +120,9 @@ a definite sign.
 function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
     #
     if inf(fTd(I)) ≥ 0
-        return @interval(fT(I.lo), fT(I.hi))
+        return Interval(fT(I.lo), fT(I.hi))
     elseif sup(fTd(I)) ≤ 0
-        return @interval(fT(I.hi), fT(I.lo))
+        return Interval(fT(I.hi), fT(I.lo))
     end
     return fT(I)
 end
