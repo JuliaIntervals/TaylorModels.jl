@@ -10,7 +10,8 @@ the whole interval `I`, in order to compute the Lagrange remainder.
 
 If `polfI[end]` has a definite sign, then it is monotonic in the intervals
 [I.lo, x0] and [x0.hi, I.hi], which is exploited; otherwise, it is used
-to compute the Lagrange remainder.
+to compute the Lagrange remainder. This corresponds to Prop 2.2.1 in Mioara
+Joldes PhD thesis (pp 52).
 
 """
 function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
@@ -45,7 +46,7 @@ the whole interval `I`, in order to compute the Lagrange remainder.
 
 If `polfI[end]` has a definite sign, then it is monotonic in the interval `I`,
 which is exploited; otherwise, the last coefficients bounds the relative
-remainder.
+remainder. This corresponds to Prop 2.3.7 in Mioara Joldes' PhD thesis (pp 67).
 
 """
 function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
@@ -119,9 +120,9 @@ a definite sign.
 function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
     #
     if inf(fTd(I)) ≥ 0
-        return @interval(fT(I.lo), fT(I.hi))
+        return Interval(fT(I.lo), fT(I.hi))
     elseif sup(fTd(I)) ≤ 0
-        return @interval(fT(I.hi), fT(I.lo))
+        return Interval(fT(I.hi), fT(I.lo))
     end
     return fT(I)
 end

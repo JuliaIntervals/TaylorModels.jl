@@ -44,7 +44,8 @@ for TM in tupleTMs
 
         # Basic division
         function basediv(a::$TM, b::$TM)
-            invb = rpa(x->inv(x), b)
+            # invb = rpa(x->inv(x), b)
+            invb = inv(b)
             return a * invb
         end
 

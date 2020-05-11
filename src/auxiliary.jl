@@ -36,44 +36,46 @@ for TM in tupleTMs
 end
 
 
-# fixorder
-function fixorder(a::TaylorModel1, b::TaylorModel1)
-    @assert tmdata(a) == tmdata(b)
-    a.pol.order == b.pol.order && return a, b
+# fixorder and bound_truncation
+for TM in tupleTMs
+    @eval begin
+        function fixorder(a::$TM, b::$TM)
+            @assert tmdata(a) == tmdata(b)
+            a.pol.order == b.pol.order && return a, b
 
-    order = min(a.pol.order, b.pol.order)
-    apol0, bpol0 = polynomial.((a, b))
-    apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
+            order = min(a.pol.order, b.pol.order)
+            apol0, bpol0 = polynomial.((a, b))
+            apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
-    # Bound for the neglected part of the polynomial
-    dom = a.dom - a.x0
-    Δa = bound_truncation(TaylorModel1, apol0, dom, order) + remainder(a)
-    Δb = bound_truncation(TaylorModel1, bpol0, dom, order) + remainder(b)
+            # Bound for the neglected part of the polynomial
+            dom = a.dom - a.x0
+            Δa = bound_truncation($TM, apol0, dom, order) + remainder(a)
+            Δb = bound_truncation($TM, bpol0, dom, order) + remainder(b)
 
-    return TaylorModel1(apol, Δa, a.x0, a.dom), TaylorModel1(bpol, Δb, b.x0, b.dom)
+            return $TM(apol, Δa, a.x0, a.dom), $TM(bpol, Δb, b.x0, b.dom)
+        end
+
+        function bound_truncation(::Type{$TM}, a::Taylor1, aux::Interval,
+                order::Int)
+            order ≥ get_order(a) && return zero(aux)
+            if $TM == TaylorModel1
+                res = Taylor1(copy(a.coeffs))
+                res[0:order] .= zero(res[0])
+            else
+                res = Taylor1(copy(a.coeffs[order+2:end]), get_order(a)-order )
+            end
+            return res(aux)
+        end
+
+    end
 end
-function fixorder(a::RTaylorModel1, b::RTaylorModel1)
-    @assert tmdata(a) == tmdata(b)
-    a.pol.order == b.pol.order && return a, b
 
-    order = min(a.pol.order, b.pol.order)
-    apol0, bpol0 = polynomial.((a, b))
-    apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
-
-    # Bound for the neglected part of the polynomial
-    dom = a.dom - a.x0
-    Δa = bound_truncation(RTaylorModel1, apol0, dom, order) + remainder(a)
-    Δb = bound_truncation(RTaylorModel1, bpol0, dom, order) + remainder(b)
-
-    return RTaylorModel1(apol, Δa, a.x0, a.dom), RTaylorModel1(bpol, Δb, b.x0, b.dom)
-end
 function fixorder(a::TaylorModelN, b::TaylorModelN)
     @assert tmdata(a) == tmdata(b)
     a.pol.order == b.pol.order && return a, b
 
     order = min(a.pol.order, b.pol.order)
     apol0, bpol0 = polynomial.((a, b))
-    @show(typeof(apol0))
     apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
     # Bound for the neglected part of the polynomial
@@ -84,21 +86,6 @@ function fixorder(a::TaylorModelN, b::TaylorModelN)
     return TaylorModelN(apol, Δa, a.x0, a.dom), TaylorModelN(bpol, Δb, b.x0, b.dom)
 end
 
-
-# bound_truncation
-function bound_truncation(::Type{TaylorModel1}, a::Taylor1, aux::Interval,
-        order::Int)
-    order ≥ get_order(a) && return zero(aux)
-    res = Taylor1(copy(a.coeffs))
-    res[0:order] .= zero(res[0])
-    return res(aux)
-end
-function bound_truncation(::Type{RTaylorModel1}, a::Taylor1, aux::Interval,
-        order::Int)
-    order ≥ get_order(a) && return zero(aux)
-    res = Taylor1(copy(a.coeffs[order+2:end]), get_order(a)-order )
-    return res(aux)
-end
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::IntervalBox,
         order::Int)
     order ≥ get_order(a) && return zero(aux[1])
