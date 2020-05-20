@@ -5,6 +5,8 @@
 for TM in tupleTMs
     # Evaluates the TM1{T,S} at a::T; the computation includes the remainder
     @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
+        @assert iscontained(a, tm)
+
         _order = get_order(tm)
 
         if $(TM) == TaylorModel1
@@ -66,6 +68,7 @@ end
 # Evaluates the TMN on an interval, or array with proper dimension;
 # the computation includes the remainder
 function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
+    @assert iscontained(a, tm)
     _order = get_order(tm)
 
     Δ = tm.rem
@@ -76,6 +79,7 @@ end
 (tm::TaylorModelN{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
 
 function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
+    @assert iscontained(a, tm)
     _order = get_order(tm)
 
     Δ = tm.rem
