@@ -8,7 +8,7 @@ using RecipesBase
     Δ = remainder(ffp)
     ξ0 = ffp.x0
 
-    alpha --> 0.3
+    seriesalpha --> 0.3
     seriestype := :shape
 
     xs = range(f.dom.lo, stop=f.dom.hi, length=100)
@@ -28,7 +28,7 @@ end
     ξ0 = ffp.x0
     order = get_order(f)+1
 
-    alpha --> 0.5
+    seriesalpha --> 0.5
     seriestype := :shape
 
     xs = range(f.dom.lo, stop=f.dom.hi, length=100)
