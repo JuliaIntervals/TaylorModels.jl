@@ -11,9 +11,10 @@ setformat(:full)
 
 
 function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
-    xfp = diam(tma.dom)*(rand()-0.5) + mid(tma.x0)
+    x0 = expansion_point(tma)
+    xfp = diam(tma.dom)*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
-    range = tma((xfp .. xfp)-tma.x0)
+    range = tma((xfp .. xfp)-x0)
     bb = ftest(xbf) ∈ range
     bb || @show(ftest, xfp, xbf, ftest(xbf), range)
     return bb
@@ -68,6 +69,7 @@ end
         @test remainder(tv) == interval(0.0)
         @test polynomial(tv) == Taylor1(Interval{Float64},5)
         @test domain(tv) == ii0
+        @test expansion_point(tv) == x0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
 
@@ -404,6 +406,7 @@ end
         @test remainder(tv) == interval(0.0)
         @test polynomial(tv) == Taylor1(Interval{Float64},5)
         @test domain(tv) == ii0
+        @test expansion_point(tv) == x0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
 

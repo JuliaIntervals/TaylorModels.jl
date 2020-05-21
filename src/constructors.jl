@@ -52,6 +52,7 @@ for TM in tupleTMs
         @inline remainder(tm::$TM) = tm.rem
         @inline polynomial(tm::$TM) = tm.pol
         @inline domain(tm::$TM) = tm.dom
+        @inline expansion_point(tm::$TM) = tm.x0
     end
 end
 
@@ -144,3 +145,4 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
 @inline remainder(tm::TaylorModelN) = tm.rem
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
+@inline expansion_point(tm::TaylorModelN) = tm.x0
