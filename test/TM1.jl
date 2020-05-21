@@ -11,7 +11,6 @@ setformat(:full)
 
 
 function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
-    ii = tma.dom
     xfp = diam(tma.dom)*(rand()-0.5) + mid(tma.x0)
     xbf = big(xfp)
     range = tma((xfp .. xfp)-tma.x0)
@@ -52,7 +51,7 @@ end
         @test tv == TaylorModel1(5, 0.0, ii0)
         @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test TaylorModel1(5, 0.7, ii1) == TaylorModel1(5, interval(0.7), ii1)
-        
+
         @test TaylorModel1(tv, ii0) == TaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
         @test TaylorModel1(5, x0, ii0) == TaylorModel1(tv, x0)
         @test TaylorModel1(5, ii0) == TaylorModel1(tv, x0)
@@ -164,8 +163,9 @@ end
         ii = ii0
         xx = x0
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, TaylorModel1(order, xx, ii))
-        tmb = ftest(TaylorModel1(order, xx, ii))
+        tm = TaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -174,6 +174,8 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         # test for TM with scalar coefficients
         @test fp_rpa(tmc) == tmc
@@ -182,8 +184,9 @@ end
         ii = ii1
         xx = x1
         ftest = x -> exp(x)
-        tma = rpa(ftest, TaylorModel1(order, xx, ii))
-        tmb = ftest(TaylorModel1(order, xx, ii))
+        tm = TaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -192,13 +195,16 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         order = 3
         ii = ii0
         xx = x0
         ftest = x -> sin(x)
-        tma = rpa(ftest, TaylorModel1(order, xx, ii))
-        tmb = ftest(TaylorModel1(order, xx, ii))
+        tm = TaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -207,13 +213,16 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         order = 2
         ii = ii1
         xx = x1
         ftest = x -> sqrt(x)
-        tma = rpa(ftest, TaylorModel1(order, xx, ii))
-        tmb = ftest(TaylorModel1(order, xx, ii))
+        tm = TaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -222,13 +231,16 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         order = 5
         ii = ii1
         xx = x1
         ftest = x -> inv(x)
-        tma = rpa(ftest, TaylorModel1(order, xx, ii))
-        tmb = ftest(TaylorModel1(order, xx, ii))
+        tm = TaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
@@ -237,18 +249,23 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8
         ii = interval(-0.5, 1.0)
         xx = interval(mid(ii))
         ftest = x -> x*(x-1.1)*(x+2)*(x+2.2)*(x+2.5)*(x+3)*sin(1.7*x+0.5)
-        tma = rpa(ftest, TaylorModel1(order, xx, ii))
-        tmb = ftest(TaylorModel1(order, xx, ii))
+        tm = TaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
     end
 
     @testset "Composition of functions and their inverses" begin
@@ -368,7 +385,7 @@ end
         @test tv == RTaylorModel1(5, 0.0, ii0)
         @test RTaylorModel1(x1, 5, x0, ii0) == RTaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test RTaylorModel1(5, 0.7, ii1) == RTaylorModel1(5, interval(0.7), ii1)
-        
+
         @test RTaylorModel1(tv, ii0) == RTaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
         @test RTaylorModel1(5, x0, ii0) == RTaylorModel1(tv, x0)
         @test RTaylorModel1(5, ii0) == RTaylorModel1(tv, x0)
@@ -483,8 +500,9 @@ end
         ii = ii0
         xx = x0
         ftest = x -> exp(x)-1
-        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
-        tmb = ftest(RTaylorModel1(order, xx, ii))
+        tm = RTaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -494,6 +512,8 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         # test for TM with scalar coefficients
         @test fp_rpa(tmc) == tmc
@@ -502,8 +522,9 @@ end
         ii = ii1
         xx = x1
         ftest = x -> exp(x)
-        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
-        tmb = ftest(RTaylorModel1(order, xx, ii))
+        tm = RTaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -513,13 +534,16 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         order = 3
         ii = ii0
         xx = x0
         ftest = x -> sin(x)
-        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
-        tmb = ftest(RTaylorModel1(order, xx, ii))
+        tm = RTaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -529,13 +553,16 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         order = 2
         ii = ii1
         xx = x1
         ftest = x -> sqrt(x)
-        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
-        tmb = ftest(RTaylorModel1(order, xx, ii))
+        tm = RTaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -545,13 +572,16 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         order = 5
         ii = ii1
         xx = x1
         ftest = x -> inv(x)
-        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
-        tmb = ftest(RTaylorModel1(order, xx, ii))
+        tm = RTaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test tma == tmb
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
@@ -561,18 +591,23 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8
         ii = interval(-0.5, 1.0)
         xx = interval(mid(ii))
         ftest = x -> x*(x-1.1)*(x+2)*(x+2.2)*(x+2.5)*(x+3)*sin(1.7*x+0.5)
-        tma = rpa(ftest, RTaylorModel1(order, xx, ii))
-        tmb = ftest(RTaylorModel1(order, xx, ii))
+        tm = RTaylorModel1(order, xx, ii)
+        tma = rpa(ftest, tm)
+        tmb = ftest(tm)
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
+        @test_throws AssertionError tmb(ii.hi+1.0)
+        @test_throws AssertionError tmb(ii+Interval(1))
     end
 
     @testset "Composition of functions and their inverses" begin

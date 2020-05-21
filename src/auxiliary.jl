@@ -20,6 +20,7 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
     end
 end
 
+# setindex, iscontained
 for TM in tupleTMs
     @eval begin
         setindex!(a::$TM{T,S}, x::T, n::Integer) where {T<:Number, S} = a.pol[n] = x
@@ -32,8 +33,13 @@ for TM in tupleTMs
         end
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
         setindex!(a::$TM{T,S}, x::Array{T,1}, c::Colon) where {T<:Number, S} = a[c] .= x
+
+        iscontained(a, tm::$TM) = a ∈ domain(tm)-tm.x0
+        iscontained(a::Interval, tm::$TM) = a ⊆ domain(tm)-tm.x0
     end
 end
+iscontained(a, tm::TaylorModelN) = a ∈ domain(tm)-tm.x0
+iscontained(a::IntervalBox, tm::TaylorModelN) = a ⊆ domain(tm)-tm.x0
 
 
 # fixorder and bound_truncation

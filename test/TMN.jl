@@ -42,7 +42,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test ym == TaylorModelN(2, _order, b0, ib0)
         @test TaylorModelN( b1[1], 2, b0, ib0) ==
                 TaylorModelN(TaylorN(b1[1], _order), zi, b0, ib0)
-        
+
         @test TaylorModelN(xm, -1..1) == TaylorModelN(xT, -1..1, b0, ib0)
         @test TaylorModelN(1, _order, b0, ib0) == TaylorModelN(xm, zi)
         @test TaylorModelN(2, _order, b0, ib0) == TaylorModelN(ym, zi)
@@ -129,6 +129,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+        @test_throws AssertionError tmb(ib1.+1.0)
+        @test_throws AssertionError tmb(ib1.+Interval(1))
 
         # test for TM with scalar coefficients
         tmc = fp_rpa(tma)
@@ -145,6 +147,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+        @test_throws AssertionError tmb(ib1.+1.0)
+        @test_throws AssertionError tmb(ib1.+Interval(1))
 
         ftest = x -> sin(x)
         xx = 1- xm^2 + ym
@@ -157,6 +161,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+        @test_throws AssertionError tmb(ib1.+1.0)
+        @test_throws AssertionError tmb(ib1.+Interval(1))
 
         ftest = x -> sqrt(x)
         xx = xm^2 + ym
@@ -169,6 +175,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+        @test_throws AssertionError tmb(ib1.+1.0)
+        @test_throws AssertionError tmb(ib1.+Interval(1))
 
         ftest = x -> inv(x)
         xx = 1 + xm + ym
@@ -181,6 +189,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
+        @test_throws AssertionError tmb(ib1.+1.0)
+        @test_throws AssertionError tmb(ib1.+Interval(1))
     end
 
     @testset "Composition of functions and their inverses" begin
