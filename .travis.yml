@@ -8,7 +8,6 @@ os:
 julia:
   - 1.1
   - 1.4
-  - 1.5
   - nightly
 
 notifications:
