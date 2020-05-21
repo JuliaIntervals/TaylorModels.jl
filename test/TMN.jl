@@ -10,11 +10,12 @@ setformat(:full)
 
 
 function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
-    xfp = diam.(tma.dom) .* (rand(N) .- 0.5) .+ mid(tma.x0)
+    x0 = expansion_point(tma)
+    xfp = diam.(tma.dom) .* (rand(N) .- 0.5) .+ mid(x0)
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
-    range = evaluate(tma, ib-tma.x0)
-    bb = all(ftest(xx(xbf .- mid(tma.x0))) ⊆ range)
+    range = evaluate(tma, ib-x0)
+    bb = all(ftest(xx(xbf .- mid(x0))) ⊆ range)
     bb || @show(ftest, ib, xbf, ftest(xbf...), range)
     return bb
 end
@@ -59,7 +60,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         # Tests for get_order and remainder
         @test get_order() == 6
         @test get_order(xm) == 2
+        @test domain(xm) == ib0
         @test remainder(ym) == zi
+        @test expansion_point(ym) == b0
         @test constant_term(xm) == interval(0.0)
         @test constant_term(ym) == interval(0.0)
         @test linear_polynomial(xm) == xT
