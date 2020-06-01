@@ -146,3 +146,44 @@ a definite sign.
 
 """
 bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomial(fT), I)
+
+function linear_dominated_bounder(tm::TaylorModel1; ϵ=1e-10, max_iter=5)
+    d = 1.
+    Dn = tm.dom
+    Dm = Dn
+    Pm = Taylor1(copy(tm.pol.coeffs))
+    bound = interval(0.)
+    n_iter = 0
+    while d > ϵ && n_iter < max_iter
+        if n_iter == 0
+            x0 = mid(Dn) - mid(tm.x0)
+        else
+            x0 = mid(Dn) - mid(Dm)
+        end
+        c = mid(Dn)
+        Pm = Taylor1(copy(Pm.coeffs))
+        update!(Pm, x0)
+        linear = Taylor1(copy(Pm.coeffs))
+        linear[2:end] = zero(linear[0])
+        non_linear = Taylor1(copy(Pm.coeffs))
+        non_linear[0:1] = zero(non_linear[0])
+        Li = linear[1]
+        I1 = linear(Dn - c)
+        Ih = non_linear(Dn - c)
+        bound = I1.lo + Ih
+        d = diam(bound)
+        n_iter += 1
+        if Li == 0
+            break
+        elseif Li > 0
+            new_hi = minimum([Dn.lo + (d / abs(Li)), Dn.hi])
+            Dm = Dn
+            Dn = interval(Dn.lo, new_hi)
+        else
+            new_lo = maximum([Dn.hi - (d / abs(Li)), Dn.lo])
+            Dm = Dn
+            Dn = interval(new_lo, Dn.hi)
+        end
+    end
+    return bound
+end
