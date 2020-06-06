@@ -147,16 +147,23 @@ a definite sign.
 """
 bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomial(fT), I)
 
-function linear_dominated_bounder(tm::TaylorModel1; ϵ=1e-10, max_iter=5)
+"""
+    linear_dominated_bounder(fT::TaylorModel1, ϵ=1e-3::Float, max_iter=5::Int)
+
+Compute a tighter polynomial bound for the Taylor model `fT` by the linear
+dominated bounder algorithm. The linear dominated algorithm is applied until
+the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
+"""
+function linear_dominated_bounder(fT::TaylorModel1; ϵ=1e-3, max_iter=5)
     d = 1.
-    Dn = tm.dom
+    Dn = fT.dom
     Dm = Dn
-    Pm = Taylor1(copy(tm.pol.coeffs))
+    Pm = Taylor1(copy(fT.pol.coeffs))
     bound = interval(0.)
     n_iter = 0
     while d > ϵ && n_iter < max_iter
         if n_iter == 0
-            x0 = mid(Dn) - mid(tm.x0)
+            x0 = mid(Dn) - mid(fT.x0)
         else
             x0 = mid(Dn) - mid(Dm)
         end
