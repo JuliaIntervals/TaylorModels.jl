@@ -199,6 +199,50 @@ function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) w
     return interval(bound.lo, hi) + fT.rem
 end
 
+function linear_dominated_bounder(fT::TaylorModelN; ϵ=1e-5, max_iter=5)
+    d = 1.
+    Dn = fT.dom
+    Dm = Dn
+    x0 = [mid(x0) for x0 in fT.x0]
+    Pm = TaylorN(deepcopy(fT.pol.coeffs))
+    bound = interval(0.)
+    boxes = typeof(Dn)[]
+    n_iter = 0
+    while d > ϵ && n_iter < max_iter
+        x0 = Array(mid(Dn) - mid(Dm))
+        update!(Pm, x0)
+        linear_part = Pm[1]
+        linear_coeffs = [coeff for coeff in linear_part.coeffs]
+        linear = TaylorN(deepcopy(Pm.coeffs))
+        linear[2:end] = zero(linear[0][1])
+        non_linear = TaylorN(deepcopy(Pm.coeffs))
+        non_linear[0:1] = zero(non_linear[0][1])
+        centered_domain = Dn .- mid(Dn)
+        I1 = linear(centered_domain)
+        Ih = non_linear(centered_domain)
+        bound = I1.lo + Ih
+        d = diam(bound)
+        n_iter += 1
+        new_boxes = Interval[]
+        for (idx, box) in enumerate(Dn)
+            Li = linear_coeffs[idx]
+            if Li == 0
+                Dni = box
+            elseif Li < 0
+                lo = maximum([box.hi - (d / abs(Li)), box.lo])
+                Dni = interval(lo, box.hi)
+            else
+                hi = minimum([box.lo + (d / abs(Li)), box.hi])
+                Dni = interval(box.lo, hi)
+            end
+            push!(new_boxes, Dni)
+        end
+        Dm = Dn
+        Dn = IntervalBox(new_boxes...)
+    end
+    return bound
+end
+
 """
     quadratic_fast_bounder(fT::TaylorModel)
 
