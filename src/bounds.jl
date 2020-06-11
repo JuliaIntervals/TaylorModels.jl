@@ -154,7 +154,7 @@ Compute a tighter polynomial bound for the Taylor model `fT` by the linear
 dominated bounder algorithm. The linear dominated algorithm is applied until
 the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
 """
-function linear_dominated_bounder(fT::TaylorModel1; ϵ=1e-3, max_iter=5)
+function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) where {S, T}
     d = 1.
     Dn = fT.dom
     Dm = Dn
@@ -168,13 +168,14 @@ function linear_dominated_bounder(fT::TaylorModel1; ϵ=1e-3, max_iter=5)
             x0 = mid(Dn) - mid(Dm)
         end
         c = mid(Dn)
-        Pm = Taylor1(copy(Pm.coeffs))
         update!(Pm, x0)
-        linear = Taylor1(copy(Pm.coeffs))
-        linear[2:end] = zero(linear[0])
-        non_linear = Taylor1(copy(Pm.coeffs))
-        non_linear[0:1] = zero(non_linear[0])
-        Li = linear[1]
+        linear = Taylor1(Pm.coeffs[1:2], Pm.order)
+        non_linear = Pm - linear
+        if S <: Interval
+            Li = mid(linear[1])
+        else
+            Li = linear[1]
+        end
         I1 = linear(Dn - c)
         Ih = non_linear(Dn - c)
         bound = I1.lo + Ih
@@ -183,14 +184,15 @@ function linear_dominated_bounder(fT::TaylorModel1; ϵ=1e-3, max_iter=5)
         if Li == 0
             break
         elseif Li > 0
-            new_hi = minimum([Dn.lo + (d / abs(Li)), Dn.hi])
+            new_hi = min(Dn.lo + (d / abs(Li)), Dn.hi)
             Dm = Dn
             Dn = interval(Dn.lo, new_hi)
         else
-            new_lo = maximum([Dn.hi - (d / abs(Li)), Dn.lo])
+            new_lo = max(Dn.hi - (d / abs(Li)), Dn.lo)
             Dm = Dn
             Dn = interval(new_lo, Dn.hi)
         end
     end
-    return bound
+    hi = fT(fT.dom - fT.x0).hi
+    return interval(bound.lo, hi)
 end
