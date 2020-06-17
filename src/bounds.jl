@@ -153,6 +153,8 @@ bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomi
 Compute a tighter polynomial bound for the Taylor model `fT` by the linear
 dominated bounder algorithm. The linear dominated algorithm is applied until
 the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
+The returned bound corresponds to the improved polynomial bound with the remainder
+of the `TaylorModel` included.
 """
 function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) where {S, T}
     d = 1.
@@ -193,6 +195,6 @@ function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) w
             Dn = interval(new_lo, Dn.hi)
         end
     end
-    hi = fT(fT.dom - fT.x0).hi
-    return interval(bound.lo, hi)
+    hi = fT.pol(fT.dom - fT.x0).hi
+    return interval(bound.lo, hi) + fT.rem
 end
