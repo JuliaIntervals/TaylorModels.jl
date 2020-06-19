@@ -212,3 +212,19 @@ function quadratic_fast_bounder(fT::TaylorModel1)
         return interval(bound.lo, hi) + fT.rem
     end
 end
+
+function quadratic_fast_bounder(fT::TaylorModelN)
+    P = fT.pol
+    H = Matrix(TaylorSeries.hessian(P))
+    if isposdef(H)
+        P1 = -P[1].coeffs
+        xn = H \ P1
+        x = set_variables("x", numvars=length(xn))
+        Qxn = 0.5 * (x - xn)' * H * (x - xn)
+        bound = (P - Qxn)(fT.dom - fT.x0)
+        hi = P(fT.dom - fT.x0).hi
+        return interval(bound.lo, hi) + fT.rem
+    else
+        return fT(fT.dom - fT.x0)
+    end
+end
