@@ -198,3 +198,17 @@ function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) w
     hi = fT.pol(fT.dom - fT.x0).hi
     return interval(bound.lo, hi) + fT.rem
 end
+
+function quadratic_fast_bounder(fT::TaylorModel1)
+    P = fT.pol
+    if signbit(P[2])
+        return fT(fT.dom - fT.x0)
+    else
+        x0 = -P[1] / (2 * P[2])
+        x = Taylor1(fT.pol.order)
+        Qx0 = (x - x0) * P[2] * (x - x0)
+        bound = (P - Qx0)(fT.dom - fT.x0)
+        hi = P(fT.dom - fT.x0).hi
+        return interval(bound.lo, hi) + fT.rem
+    end
+end
