@@ -35,6 +35,8 @@ export remainder, polynomial, domain, expansion_point,
     rpa, fp_rpa, bound_remainder,
     validated_integ
 
+export linear_dominated_bounder
+
 include("constructors.jl")
 include("auxiliary.jl")
 include("promotion.jl")

@@ -146,3 +146,55 @@ a definite sign.
 
 """
 bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomial(fT), I)
+
+"""
+    linear_dominated_bounder(fT::TaylorModel1, ϵ=1e-3::Float, max_iter=5::Int)
+
+Compute a tighter polynomial bound for the Taylor model `fT` by the linear
+dominated bounder algorithm. The linear dominated algorithm is applied until
+the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
+The returned bound corresponds to the improved polynomial bound with the remainder
+of the `TaylorModel` included.
+"""
+function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) where {S, T}
+    d = 1.
+    Dn = fT.dom
+    Dm = Dn
+    Pm = Taylor1(copy(fT.pol.coeffs))
+    bound = interval(0.)
+    n_iter = 0
+    while d > ϵ && n_iter < max_iter
+        if n_iter == 0
+            x0 = mid(Dn) - mid(fT.x0)
+        else
+            x0 = mid(Dn) - mid(Dm)
+        end
+        c = mid(Dn)
+        update!(Pm, x0)
+        linear = Taylor1(Pm.coeffs[1:2], Pm.order)
+        non_linear = Pm - linear
+        if S <: Interval
+            Li = mid(linear[1])
+        else
+            Li = linear[1]
+        end
+        I1 = linear(Dn - c)
+        Ih = non_linear(Dn - c)
+        bound = I1.lo + Ih
+        d = diam(bound)
+        n_iter += 1
+        if Li == 0
+            break
+        elseif Li > 0
+            new_hi = min(Dn.lo + (d / abs(Li)), Dn.hi)
+            Dm = Dn
+            Dn = interval(Dn.lo, new_hi)
+        else
+            new_lo = max(Dn.hi - (d / abs(Li)), Dn.lo)
+            Dm = Dn
+            Dn = interval(new_lo, Dn.hi)
+        end
+    end
+    hi = fT.pol(fT.dom - fT.x0).hi
+    return interval(bound.lo, hi) + fT.rem
+end
