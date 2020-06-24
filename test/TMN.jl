@@ -263,5 +263,52 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             "Interval(2.0, 2.0) y + Interval(1.0, 1.0) x² + Interval(2.0, 2.0) x y + " *
             "Interval(1.0, 1.0) y² + Interval(0.0, 0.0)"
     end
+    
+    @testset "Tests for bounders" begin
+        @testset "Tests for quadratic fast bounder" begin
+            δ = 0.1
+            
+            beale(x, y) = (1.5 - x * (1 - y))^2 + (2.25 - x * (1 - y^2))^2 + 
+                          (2.625 - x * (1 - y^3))^2
+            beale_min = 0.
+            ib0 = IntervalBox((3 - δ) .. (3 + δ), (0.5 - δ) .. (0.5 + δ))
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = beale(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test bound_qfb ⊆ bound_naive_tm
+            @test beale_min ∈ bound_qfb
+
+            rosenbrock(x, y) = 100 * (y - x^2)^2 + (1 - x)^2
+            rosenbrock_min = 0.
+            ib0 = IntervalBox((1. - δ) .. (1. + δ), (1. - δ) .. (1 + δ))
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = rosenbrock(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test bound_qfb ⊆ bound_naive_tm
+            @test rosenbrock_min ∈ bound_qfb
+            
+            mccormick(x, y) = sin(x + y) + (x - y)^2 - 1.5x + 2.5y + 1
+            mccormick_min = -1.9133
+            ib0 = IntervalBox((-0.54719 - δ) .. (-0.54719 + δ),
+                              (-1.54719 - δ) .. (-1.54719 + δ))
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = mccormick(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test bound_qfb ⊆ bound_naive_tm
+            @test mccormick_min ∈ bound_qfb
+        end
+    end
 
 end
