@@ -373,49 +373,88 @@ end
     end
 
     @testset "Tests for bounders" begin
-        order = 3
-        
-        f(x) = 1 + x^5 - x^4
-        D = 0.9375 .. 1
-        x0 = mid(D)
-        tm = TaylorModel1(order, x0, D)
-        fT = f(tm)
-        bound_interval = f(D)
-        bound_naive_tm = fT(fT.dom - fT.x0)
-        bound_ldb = linear_dominated_bounder(fT)
-        @test diam(bound_ldb) <= diam(bound_interval)
-        @test bound_ldb ⊆ bound_naive_tm
+        @testset "Tests for linear dominated bounder" begin
+            order = 3
+            
+            f(x) = 1 + x^5 - x^4
+            D = 0.9375 .. 1
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test bound_ldb ⊆ bound_naive_tm
 
-        D = 0.75 .. 0.8125
-        x0 = mid(D)
-        tm = TaylorModel1(order, x0, D)
-        fT = f(tm)
-        bound_interval = f(D)
-        bound_naive_tm = fT(fT.dom - fT.x0)
-        bound_ldb = linear_dominated_bounder(fT)
-        @test diam(bound_ldb) <= diam(bound_interval)
-        @test bound_ldb ⊆ bound_naive_tm
-        
-        f(x) = x^2 * sin(x)
-        D = -1.875 .. -1.25
-        x0 = mid(D)
-        tm = TaylorModel1(order, x0, D)
-        fT = f(tm)
-        bound_interval = f(D)
-        bound_naive_tm = fT(fT.dom - fT.x0)
-        bound_ldb = linear_dominated_bounder(fT)
-        @test diam(bound_ldb) <= diam(bound_interval)
-        @test bound_ldb ⊆ bound_naive_tm
-        
-        D = 1.25 .. 1.875
-        x0 = mid(D)
-        tm = TaylorModel1(order, x0, D)
-        fT = f(tm)
-        bound_interval = f(D)
-        bound_naive_tm = fT(fT.dom - fT.x0)
-        bound_ldb = linear_dominated_bounder(fT)
-        @test diam(bound_ldb) <= diam(bound_interval)
-        @test bound_ldb ⊆ bound_naive_tm
+            D = 0.75 .. 0.8125
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test bound_ldb ⊆ bound_naive_tm
+            
+            f(x) = x^2 * sin(x)
+            D = -1.875 .. -1.25
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test bound_ldb ⊆ bound_naive_tm
+            
+            D = 1.25 .. 1.875
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test bound_ldb ⊆ bound_naive_tm
+        end
+
+        @testset "Tests for quadratic fast bounder" begin
+            order = 3
+            
+            f(x) = 1 + x^5 - x^4
+            D = 0.75 .. 0.8125
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test bound_qfb ⊆ bound_naive_tm 
+            @test diam(bound_qfb) <= diam(bound_ldb)
+
+            f(x) = x^2 * sin(x)
+            D = -2.5 .. -1.875
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test bound_qfb ⊆ bound_naive_tm
+            @test diam(bound_qfb) <= diam(bound_ldb)
+
+            f(x) = x^3 * cos(x) + x
+            D = 3.75 .. 4.375
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test bound_qfb ⊆ bound_naive_tm
+            @test diam(bound_qfb) <= diam(bound_ldb)
+        end
     end
 end
 
