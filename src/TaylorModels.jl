@@ -5,7 +5,7 @@ using Reexport
 @reexport using TaylorIntegration
 
 using IntervalRootFinding
-using LinearAlgebra: norm, mul!, cond
+using LinearAlgebra: norm, mul!, cond, isposdef
 
 using RecipesBase
 
