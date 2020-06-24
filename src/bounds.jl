@@ -198,3 +198,55 @@ function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) w
     hi = fT.pol(fT.dom - fT.x0).hi
     return interval(bound.lo, hi) + fT.rem
 end
+
+"""
+    quadratic_fast_bounder(fT::TaylorModel)
+
+Compute a *tighter* polynomial bound by the quadratic fast bounder.
+The returned bound corresponds to the "improved" polynomial bound
+with the remainder of the `TaylorModel` included. This "improved" bound
+can be one of the following two:
+    1) An improved bound: if the domain of `fT` has a local minimizer,
+       then an improved bound is returned.
+    2) Original TaylorModel bound: if the local minimizer criteria is not
+       satisfied, then the original bound of `fT` is returned.
+
+This algorithm is a slight modification to the Makino & Berz algorithm.
+For this algorithm the linear part is bounded by solving a simple
+set of linear equations (compared to the iterative procedure by Makino & Berz).
+"""
+function quadratic_fast_bounder(fT::TaylorModel1)
+    P = fT.pol
+    bound_tm = fT(fT.dom - fT.x0)
+    if signbit(P[2])
+        return bound_tm
+    else
+        x0 = -P[1] / (2 * P[2])
+        x = Taylor1(fT.pol.order)
+        Qx0 = (x - x0) * P[2] * (x - x0)
+        bound_qfb = (P - Qx0)(fT.dom - fT.x0)
+        hi = P(fT.dom - fT.x0).hi
+        bound_qfb = interval(bound_qfb.lo, hi) + fT.rem
+        bound = bound_qfb ∩ bound_tm
+        return bound
+    end
+end
+
+function quadratic_fast_bounder(fT::TaylorModelN)
+    P = fT.pol
+    H = Matrix(TaylorSeries.hessian(P))
+    bound_tm = fT(fT.dom - fT.x0)
+    if isposdef(H)
+        P1 = -P[1].coeffs
+        xn = H \ P1
+        x = set_variables("x", numvars=length(xn))
+        Qxn = 0.5 * (x - xn)' * H * (x - xn)
+        bound_qfb = (P - Qxn)(fT.dom - fT.x0)
+        hi = P(fT.dom - fT.x0).hi
+        bound_qfb = interval(bound_qfb.lo, hi) + fT.rem
+        bound = bound_qfb ∩ bound_tm
+        return bound
+    else
+        return bound_tm
+    end
+end

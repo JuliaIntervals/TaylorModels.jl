@@ -5,7 +5,7 @@ using Reexport
 @reexport using TaylorIntegration
 
 using IntervalRootFinding
-using LinearAlgebra: norm, mul!, cond
+using LinearAlgebra: norm, mul!, cond, isposdef
 
 using RecipesBase
 
@@ -35,7 +35,7 @@ export remainder, polynomial, domain, expansion_point,
     rpa, fp_rpa, bound_remainder,
     validated_integ
 
-export linear_dominated_bounder
+export linear_dominated_bounder, quadratic_fast_bounder
 
 include("constructors.jl")
 include("auxiliary.jl")
