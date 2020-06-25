@@ -199,25 +199,30 @@ function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) w
     return interval(bound.lo, hi) + fT.rem
 end
 
-function linear_dominated_bounder(fT::TaylorModelN; ϵ=1e-5, max_iter=5)
+function linear_dominated_bounder(fT::TaylorModelN{R, S, T}; ϵ=1e-5, max_iter=5) where {R, S, T}
     d = 1.
     Dn = fT.dom
     Dm = Dn
-    x0 = [mid(x0) for x0 in fT.x0]
     Pm = TaylorN(deepcopy(fT.pol.coeffs))
     bound = interval(0.)
-    boxes = typeof(Dn)[]
     n_iter = 0
     while d > ϵ && n_iter < max_iter
-        x0 = Array(mid(Dn) - mid(Dm))
+        if n_iter == 0
+            x0 = Array(mid(Dn) - mid(fT.x0))
+        else
+            x0 = Array(mid(Dn) - mid(Dm))
+        end
+        c = mid(Dn)
         update!(Pm, x0)
         linear_part = Pm[1]
-        linear_coeffs = [coeff for coeff in linear_part.coeffs]
-        linear = TaylorN(deepcopy(Pm.coeffs))
-        linear[2:end] = zero(linear[0][1])
-        non_linear = TaylorN(deepcopy(Pm.coeffs))
-        non_linear[0:1] = zero(non_linear[0][1])
-        centered_domain = Dn .- mid(Dn)
+        if S <: Interval
+            linear_coeffs = Float64[mid(coeff) for coeff in linear_part.coeffs]
+        else
+            linear_coeffs = Float64[coeff for coeff in linear_part.coeffs]
+        end
+        linear = TaylorN(deepcopy(Pm.coeffs[1:2]), Pm.order)
+        non_linear = Pm - linear
+        centered_domain = Dn .- c
         I1 = linear(centered_domain)
         Ih = non_linear(centered_domain)
         bound = I1.lo + Ih
@@ -229,10 +234,10 @@ function linear_dominated_bounder(fT::TaylorModelN; ϵ=1e-5, max_iter=5)
             if Li == 0
                 Dni = box
             elseif Li < 0
-                lo = maximum([box.hi - (d / abs(Li)), box.lo])
+                lo = max(box.hi - (d / abs(Li)), box.lo)
                 Dni = interval(lo, box.hi)
             else
-                hi = minimum([box.lo + (d / abs(Li)), box.hi])
+                hi = min(box.lo + (d / abs(Li)), box.hi)
                 Dni = interval(box.lo, hi)
             end
             push!(new_boxes, Dni)
@@ -240,7 +245,8 @@ function linear_dominated_bounder(fT::TaylorModelN; ϵ=1e-5, max_iter=5)
         Dm = Dn
         Dn = IntervalBox(new_boxes...)
     end
-    return bound
+    hi = fT.pol(fT.dom - fT.x0).hi
+    return interval(bound.lo, hi) + fT.rem
 end
 
 """
