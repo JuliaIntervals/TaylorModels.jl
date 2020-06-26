@@ -265,12 +265,58 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
     end
     
     @testset "Tests for bounders" begin
+        beale(x, y) = (1.5 - x * (1 - y))^2 + (2.25 - x * (1 - y^2))^2 + 
+                          (2.625 - x * (1 - y^3))^2
+        rosenbrock(x, y) = 100 * (y - x^2)^2 + (1 - x)^2
+        mccormick(x, y) = sin(x + y) + (x - y)^2 - 1.5x + 2.5y + 1
+        beale_min = rosenbrock_min = 0.
+        mccormick_min = -1.9133
+            
+        @testset "Tests for linear dominated bounder" begin
+            ib0 = IntervalBox(2.875 .. 3.0625, 0.5 .. 0.625) # A box near global minimum
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = beale(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
+            @test beale_min ∈ bound_ldb
+            
+            ib0 = IntervalBox(2.875 .. 3.0625, 0.375 .. 0.5)
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = beale(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
+            @test beale_min ∈ bound_ldb
+
+            ib0 = IntervalBox(1.01176 .. 1.1353, 0.888235 .. 1.01177)
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = rosenbrock(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
+            
+            ib0 = IntervalBox(-0.647059 .. -0.588235, -1.58824 .. -1.52941)
+            c = mid(ib0)
+            b0 = Interval(c[1]) × Interval(c[2])
+            xm = TaylorModelN(1, _order, b0, ib0)
+            ym = TaylorModelN(2, _order, b0, ib0)
+            fT = mccormick(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
+        end
         @testset "Tests for quadratic fast bounder" begin
             δ = 0.1
-            
-            beale(x, y) = (1.5 - x * (1 - y))^2 + (2.25 - x * (1 - y^2))^2 + 
-                          (2.625 - x * (1 - y^3))^2
-            beale_min = 0.
             ib0 = IntervalBox((3 - δ) .. (3 + δ), (0.5 - δ) .. (0.5 + δ))
             c = mid(ib0)
             b0 = Interval(c[1]) × Interval(c[2])
@@ -282,8 +328,6 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test bound_qfb ⊆ bound_naive_tm
             @test beale_min ∈ bound_qfb
 
-            rosenbrock(x, y) = 100 * (y - x^2)^2 + (1 - x)^2
-            rosenbrock_min = 0.
             ib0 = IntervalBox((1. - δ) .. (1. + δ), (1. - δ) .. (1 + δ))
             c = mid(ib0)
             b0 = Interval(c[1]) × Interval(c[2])
@@ -295,8 +339,6 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test bound_qfb ⊆ bound_naive_tm
             @test rosenbrock_min ∈ bound_qfb
             
-            mccormick(x, y) = sin(x + y) + (x - y)^2 - 1.5x + 2.5y + 1
-            mccormick_min = -1.9133
             ib0 = IntervalBox((-0.54719 - δ) .. (-0.54719 + δ),
                               (-1.54719 - δ) .. (-1.54719 + δ))
             c = mid(ib0)
@@ -310,5 +352,4 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test mccormick_min ∈ bound_qfb
         end
     end
-
 end
