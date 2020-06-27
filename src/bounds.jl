@@ -156,24 +156,20 @@ the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter
 The returned bound corresponds to the improved polynomial bound with the remainder
 of the `TaylorModel1` included.
 """
-function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) where {S, T}
+function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) where {T, S}
     d = 1.
     Dn = fT.dom
-    Dm = Dn
+    Dm = fT.x0
     Pm = Taylor1(copy(fT.pol.coeffs))
     bound = interval(0.)
     n_iter = 0
     while d > ϵ && n_iter < max_iter
-        if n_iter == 0
-            x0 = mid(Dn) - mid(fT.x0)
-        else
-            x0 = mid(Dn) - mid(Dm)
-        end
+        x0 = mid(Dn - Dm)
         c = mid(Dn)
         update!(Pm, x0)
         linear = Taylor1(Pm.coeffs[1:2], Pm.order)
         non_linear = Pm - linear
-        if S <: Interval
+        if T <: Interval
             Li = mid(linear[1])
         else
             Li = linear[1]
