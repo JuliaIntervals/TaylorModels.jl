@@ -208,26 +208,24 @@ the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter
 The returned bound corresponds to the improved polynomial bound with the remainder
 of the `TaylorModelN` included.
 """
-function linear_dominated_bounder(fT::TaylorModelN{R, S, T}; ϵ=1e-5, max_iter=5) where {R, S, T}
+function linear_dominated_bounder(fT::TaylorModelN{N, T, S}; ϵ=1e-5, max_iter=5) where {N, T, S}
     d = 1.
     Dn = fT.dom
-    Dm = Dn
+    Dm = fT.x0
     Pm = TaylorN(deepcopy(fT.pol.coeffs))
     bound = interval(0.)
     n_iter = 0
+    x0 = Array{S}(undef, N)
+    linear_coeffs = Array{Float64}(undef, N)
     while d > ϵ && n_iter < max_iter
-        if n_iter == 0
-            x0 = Array(mid(Dn) - mid(fT.x0))
-        else
-            x0 = Array(mid(Dn) - mid(Dm))
-        end
+        x0 .= mid(Dn - Dm)
         c = mid(Dn)
         update!(Pm, x0)
         linear_part = Pm[1]
-        if S <: Interval
-            linear_coeffs = Float64[mid(coeff) for coeff in linear_part.coeffs]
+        if T <: Interval
+            linear_coeffs .= mid.(linear_part.coeffs)
         else
-            linear_coeffs = Float64[coeff for coeff in linear_part.coeffs]
+            linear_coeffs .= linear_part.coeffs
         end
         linear = TaylorN(deepcopy(Pm.coeffs[1:2]), Pm.order)
         non_linear = Pm - linear
