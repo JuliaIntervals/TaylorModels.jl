@@ -283,12 +283,35 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
             @test beale_min ∈ bound_ldb
+
+            # Same as previous, but with Float64 coefficients
+            xT = TaylorN(Float64, 1, order=_order)
+            yT = TaylorN(Float64, 2, order=_order)
+            xT = xT + c[1]
+            yT = yT + c[2]
+            xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
+            ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
+            fT = beale(xm, ym)
+            @test bound_ldb ⊆ bound_naive_tm
+            @test beale_min ∈ bound_ldb
             
             ib0 = IntervalBox(2.875 .. 3.0625, 0.375 .. 0.5)
             c = mid(ib0)
             b0 = Interval(c[1]) × Interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
+            fT = beale(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
+            @test beale_min ∈ bound_ldb
+
+            xT = TaylorN(Float64, 1, order=_order)
+            yT = TaylorN(Float64, 2, order=_order)
+            xT = xT + c[1]
+            yT = yT + c[2]
+            xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
+            ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(fT.dom - fT.x0)
             bound_ldb = linear_dominated_bounder(fT)
@@ -304,12 +327,34 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             bound_naive_tm = fT(fT.dom - fT.x0)
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
+
+            xT = TaylorN(Float64, 1, order=_order)
+            yT = TaylorN(Float64, 2, order=_order)
+            xT = xT + c[1]
+            yT = yT + c[2]
+            xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
+            ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
+            fT = rosenbrock(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
             
             ib0 = IntervalBox(-0.647059 .. -0.588235, -1.58824 .. -1.52941)
             c = mid(ib0)
             b0 = Interval(c[1]) × Interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
+            fT = mccormick(xm, ym)
+            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_ldb = linear_dominated_bounder(fT)
+            @test bound_ldb ⊆ bound_naive_tm
+
+            xT = TaylorN(Float64, 1, order=_order)
+            yT = TaylorN(Float64, 2, order=_order)
+            xT = xT + c[1]
+            yT = yT + c[2]
+            xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
+            ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
             fT = mccormick(xm, ym)
             bound_naive_tm = fT(fT.dom - fT.x0)
             bound_ldb = linear_dominated_bounder(fT)
