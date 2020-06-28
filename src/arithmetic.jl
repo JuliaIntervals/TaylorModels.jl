@@ -126,9 +126,12 @@ end
 function remainder_product(a, b, aux, Δnegl)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
-    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
+    Δ₁ = Δa * b.rem + a.rem * (Δb + b.rem)
+    Δ₂ = Δb * a.rem + b.rem * (Δa + a.rem)
+    Δ = Δnegl + (Δ₁ ∩ Δ₂)
     return Δ
 end
+
 function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
         b::TaylorModel1{TaylorModelN{N,T,S},S}, aux, Δnegl) where {N,T,S}
     Δa = a.pol(aux)
