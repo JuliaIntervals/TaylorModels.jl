@@ -148,32 +148,28 @@ a definite sign.
 bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomial(fT), I)
 
 """
-    linear_dominated_bounder(fT::TaylorModel1, ϵ=1e-3::Float, max_iter=5::Int)
+    linear_dominated_bounder(fT::TaylorModel1, ϵ=1e-3::Float64, max_iter=5::Int)
 
 Compute a tighter polynomial bound for the Taylor model `fT` by the linear
 dominated bounder algorithm. The linear dominated algorithm is applied until
 the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
 The returned bound corresponds to the improved polynomial bound with the remainder
-of the `TaylorModel` included.
+of the `TaylorModel1` included.
 """
-function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) where {S, T}
+function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) where {T, S}
     d = 1.
     Dn = fT.dom
-    Dm = Dn
+    Dm = fT.x0
     Pm = Taylor1(copy(fT.pol.coeffs))
     bound = interval(0.)
     n_iter = 0
     while d > ϵ && n_iter < max_iter
-        if n_iter == 0
-            x0 = mid(Dn) - mid(fT.x0)
-        else
-            x0 = mid(Dn) - mid(Dm)
-        end
+        x0 = mid(Dn - Dm)
         c = mid(Dn)
         update!(Pm, x0)
         linear = Taylor1(Pm.coeffs[1:2], Pm.order)
         non_linear = Pm - linear
-        if S <: Interval
+        if T <: Interval
             Li = mid(linear[1])
         else
             Li = linear[1]
@@ -200,11 +196,68 @@ function linear_dominated_bounder(fT::TaylorModel1{S, T}; ϵ=1e-3, max_iter=5) w
 end
 
 """
-    quadratic_fast_bounder(fT::TaylorModel)
+    linear_dominated_bounder(fT::TaylorModelN, ϵ=1e-3::Float64, max_iter=5::Int)
+
+Compute a tighter polynomial bound for the Taylor model `fT` by the linear
+dominated bounder algorithm. The linear dominated algorithm is applied until
+the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
+The returned bound corresponds to the improved polynomial bound with the remainder
+of the `TaylorModelN` included.
+"""
+function linear_dominated_bounder(fT::TaylorModelN{N, T, S}; ϵ=1e-5, max_iter=5) where {N, T, S}
+    d = 1.
+    Dn = fT.dom
+    Dm = fT.x0
+    Pm = TaylorN(deepcopy(fT.pol.coeffs))
+    bound = interval(0.)
+    n_iter = 0
+    x0 = Array{S}(undef, N)
+    linear_coeffs = Array{Float64}(undef, N)
+    while d > ϵ && n_iter < max_iter
+        x0 .= mid(Dn - Dm)
+        c = mid(Dn)
+        update!(Pm, x0)
+        linear_part = Pm[1]
+        if T <: Interval
+            linear_coeffs .= mid.(linear_part.coeffs)
+        else
+            linear_coeffs .= linear_part.coeffs
+        end
+        linear = TaylorN(deepcopy(Pm.coeffs[1:2]), Pm.order)
+        non_linear = Pm - linear
+        centered_domain = Dn .- c
+        I1 = linear(centered_domain)
+        Ih = non_linear(centered_domain)
+        bound = I1.lo + Ih
+        d = diam(bound)
+        n_iter += 1
+        new_boxes = Interval[]
+        for (idx, box) in enumerate(Dn)
+            Li = linear_coeffs[idx]
+            if Li == 0
+                Dni = box
+            elseif Li < 0
+                lo = max(box.hi - (d / abs(Li)), box.lo)
+                Dni = interval(lo, box.hi)
+            else
+                hi = min(box.lo + (d / abs(Li)), box.hi)
+                Dni = interval(box.lo, hi)
+            end
+            push!(new_boxes, Dni)
+        end
+        Dm = Dn
+        Dn = IntervalBox(new_boxes...)
+    end
+    hi = fT.pol(fT.dom - fT.x0).hi
+    return interval(bound.lo, hi) + fT.rem
+end
+
+"""
+    quadratic_fast_bounder(fT::TaylorModel1)
 
 Compute a *tighter* polynomial bound by the quadratic fast bounder.
 The returned bound corresponds to the "improved" polynomial bound
-with the remainder of the `TaylorModel` included. This "improved" bound
+with the remainder of the `TaylorModel1` included. This "improved" bound
 can be one of the following two:
     1) An improved bound: if the domain of `fT` has a local minimizer,
        then an improved bound is returned.
@@ -232,6 +285,22 @@ function quadratic_fast_bounder(fT::TaylorModel1)
     end
 end
 
+"""
+    quadratic_fast_bounder(fT::TaylorModelN)
+
+Compute a *tighter* polynomial bound by the quadratic fast bounder.
+The returned bound corresponds to the "improved" polynomial bound
+with the remainder of the `TaylorModelN` included. This "improved" bound
+can be one of the following two:
+    1) An improved bound: if the domain of `fT` has a local minimizer,
+       then an improved bound is returned.
+    2) Original TaylorModel bound: if the local minimizer criteria is not
+       satisfied, then the original bound of `fT` is returned.
+
+This algorithm is a slight modification to the Makino & Berz algorithm.
+For this algorithm the linear part is bounded by solving a simple
+set of linear equations (compared to the iterative procedure by Makino & Berz).
+"""
 function quadratic_fast_bounder(fT::TaylorModelN)
     P = fT.pol
     H = Matrix(TaylorSeries.hessian(P))
