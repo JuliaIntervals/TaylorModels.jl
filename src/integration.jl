@@ -43,6 +43,13 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
     return TaylorModel1( integ_pol, ΔN, a.x0, a.dom )
 end
 
+function integrate(fT::TaylorModelN, which=1, x0=0)
+    p̂ = integrate(fT.pol, which, x0)
+    r = TaylorN(p̂.coeffs[1:fT.pol.order+1])
+    s = TaylorN(p̂.coeffs[fT.pol.order+2:end])
+    Δ = s(fT.dom - fT.x0) + fT.rem * (fT.dom[which] - fT.x0[which])
+    return TaylorModelN(r, Δ, fT.x0, fT.dom)
+end
 
 """
     bound_integration(xTM1::TaylorModel1{Interval{S},S}, δt::Interval{S})
@@ -65,6 +72,9 @@ function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
     aux = δ^order / (order+1)
     Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
     return IntervalBox(Δ)
+end
+function bound_integration(fT::TaylorModelN)
+
 end
 
 
