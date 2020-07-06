@@ -128,7 +128,7 @@ function remainder_product(a, b, aux, Δnegl)
     Δb = b.pol(aux)
     Δ₁ = Δa * b.rem + a.rem * (Δb + b.rem)
     Δ₂ = Δb * a.rem + b.rem * (Δa + a.rem)
-    Δ = Δnegl + (Δ₁ ∩ Δ₂)
+    Δ = (Δnegl + Δ₁) ∩ (Δnegl + Δ₂)
     return Δ
 end
 
