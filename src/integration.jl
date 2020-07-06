@@ -45,8 +45,9 @@ end
 
 function integrate(fT::TaylorModelN, which=1, x0=0.)
     p̂ = integrate(fT.pol, which, x0)
-    r = TaylorN(p̂.coeffs[1:fT.pol.order+1])
-    s = TaylorN(p̂.coeffs[fT.pol.order+2:end])
+    order = fT.pol.order
+    r = TaylorN(p̂.coeffs[1:order+1])
+    s = TaylorN(p̂.coeffs[order+2:end])
     Δ = bound_integration(fT, s, which)
     return TaylorModelN(r, Δ, fT.x0, fT.dom)
 end
