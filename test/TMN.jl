@@ -20,6 +20,11 @@ function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T
     return bb
 end
 
+function get_random_point(ib0::IntervalBox{N, T}) where {N, T}
+    xmid = mid(ib0)
+    return diam.(ib0) .* (rand(N) .- 0.5) .+ xmid
+end
+
 const _order = 2
 const _order_max = 2*(_order+1)
 set_variables(Interval{Float64}, [:x, :y], order=_order_max)
@@ -241,6 +246,27 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         tmb = acos(tma)
         @test tmb == acos(cos(1+ym))
         @test sup(norm(tmb.pol - (1+ym).pol, Inf)) < 1.0e-15
+    end
+
+    @testset "Tests for integrate" begin
+        f(x, y) = cos(x)
+        ∫fdx(x, y) = sin(x)
+        ∫fdy(x, y) = cos(x) * y
+        ib0 = (0. .. 1.) × (0. .. 1.)
+        b0 = (0.5 .. 0.5) × (0.5 .. 0.5)
+        xm = TaylorModelN(1, _order, b0, ib0)
+        ym = TaylorModelN(2, _order, b0, ib0)
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+        fTintx = ∫fdx(xm, ym)
+        fTinty = ∫fdy(xm, ym)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            @test ∫fdx(xtest...) ∈ ∫fTdx(IntervalBox(xtest) - b0)
+            @test ∫fdy(xtest...) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+        end
     end
 
     @testset "Display" begin
