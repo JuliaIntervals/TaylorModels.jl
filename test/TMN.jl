@@ -249,23 +249,54 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
     end
 
     @testset "Tests for integrate" begin
-        f(x, y) = cos(x)
-        ∫fdx(x, y) = sin(x)
-        ∫fdy(x, y) = cos(x) * y
         ib0 = (0. .. 1.) × (0. .. 1.)
         b0 = (0.5 .. 0.5) × (0.5 .. 0.5)
         xm = TaylorModelN(1, _order, b0, ib0)
         ym = TaylorModelN(2, _order, b0, ib0)
+        
+        f(x, y) = cos(x)
+        ∫fdx(x, y) = sin(x)
+        ∫fdy(x, y) = cos(x) * y
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
         ∫fTdy = integrate(fT, :y)
-        fTintx = ∫fdx(xm, ym)
-        fTinty = ∫fdy(xm, ym)
 
         for ind in 1:_num_tests
             xtest = get_random_point(ib0)
-            @test ∫fdx(xtest...) ∈ ∫fTdx(IntervalBox(xtest) - b0)
-            @test ∫fdy(xtest...) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+        end
+
+        f(x, y) = sin(x) * cos(y)
+        ∫fdx(x, y) = -cos(x) * cos(y)
+        ∫fdy(x, y) = sin(x) * sin(y)
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+        end
+
+        f(x, y) = exp(x)
+        ∫fdx(x, y) = exp(x)
+        ∫fdy(x, y) = exp(x) * y
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
         end
     end
 
