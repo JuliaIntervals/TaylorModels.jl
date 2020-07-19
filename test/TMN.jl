@@ -298,6 +298,22 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
         end
+
+        f(x, y) = log(x) * x^2 + cos(x * y) + sin(x * y)
+        ∫fdx(x, y) = (x^3 * y * (3log(x) - 1) + 9sin(x * y) - 9cos(x * y)) / 9y
+        ∫fdy(x, y) = (x^3 * y * log(x) + sin(x * y) - cos(x * y)) / x
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+        end
+
     end
 
     @testset "Display" begin
