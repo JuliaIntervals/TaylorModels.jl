@@ -313,7 +313,34 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
         end
+        
+        f(x, y) = exp(-0.5 * (x^2 + y^2)) * x
+        ∫fdx(x, y) = -exp(-0.5 * (x^2 + y^2))
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
 
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+        end
+
+        f(x, y) = x * cos(y) * exp(x + y)
+        ∫fdx(x, y) = (x - 1) * exp(x + y) * cos(y)
+        ∫fdy(x, y) = 0.5 * x * exp(x + y) * (sin(y) + cos(y))
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
+        end
     end
 
     @testset "Display" begin
