@@ -265,8 +265,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
-            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
 
         f(x, y) = sin(x) * cos(y)
@@ -280,8 +281,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
-            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
 
         f(x, y) = exp(x)
@@ -295,8 +297,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
-            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
 
         f(x, y) = log(x) * x^2 + cos(x * y) + sin(x * y)
@@ -310,8 +313,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(IntervalBox(xtest) - b0)
-            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(IntervalBox(xtest) - b0)
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
         
         f(x, y) = exp(-0.5 * (x^2 + y^2)) * x
