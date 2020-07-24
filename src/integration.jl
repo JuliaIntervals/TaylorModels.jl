@@ -43,6 +43,13 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
     return TaylorModel1( integ_pol, ΔN, a.x0, a.dom )
 end
 
+"""
+    integrate(fT, which)
+
+Integrates a `TaylorModelN` with respect to `which` variable.
+The returned `TaylorModelN` corresponds to the Taylor Model
+of the definite integral ∫f(x) - ∫f(expansion_point).
+"""
 function integrate(fT::TaylorModelN, which=1)
     p̂ = integrate(fT.pol, which)
     order = fT.pol.order
