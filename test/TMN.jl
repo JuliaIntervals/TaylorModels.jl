@@ -8,21 +8,20 @@ const _num_tests = 1000
 
 setformat(:full)
 
+function get_random_point(ib0::IntervalBox{N, T}) where {N, T}
+    xmid = mid(ib0)
+    return diam.(ib0) .* (rand(N) .- 0.5) .+ xmid
+end
 
 function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
     x0 = expansion_point(tma)
-    xfp = diam.(tma.dom) .* (rand(N) .- 0.5) .+ mid(x0)
+    xfp = get_random_point(tma.dom)
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
     range = evaluate(tma, ib-x0)
     bb = all(ftest(xx(xbf .- mid(x0))) ⊆ range)
     bb || @show(ftest, ib, xbf, ftest(xbf...), range)
     return bb
-end
-
-function get_random_point(ib0::IntervalBox{N, T}) where {N, T}
-    xmid = mid(ib0)
-    return diam.(ib0) .* (rand(N) .- 0.5) .+ xmid
 end
 
 const _order = 2
