@@ -43,17 +43,17 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
     return TaylorModel1( integ_pol, ΔN, a.x0, a.dom )
 end
 
-function integrate(fT::TaylorModelN, which=1, x0=0.)
-    p̂ = integrate(fT.pol, which, x0)
+function integrate(fT::TaylorModelN, which=1)
+    p̂ = integrate(fT.pol, which)
     order = fT.pol.order
     r = TaylorN(p̂.coeffs[1:order+1])
     s = TaylorN(p̂.coeffs[order+2:end])
     Δ = bound_integration(fT, s, which)
     return TaylorModelN(r, Δ, fT.x0, fT.dom)
 end
-function integrate(fT::TaylorModelN, s::Symbol, x0=0.)
+function integrate(fT::TaylorModelN, s::Symbol)
     which = TaylorSeries.lookupvar(s)
-    return integrate(fT, which, x0)
+    return integrate(fT, which)
 end
 
 """
