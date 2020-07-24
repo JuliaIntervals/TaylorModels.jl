@@ -8,10 +8,14 @@ const _num_tests = 1000
 
 setformat(:full)
 
+function get_random_point(ib0::IntervalBox{N, T}) where {N, T}
+    xmid = mid(ib0)
+    return diam.(ib0) .* (rand(N) .- 0.5) .+ xmid
+end
 
 function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
     x0 = expansion_point(tma)
-    xfp = diam.(tma.dom) .* (rand(N) .- 0.5) .+ mid(x0)
+    xfp = get_random_point(tma.dom)
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
     range = evaluate(tma, ib-x0)
@@ -241,6 +245,105 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         tmb = acos(tma)
         @test tmb == acos(cos(1+ym))
         @test sup(norm(tmb.pol - (1+ym).pol, Inf)) < 1.0e-15
+    end
+
+    @testset "Tests for integrate" begin
+        ib0 = (0. .. 1.) × (0. .. 1.)
+        b0 = (0.5 .. 0.5) × (0.5 .. 0.5)
+        xm = TaylorModelN(1, _order, b0, ib0)
+        ym = TaylorModelN(2, _order, b0, ib0)
+        
+        f(x, y) = cos(x)
+        ∫fdx(x, y) = sin(x)
+        ∫fdy(x, y) = cos(x) * y
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
+        end
+
+        f(x, y) = sin(x) * cos(y)
+        ∫fdx(x, y) = -cos(x) * cos(y)
+        ∫fdy(x, y) = sin(x) * sin(y)
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
+        end
+
+        f(x, y) = exp(x)
+        ∫fdx(x, y) = exp(x)
+        ∫fdy(x, y) = exp(x) * y
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
+        end
+
+        f(x, y) = log(x) * x^2 + cos(x * y) + sin(x * y)
+        ∫fdx(x, y) = (x^3 * y * (3log(x) - 1) + 9sin(x * y) - 9cos(x * y)) / 9y
+        ∫fdy(x, y) = (x^3 * y * log(x) + sin(x * y) - cos(x * y)) / x
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
+        end
+        
+        f(x, y) = exp(-0.5 * (x^2 + y^2)) * x
+        ∫fdx(x, y) = -exp(-0.5 * (x^2 + y^2))
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+        end
+
+        f(x, y) = x * cos(y) * exp(x + y)
+        ∫fdx(x, y) = (x - 1) * exp(x + y) * cos(y)
+        ∫fdy(x, y) = 0.5 * x * exp(x + y) * (sin(y) + cos(y))
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = get_random_point(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = IntervalBox(xtest) - b0
+            @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
+            @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
+        end
     end
 
     @testset "Display" begin

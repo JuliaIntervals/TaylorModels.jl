@@ -43,6 +43,25 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
     return TaylorModel1( integ_pol, ΔN, a.x0, a.dom )
 end
 
+"""
+    integrate(fT, which)
+
+Integrates a `TaylorModelN` with respect to `which` variable.
+The returned `TaylorModelN` corresponds to the Taylor Model
+of the definite integral ∫f(x) - ∫f(expansion_point).
+"""
+function integrate(fT::TaylorModelN, which=1)
+    p̂ = integrate(fT.pol, which)
+    order = fT.pol.order
+    r = TaylorN(p̂.coeffs[1:order+1])
+    s = TaylorN(p̂.coeffs[order+2:end])
+    Δ = bound_integration(fT, s, which)
+    return TaylorModelN(r, Δ, fT.x0, fT.dom)
+end
+function integrate(fT::TaylorModelN, s::Symbol)
+    which = TaylorSeries.lookupvar(s)
+    return integrate(fT, which)
+end
 
 """
     bound_integration(xTM1::TaylorModel1{Interval{S},S}, δt::Interval{S})
@@ -66,8 +85,10 @@ function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
     Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
     return IntervalBox(Δ)
 end
-
-
+function bound_integration(fT::TaylorModelN, s::TaylorN, which)
+    Δ = s(fT.dom - fT.x0) + fT.rem * (fT.dom[which] - fT.x0[which])
+    return Δ
+end
 
 function picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
         xTM1TMN::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
