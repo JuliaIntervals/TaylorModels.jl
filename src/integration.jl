@@ -17,7 +17,15 @@ function integrate(a::TaylorModel1{T,S}, c0::T) where {T,S}
 
     return TaylorModel1( integ_pol, Δ, a.x0, a.dom )
 end
+function integrate(a::TaylorModel1{T, S}, c0, cc0) where {T <: TaylorN, S}
+    integ_pol = integrate(a.pol, c0)
+    δ = a.dom - a.x0
+    Δ = bound_integration(a, δ, cc0)
+    return TaylorModel1(integ_pol, Δ, a.x0, a.dom)
+end
+
 integrate(a::TaylorModel1{T,S}) where {T,S} = integrate(a, zero(T))
+integrate(a::TaylorModel1{T, S}, δI) where {T <: TaylorN, S} = integrate(a, zero(T), δI)
 
 function integrate(a::RTaylorModel1{T,S}, c0::T) where {T,S}
     order = get_order(a)
@@ -79,6 +87,13 @@ function bound_integration(a::TaylorModel1{T,S}, δ) where {T,S}
     Δ = δ * (remainder(a) + getcoeff(polynomial(a), order) * aux)
     return Δ
 end
+function bound_integration(a::TaylorModel1{T, S}, δ, δI) where {T <: TaylorN, S}
+    order = get_order(a)
+    aux = δ^order / (order+1)
+    Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
+    return Δ
+end
+
 function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
     order = get_order(a[1])
     aux = δ^order / (order+1)
