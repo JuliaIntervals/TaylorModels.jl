@@ -81,9 +81,7 @@ for TM in tupleTMs
 
                 # Bound for the neglected part of the product of polynomials
                 Δnegl = rnegl(aux)
-                @show a, b, aux
                 Δ = remainder_product(a, b, aux, Δnegl)
-                @show Δ
             else
 
                 # Remaing terms of the product as reduced Taylor1 (factored polynomial)
