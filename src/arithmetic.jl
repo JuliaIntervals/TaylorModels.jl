@@ -81,8 +81,9 @@ for TM in tupleTMs
 
                 # Bound for the neglected part of the product of polynomials
                 Δnegl = rnegl(aux)
+                @show a, b, aux
                 Δ = remainder_product(a, b, aux, Δnegl)
-
+                @show Δ
             else
 
                 # Remaing terms of the product as reduced Taylor1 (factored polynomial)
@@ -96,7 +97,7 @@ for TM in tupleTMs
                 Δnegl = rnegl(aux)
                 Δ = remainder_product(a, b, aux, Δnegl, order)
             end
-
+        
             return $TM(res, Δ, a.x0, a.dom)
         end
 
@@ -127,6 +128,16 @@ function remainder_product(a, b, aux, Δnegl)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
+    return Δ
+end
+function remainder_product(a::TaylorModel1{TaylorN{T}, S},
+                           b::TaylorModel1{TaylorN{T}, S},
+                           auxT, Δnegl) where {T, S}
+    N = get_numvars()    
+    auxQ = IntervalBox(-1 .. 1, Val(N))
+    Δa = a.pol(auxT)(auxQ)
+    Δb = a.pol(auxT)(auxQ)
+    Δ = Δnegl(auxQ) + Δb * a.rem + Δa * b.rem + a.rem * b.rem
     return Δ
 end
 function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
