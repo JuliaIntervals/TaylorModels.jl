@@ -562,3 +562,111 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
     return view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v, :, 1:nsteps)
 end
+
+"""
+    picard(dx, x0, box)
+
+Computes the picard (integral) operator for the initial condition `x0`.
+`dx` must be the rhs of the differential equation.
+"""
+function picard(dx, x0, box)
+    ∫f = integrate(dx, 0., box)
+    pol = ∫f.pol + x0.pol # picard operator
+    return TaylorModel1(deepcopy(pol), ∫f.rem + x0.rem, ∫f.x0, ∫f.dom)
+end
+
+function validate(f!, dx, xTMN0, params, t, box, dof)
+    valid_vector = [false for _ in 1:dof]
+    xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
+    Δn = [interval(0) for _ in 1:dof]
+
+    while !all(valid_vector)
+        @inbounds for i in eachindex(dx)
+            xTM1K[i] = picard(dx[i], xTMN0[i], box)
+            Δk = xTM1K[i].rem
+            valid_vector[i] = Δk ⊆ Δn[i]
+            Δn[i] = Δk
+        end
+        f!(dx, xTM1K, params, t)
+    end
+
+    return xTM1K
+end
+
+function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
+                         abstol, params=nothing, parse_eqs=true, maxsteps=500) where {N, T}
+    dof = N
+    @assert N == get_numvars()
+    zI = zero(Interval{T})
+    zbox = IntervalBox(zI, Val(N))
+    symIbox = IntervalBox(Interval{T}(-1 .. 1), Val(N))
+    q0 = IntervalBox(qq0)
+    t = t0 + Taylor1(orderT)
+    
+    tv = Array{T}(undef, maxsteps+1)
+    xv = Array{IntervalBox{N, T}}(undef, maxsteps+1)
+    xTM1v = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof, maxsteps+1)
+    x = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    dx = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    xaux = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    xTMN = Array{TaylorModelN{N, T, T}}(undef, dof)
+    dxTM1 = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
+    xTM1 = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
+    xTM1K = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
+
+    rem = Array{Interval{T}}(undef, dof)
+
+    @inbounds for i in eachindex(x)
+        qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
+        x[i] = Taylor1(qaux, orderT)
+        dx[i] = x[i]
+        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
+        rem[i] = zI
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+    end
+
+    sign_tstep = copysign(1, tf - t0)
+    nsteps = 1
+    @inbounds tv[1] = t0
+    @inbounds xv[1] = evaluate(xTMN, symIbox)
+
+    while t0 * sign_tstep < tf * sign_tstep
+        δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
+        f!(dx, x, params, t)
+
+        δt = min(δt, sign_tstep*(tf-t0))
+        δt = sign_tstep * δt
+
+        @inbounds for i in eachindex(x)
+            dom = 0 .. δt
+            x0 = dom.lo
+            Δ = zero(Interval{Float64})
+            xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, x0, dom)
+        end
+        f!(dxTM1, xTM1, params, t)
+
+        xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof)
+        t0 += δt
+        nsteps += 1
+        
+        @inbounds t[0] = t0
+        @inbounds tv[nsteps] = t0
+        xv[nsteps] = evaluate(xTMN, symIbox)
+
+        @inbounds for i in eachindex(x)
+            aux_pol = evaluate(xTM1K[i], Interval(δt))
+            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zbox, symIbox))
+            x[i] = Taylor1(xTMN[i].pol, orderT)
+            xTM1v[i, nsteps] = xTM1K[i]
+        end
+
+        if nsteps > maxsteps
+            @warn("""
+            Maximum number of integration steps reached; exiting.
+            """)
+            break
+        end
+    end
+
+    return view(tv, 1:nsteps), view(xv, 1:nsteps), view(xTM1v, :, 1:nsteps)
+end
