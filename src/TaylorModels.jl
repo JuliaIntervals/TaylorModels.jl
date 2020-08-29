@@ -35,7 +35,7 @@ export TaylorModel1, RTaylorModel1, TaylorModelN
 
 export remainder, polynomial, domain, expansion_point,
     rpa, fp_rpa, bound_remainder,
-    validated_integ
+    validated_integ, validated_integ2
 
 export linear_dominated_bounder, quadratic_fast_bounder
 
