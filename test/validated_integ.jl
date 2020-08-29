@@ -54,6 +54,21 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
         @test all(iszero, (qTM - qTM2))
         
+        tTM, qv, qTM = validated_integ2(falling_ball!, q0, δq0, tini, tend,
+                                        orderQ, orderT, abstol)
+        
+        @test length(qv) == length(qTM[1, :]) == length(tTM)
+        @test length(tTM) < 501
+
+        for n = 2:length(tTM)
+            for it = 1:10
+                δt = interval_rand(domain(qTM[1, n]))
+                q0ξ = interval_rand(δq0)
+                q = evaluate.(evaluate(qTM[:, n], δt), (normalized_box,))
+                @test all(exactsol(tTM[n-1] + δt, tini, q0 .+ q0ξ) .∈ q)
+            end
+        end
+
         @taylorize function x_square(dx, x, p, t)
             dx[1] = x[1]^2
             nothing
@@ -62,13 +77,14 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         exactsol(t, x0) = x0[1] / (1 - x0[1] * t)
 
         tini, tend = 0., 0.45
-        abstol = 1e-5
-        orderQ = 2
-        orderT = 4
+        abstol = 1e-15
+        orderQ = 5
+        orderT = 20
         q0 = [2.]
         δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
-        tTM, qv, qTM = validated_integ(x_square, q0, δq0, tini, tend, orderQ, orderT, abstol)
+        # tTM, qv, qTM = validated_integ(x_square, q0, δq0, tini, tend, orderQ, orderT, abstol)
+        tTM, qv, qTM = validated_integ2(x_square, q0, δq0, tini, tend, orderQ, orderT, abstol)
 
         @test length(qv) == length(qTM[1, :]) == length(tTM)
         @test length(tTM) < 501
