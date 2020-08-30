@@ -133,8 +133,14 @@ function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            auxT, Δnegl) where {T, S}
     N = get_numvars()    
     auxQ = IntervalBox(-1 .. 1, Val(N))
+    Δ = remainder_product(a, b, auxT, auxQ, Δnegl)
+    return Δ
+end
+function remainder_product(a::TaylorModel1{TaylorN{T}, S},
+                           b::TaylorModel1{TaylorN{T}, S},
+                           auxT, auxQ, Δnegl) where {T, S}
     Δa = a.pol(auxT)(auxQ)
-    Δb = a.pol(auxT)(auxQ)
+    Δb = b.pol(auxT)(auxQ)
     Δ = Δnegl(auxQ) + Δb * a.rem + Δa * b.rem + a.rem * b.rem
     return Δ
 end
