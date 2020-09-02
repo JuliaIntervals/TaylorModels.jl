@@ -575,12 +575,14 @@ function picard(dx, x0, box)
     return TaylorModel1(deepcopy(pol), ∫f.rem + x0.rem, ∫f.x0, ∫f.dom)
 end
 
-function validate(f!, dx, xTMN0, params, t, box, dof)
+function validate(f!, dx, xTMN0, params, t, box, dof, max_steps=30)
     valid_vector = [false for _ in 1:dof]
     xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
     Δn = [interval(0) for _ in 1:dof]
+    nsteps = 0
 
-    while !all(valid_vector)
+    while !all(valid_vector) & (nsteps < maxsteps)
+        nsteps += 1
         @inbounds for i in eachindex(dx)
             xTM1K[i] = picard(dx[i], xTMN0[i], box)
             Δk = xTM1K[i].rem
@@ -594,7 +596,8 @@ function validate(f!, dx, xTMN0, params, t, box, dof)
 end
 
 function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
-                         abstol, params=nothing, parse_eqs=true, maxsteps=500) where {N, T}
+                         abstol, params=nothing, parse_eqs=true, maxsteps=500,
+                         validate_steps=30) where {N, T}
     dof = N
     @assert N == get_numvars()
     zI = zero(Interval{T})
@@ -645,7 +648,7 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         end
         f!(dxTM1, xTM1, params, t)
 
-        xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof)
+        xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof, validate_steps)
         t0 += δt
         nsteps += 1
         
