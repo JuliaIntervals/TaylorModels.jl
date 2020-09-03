@@ -20,9 +20,6 @@ function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorM
     return bb
 end
 
-interval_rand(X::Interval{T}) where {T} = X.lo + rand(T) * (X.hi - X.lo)
-interval_rand(X::IntervalBox) = interval_rand.(X)
-
 @testset "Test `bound_taylor1`" begin
     x0 = Interval(0.0)
     ii0 = Interval(-0.5, 0.5)
@@ -165,8 +162,8 @@ end
 
         for ind = 1:_num_tests
             fgTM1 = fT * gT
-            xξ = interval_rand(domain(fgTM1))
-            q0ξ = (q0 .+ interval_rand(δq0))[1]
+            xξ = rand(domain(fgTM1))
+            q0ξ = (q0 .+ rand(δq0))[1]
             t = Taylor1(orderT) + q0ξ
             fgT1 = f(t) * g(t)
             @test fgT1(xξ - q0ξ) ∈ fgTM1(xξ-fgTM1.x0)(symIbox)
