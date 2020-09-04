@@ -575,7 +575,7 @@ function picard(dx, x0, box)
     return TaylorModel1(deepcopy(pol), ∫f.rem + x0.rem, ∫f.x0, ∫f.dom)
 end
 
-function validate(f!, dx, xTMN0, params, t, box, dof, max_steps=30)
+function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
     valid_vector = [false for _ in 1:dof]
     xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
     Δn = [interval(0) for _ in 1:dof]
