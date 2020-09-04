@@ -139,6 +139,38 @@ end
         @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 0..0, -2..2)
     end
 
+    @testset "TM1's with TaylorN coefficients" begin
+        # Tests for TM1's with TaylorN coefficients
+        orderT = 4
+        orderQ = 5
+        ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
+        q0 = [0.5]
+        δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ),
+                                δq0, true)
+        symIbox = IntervalBox(-1 .. 1, Val(1))
+        t = Taylor1([qaux, 1], orderT)
+        dom = 0 .. 1
+        x00 = mid(dom)
+        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+
+        f(x) = x + x^2
+        g(x) = x
+
+        fT = f(tm)
+        gT = g(tm)
+
+        for ind = 1:_num_tests
+            fgTM1 = fT * gT
+            xξ = rand(domain(fgTM1))
+            q0ξ = (q0 .+ rand(δq0))[1]
+            t = Taylor1(orderT) + q0ξ
+            fgT1 = f(t) * g(t)
+            @test fgT1(xξ - q0ξ) ∈ fgTM1(xξ-fgTM1.x0)(symIbox)
+        end
+        
+    end
+
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), TaylorModel1(4, x0, ii0)) ==
             TaylorModel1(interval(5.0), 4, x0, ii0)
