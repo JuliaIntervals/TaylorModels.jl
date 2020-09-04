@@ -131,7 +131,9 @@ end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            b::TaylorModel1{TaylorN{T}, S},
                            auxT, Δnegl) where {T, S}
-    N = get_numvars()    
+    N = get_numvars()
+    # An N-dimensional symmetrical IntervalBox is assumed
+    # to bound the TaylorN part
     auxQ = IntervalBox(-1 .. 1, Val(N))
     Δ = remainder_product(a, b, auxT, auxQ, Δnegl)
     return Δ
