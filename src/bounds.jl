@@ -195,6 +195,24 @@ function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) w
     return interval(bound.lo, hi) + fT.rem
 end
 
+function linear_dominated_bounder(fT::TaylorModel1{T, S}, bound::Symbol=:lower, max_iter=5, tol=1e-5) where {T, S}
+    if bound == :upper
+        bound = linear_dominated_bounder(-fT, ϵ=tol, max_iter=max_iter)
+    elseif bound == :lower
+        bound = linear_dominated_bounder(fT, ϵ=tol, max_iter=max_iter)
+    elseif bound == :both
+        ldb_bounds = Array{IntervalBox{T}}(undef, 2)
+        aux = [-1, 1]
+        Threads.@threads @inbounds for i in eachindex(aux)
+            ldb_bounds[i] = linear_dominated_bounder(aux[i] * fT, ϵ=tol, max_iter=max_iter)
+        end
+        bound = ldb_bounds[1] ∩ ldb_bounds[2]
+    end
+
+    return bound
+end
+
+
 """
     linear_dominated_bounder(fT::TaylorModelN, ϵ=1e-3::Float64, max_iter=5::Int)
 
