@@ -584,14 +584,23 @@ function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
     while !all(valid_vector) & (nsteps < maxsteps)
         nsteps += 1
         @inbounds for i in eachindex(dx)
-            xTM1K[i] = picard(dx[i], xTMN0[i], box)
-            Δk = xTM1K[i].rem
-            valid_vector[i] = Δk ⊆ Δn[i]
-            Δn[i] = Δk
+            valid_vector[i] && continue
+            # xTM1K[i] = picard(dx[i], xTMN0[i], box)
+            ∫f  = integrate(dx[i], 0., box)
+            pol = ∫f.pol + xTMN0.pol
+            # Δk = xTM1K[i].rem
+            Δk = ∫f.rem
+            Δk1 = Δk + xTMN0[i].rem
+            if Δk1 ⊆ Δn[i] 
+                valid_vector[i] = Δk ⊆ Δn[i]
+                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk1, ∫f.x0, ∫f.dom)
+            else
+                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk, ∫f.x0, ∫f.dom)
+            end
+            Δn[i] = Δk1
         end
         f!(dx, xTM1K, params, t)
     end
-
     return xTM1K
 end
 
