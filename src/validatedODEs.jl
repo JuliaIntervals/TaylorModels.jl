@@ -587,7 +587,7 @@ function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
             valid_vector[i] && continue
             # xTM1K[i] = picard(dx[i], xTMN0[i], box)
             ∫f  = integrate(dx[i], 0., box)
-            pol = ∫f.pol + xTMN0.pol
+            pol = ∫f.pol + xTMN0[i].pol
             # Δk = xTM1K[i].rem
             Δk = ∫f.rem
             Δk1 = Δk + xTMN0[i].rem
