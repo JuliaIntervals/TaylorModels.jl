@@ -605,8 +605,8 @@ function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
 end
 
 function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
-                         abstol, params=nothing, parse_eqs=true, maxsteps=500,
-                         validate_steps=30) where {N, T}
+                         abstol, params=nothing, parse_eqs=true; maxsteps=500,
+                         validatesteps=30) where {N, T}
     dof = N
     @assert N == get_numvars()
     zI = zero(Interval{T})
@@ -657,7 +657,7 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         end
         f!(dxTM1, xTM1, params, t)
 
-        xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof, validate_steps)
+        xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof, validatesteps)
         t0 += δt
         nsteps += 1
         
