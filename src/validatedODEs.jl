@@ -575,6 +575,67 @@ function picard(dx, x0, box)
     return TaylorModel1(deepcopy(pol), ∫f.rem + x0.rem, ∫f.x0, ∫f.dom)
 end
 
+function _picard(dx, x0, box)
+    ∫f = integrate(dx, 0., box)
+    pol = ∫f.pol + x0.pol
+    Δk = ∫f.rem
+    return pol, Δk
+end
+
+function _bound_integration(a::Taylor1, Δr, δ, δI)
+    order = get_order(a)
+    aux = δ^order / (order+1)
+    Δ = δ * (Δr + getcoeff(a, order)(δI) * aux)
+    return Δ
+end
+
+function ε_inflation(f!, dx, x0, params, t, box, dof; ε=1e-3, δ=1e-3, maxsteps=20)
+    E = [interval(0) for _ in 1:dof]
+    E′ = [interval(0) for _ in 1:dof]
+    xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
+    nsteps = 0
+    
+    # The polynomial part is evaluated just once
+    @inbounds for i in eachindex(dx)
+        pii = picard(dx[i], x0[i], box)
+        xTM1K[i] = pii
+        E[i] = pii.rem
+    end
+
+    while true & (nsteps < maxsteps)
+        nsteps += 1
+        @inbounds for i in eachindex(dx)
+            # pii = picard(dx[i], x0[i], box)
+            aux = xTM1K[i].dom - xTM1K[i].x0
+            Δ = _bound_integration(xTM1K[i].pol, E[i], aux, box)
+            E′[i] = Δ
+        end
+        if all(E′ .⊆ E)
+            E = E′
+            break
+        else
+            εi = (1 - ε) .. (1 + ε)
+            δi = -δ .. δ
+            E = E′ .* εi .+ δi
+            # There is no need to re-evaluate the rhs of ode
+            # since only the remainder term changes
+            #f!(dx, xTM1K, params, t)
+        end
+    end
+
+    @inbounds for i in eachindex(xTM1K)
+        pol = xTM1K[i].pol
+        x0 = xTM1K[i].x0
+        dom = xTM1K[i].dom
+        xTM1K[i] = TaylorModel1(deepcopy(pol), E[i], x0, dom)
+    end
+    if nsteps == maxsteps
+        @warn ("Maximum number of validate steps reached.")
+    end
+    @show nsteps
+    return xTM1K
+end
+
 function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
     valid_vector = [false for _ in 1:dof]
     xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
@@ -586,16 +647,19 @@ function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
         @inbounds for i in eachindex(dx)
             valid_vector[i] && continue
             # xTM1K[i] = picard(dx[i], xTMN0[i], box)
-            ∫f  = integrate(dx[i], 0., box)
-            pol = ∫f.pol + xTMN0[i].pol
+            # ∫f  = integrate(dx[i], 0., box)
+            #pol = ∫f.pol + xTMN0[i].pol
             # Δk = xTM1K[i].rem
-            Δk = ∫f.rem
+            # Δk = ∫f.rem
+            pol, Δk = _picard(dx[i], xTMN0[i], box)
             Δk1 = Δk + xTMN0[i].rem
+            x0 = dx[i].x0
+            dom = dx[i].dom
             if Δk1 ⊆ Δn[i] 
                 valid_vector[i] = Δk ⊆ Δn[i]
-                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk1, ∫f.x0, ∫f.dom)
+                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk1, x0, dom)
             else
-                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk, ∫f.x0, ∫f.dom)
+                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk, x0, dom)
             end
             Δn[i] = Δk1
         end
@@ -657,7 +721,8 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         end
         f!(dxTM1, xTM1, params, t)
 
-        xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof, validatesteps)
+        # xTM1K = validate(f!, dxTM1, xTMN, params, t, symIbox, dof, validatesteps)
+        xTM1K = ε_inflation(f!, dxTM1, xTMN, params, t, symIbox, dof, maxsteps=validatesteps) 
         t0 += δt
         nsteps += 1
         
