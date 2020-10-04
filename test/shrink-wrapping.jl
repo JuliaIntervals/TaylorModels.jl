@@ -97,7 +97,7 @@ end
     @test norm(polynomial(vm0[1] - vm[1]), Inf) < 1e-19
 
     # Taylor model with shrink-wrapping after two iterates
-    vm0 .= [deepcopy(vm)...]
+    vm0 .= deepcopy.(vm)
     for iter = 1:1_000
         two_state1!(vm0)
         two_state2!(vm0)
@@ -109,7 +109,7 @@ end
 
 
     # Taylor model with shrink-wrapping after each iterate
-    vm0 .= [deepcopy(vm)...]
+    vm0 .= deepcopy.(vm)
     for iter = 1:1_000
         two_state1!(vm0)
         TaylorModels.shrink_wrapping!(vm0)

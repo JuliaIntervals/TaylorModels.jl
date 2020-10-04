@@ -105,7 +105,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     f!(dxxI, xxI, params, t)
 
     # Picard iteration, considering only the bound of `f` and the last coeff of f
-    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI... ) )
+    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI ) )
     Δ = Δ0 + Δdx * δt
     return Δ
 end
@@ -201,7 +201,7 @@ function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,T,T}},
     @assert postverify """
         Failed to post-verify shrink-wrapping:
         X = $(linear_polynomial(X))
-        $(xTMN)
+        xTMN = $(xTMN)
         """
     return postverify
 end
@@ -222,7 +222,8 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     B = IntervalBox(Interval{T}(-1,1), Val(N))
     @assert all(domain.(xTMN) .== (B,))
     zI = zero(Interval{T})
-    x0 = xTMN[1].x0
+    x0 = IntervalBox(zI, Val(N))
+    @assert all(expansion_point.(xTMN) .== (x0,))
 
     # Vector of independent TaylorN variables
     order = get_order(xTMN[1])
@@ -232,18 +233,18 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     rem = remainder.(xTMN)
     r = mag.(rem)
     qB = r .* B
+    one_r = ones(eltype(r), N)
 
     # Shift to remove constant term
     xTN0 = constant_term.(xTMN)
     xTNcent = polynomial.(xTMN) .- xTN0
+    xTNcent_lin = linear_polynomial(xTNcent)
 
-    # Jacobian (at zero) and its inverse
-    jac = TaylorSeries.jacobian(xTNcent)
-    # If conditional number is too large (inverse of jac is ill defined),
+    # Step 4 of Bünger algorithm: Jacobian (at zero) and its inverse
+    jac = TaylorSeries.jacobian(xTNcent_lin)
+    # If the conditional number is too large (inverse of jac is ill defined),
     # don't change xTMN
-    if cond(jac) > 1.0e4
-        return ones(eltype(r), N)
-    end
+    cond(jac) > 1.0e4 && return one_r
     # Inverse of the Jacobian
     invjac = inv(jac)
 
@@ -252,50 +253,69 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     qB´ = r̃ .* B
     @assert invjac * qB ⊆ qB´
 
-    # Nonlinear part (linear part is close to identity)
+    # Step 6 of Bünger algorithm: compute g
     g = invjac*xTNcent .- X
-    # g = invjac*(xTNcent .- linear_polynomial.(xTNcent))
+    # g = invjac*(xTNcent .- xTNcent_lin)
     # ... and its jacobian matrix (full dependence!)
     jacmatrix_g = TaylorSeries.jacobian(g, X)
 
-    # Step 7 of Bünger algorithm: obtain an estimate of `q`
+    # Alternative to Step 7: Check the validity of Eq 16 (or 17) for Lemma 2 
+    # of Bünger's paper, for s=0, and s very small. If it satisfies it, 
+    # postverify and return. Otherwise, use Bünger's step 7.
+    q = 1.0 .+ r̃
+    s = zero(q)
+    @. q = 1.0 + r̃ + s
+    jaq_q1 = jacmatrix_g * (q .- 1.0)
+    eq16 = all(mag.(evaluate.(jaq_q1, (q .* B,))) .≤ s)
+    if eq16
+        postverify = scalepostverify_sw!(xTMN, q .* X)
+        postverify && return q
+    end
+    s .= eps.(q)
+    @. q = 1.0 + r̃ + s
+    jaq_q1 = jacmatrix_g * (q .- 1.0)
+    eq16 = all(mag.(evaluate.(jaq_q1, (q .* B,))) .≤ s)
+    if eq16
+        postverify = scalepostverify_sw!(xTMN, q .* X)
+        postverify && return q
+    end
+
+    # Step 7 of Bünger algorithm: estimate of `q`
     # Some constants/parameters
     q_tol = 1.0e-12
     q = 1.0 .+ r̃
     ff = 65/64
     q_max = ff .* q
-    zs = zero(q)
-    s = similar(q)
+    s = zero(q)
     q_old = similar(q)
     q_1 = similar(q)
-    jaq_q1 = jacmatrix_g * r̃
-
+    jaq_q1 .= jacmatrix_g * r̃
     iter_max = 100
     improve = true
     iter = 0
     while improve && iter < iter_max
         qB .= q .* B
-        s .= zs
+        q_1 .= q .- 1.0
         q_old .= q
-        q_1 .= q_old .- 1.0
         mul!(jaq_q1, jacmatrix_g, q_1)
+        eq16 = all(evaluate.(jaq_q1, (qB,)) .≤ s)
+        eq16 && break
         @inbounds for i in eachindex(xTMN)
             s[i] = mag( jaq_q1[i](qB) )
             q[i] = 1.0 + r̃[i] + s[i]
             # If q is too large, return xTMN unchanged
-            q[i] > q_max[i] && return xTMN
+            q[i] > q_max[i] && return -one_r
         end
         improve = any( ((q .- q_old)./q) .> q_tol )
         iter += 1
     end
-    # (improve || q == one.(q)) && return xTMN
-
+    # (improve || q == one_r) && return one_r
     # Compute final q and rescale X
     @. q = 1.0 + r̃ + ff * s
     @. X = q * X
 
-    # Postverify and define Taylor models to be returned
-    scalepostverify_sw!(xTMN, X)
+    # Postverify
+    postverify = scalepostverify_sw!(xTMN, X)
 
     return q
 end

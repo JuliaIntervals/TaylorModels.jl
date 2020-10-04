@@ -73,7 +73,7 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
 
     Δ = tm.rem
 
-    return tm.pol(a...) + Δ
+    return tm.pol(a) + Δ
 end
 
 (tm::TaylorModelN{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
@@ -84,7 +84,7 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
 
     Δ = tm.rem
 
-    return tm.pol(a...) + Δ
+    return tm.pol(a) + Δ
 end
 
 (tm::TaylorModelN{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)
