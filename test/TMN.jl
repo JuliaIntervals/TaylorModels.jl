@@ -129,7 +129,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xx = xm + ym
         tma = rpa(ftest, xx)
         tmb = ftest(xx)
-        @test tma == tmb
+        @test tma.pol == tmb.pol
+        @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
@@ -147,7 +148,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xx = xm + 2*ym
         tma = rpa(ftest, xx)
         tmb = ftest(xx)
-        @test tma == tmb
+        @test tma.pol == tmb.pol
+        @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
@@ -161,7 +163,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xx = 1- xm^2 + ym
         tma = rpa(ftest, xx)
         tmb = ftest(xx)
-        @test tma == tmb
+        @test tma.pol == tmb.pol
+        @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
@@ -175,7 +178,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xx = xm^2 + ym
         tma = rpa(ftest, xx)
         tmb = ftest(xx)
-        @test tma == tmb
+        @test tma.pol == tmb.pol
+        @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
@@ -189,7 +193,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xx = 1 + xm + ym
         tma = rpa(ftest, xx)
         tmb = ftest(xx)
-        @test tma == tmb
+        @test tma.pol == tmb.pol
+        @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
