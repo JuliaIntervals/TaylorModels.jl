@@ -34,6 +34,29 @@ function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI
     end
     return Δ
 end
+function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
+    # The domain of the TaylorN part is assumed to be
+    # the normalized symmetric box
+    _order = get_order(polf) + 1
+    fTIend = polfI[_order]
+    if (sup(fTIend) < 0 || inf(fTIend) > 0)
+        # Absolute remainder is monotonic
+        a = interval(I.lo)
+        b = interval(I.hi)
+        N = get_numvars()
+        symIbox = IntervalBox(-1 .. 1, Val(N))
+        Δlo = (f(a) - polf(a-x0))(symIbox)
+        # Δlo = f(a) - bound_taylor1(polf, a-x0)
+        Δhi = (f(b) - polf(b-x0))(symIbox)
+        # Δhi = f(b) - bound_taylor1(polf, b-x0)
+        Δx0 = (f(x0) - polf[0])(symIbox)
+        Δ = hull(hull(Δlo, Δx0), Δhi)
+    else
+        # Lagrange bound
+        Δ = fTIend * (I-x0)^_order
+    end
+    return Δ
+end
 
 
 """
