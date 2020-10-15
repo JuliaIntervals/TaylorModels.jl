@@ -35,7 +35,8 @@ function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI
     return Δ
 end
 function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
-
+    # The domain of the TaylorN part is assumed to be
+    # the normalized symmetric box
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
     if (sup(fTIend) < 0 || inf(fTIend) > 0)
