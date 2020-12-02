@@ -18,6 +18,8 @@ import Base: setindex!, getindex, copy, firstindex, lastindex,
     inv, sqrt, exp, log, sin, cos, tan,
     asin, acos, atan, sinh, cosh, tanh
 
+using TaylorSeries: derivative, ∇
+
 import TaylorSeries: integrate, get_order, evaluate, pretty_print,
     constant_term, linear_polynomial, fixorder
 
