@@ -1,16 +1,23 @@
+using TaylorModels
 
-include("TaylorModels.jl")
-using TaylorModels, IntervalArithmetic
+t = TaylorModel1(3, interval(0), -0.5..0.5)
 
+@show texp = exp(t)
 
-t1 = make_Taylor_model(exp, 3, 0, -0.5..0.5)
-t2 = make_Taylor_model(sin, 3, 0, -0.5..0.5)
+@show tsin = sin(t)
 
-t1 + t2
-t1 * t2
+s = texp + tsin
+p = texp * tsin
 
-t = taylor_var(3, 0, -0.5..0.5)
-compute_bound(t)
+@show TaylorModels.bound_taylor1(t)
+@show TaylorModels.bound_taylor1(p)
+@show TaylorModels.bound_taylor1(s)
 
-t = t1 + t2
-compute_bound(t)
+#= Output
+texp = exp(t) =  [1, 1] + [1, 1] t + [0.5, 0.5] t² + [0.166666, 0.166667] t³ + [-0, 0.00288794]
+tsin = sin(t) =  [1, 1] t + [-0.166667, -0.166666] t³ + [-0.00124851, 0.00124851]
+TaylorModels.bound_taylor1(t) = [-0.5, 0.5]
+TaylorModels.bound_taylor1(p) = [-0.291667, 0.791667]
+TaylorModels.bound_taylor1(s) = [0.124999, 2.12501]
+[0.124999, 2.12501]
+=#
