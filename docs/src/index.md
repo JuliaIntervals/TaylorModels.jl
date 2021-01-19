@@ -110,7 +110,7 @@ Em = evaluate.(s, Dm) # evaluate the Taylor model on each sub-domain
 Rm = reduce(hull, Em) # take the convex hull, i.e. the smallest interval that contains them all
 ```
 
-Here the lower bound has improved by mincing (or splitting) the domain, and it
+Here the lower bound has been improved by mincing (or splitting) the domain, and it
 may improve by repeating such operation recursively on smaller domains.
 In particular, the fact that the lower bound is greater than zero constitutes an
 algorithmic proof that $s : t \mapsto e^t + \sin(t)$ is positive on $D$.
