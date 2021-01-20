@@ -175,10 +175,10 @@ domain(t)
 expansion_point(t)
 ```
 
-Finally, note that the Taylor model type is a parametric structure with two fields,
-`T` and `S`. The first field, `T`, refers to the numeric type of the coefficients of
+Finally, note that the Taylor model type has two parameters, `T` and `S`.
+The first parameter, `T`, refers to the numeric type of the coefficients of
 the polynomial, in this case an interval with double precision floating point values
-(`Interval{Float64}`). The second field, `S`, refers to the numeric type of the interval
+(`Interval{Float64}`). The second parameter, `S`, refers to the numeric type of the interval
 that holds the remainder, expansion point and domain of interest (in this case `Float64`).
 
 ```@example range_bound_1d
