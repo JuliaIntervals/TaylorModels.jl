@@ -15,5 +15,6 @@ Documenter.deploydocs(
     repo = "github.com/JuliaIntervals/TaylorModels.jl.git",
     target = "build",
     deps = nothing,
-    make = nothing
+    make = nothing,
+    push_preview = true
 )
