@@ -589,167 +589,77 @@ function _bound_integration(a::Taylor1, Δr, δ, δI)
     return Δ
 end
 
-function ε_inflation(f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-10, maxsteps=20,
-                     extrasteps=5)
-    E = [interval(0) for _ in 1:dof]
+function ε_inflation!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
+                      maxsteps=20, extrasteps=50)
+    E = [interval(0) for i in eachindex(x0)]
     E′ = [interval(0) for _ in 1:dof]
-    xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
+    # xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
+    polv = [xTM1K[i].pol for i in eachindex(xTM1K)]
+    x0v = [xTM1K[i].x0 for i in eachindex(xTM1K)]
+    domv = [xTM1K[i].dom for i in eachindex(xTM1K)]
+    low_ratiov = Array{Float64, 1}(undef, dof)
+    hi_ratiov = Array{Float64, 1}(undef, dof)
     nsteps = 0
-    
-    # The polynomial part is evaluated just once
-    @inbounds for i in eachindex(dx)
-        pii = picard(dx[i], x0[i], box)
-        xTM1K[i] = pii
-        E[i] = pii.rem
-    end
-
+   
     while true & (nsteps < maxsteps)
         nsteps += 1
+        f!(dx, xTM1K, params, t)
         @inbounds for i in eachindex(dx)
-            # pii = picard(dx[i], x0[i], box)
-            aux = xTM1K[i].dom - xTM1K[i].x0
-            Δ = _bound_integration(xTM1K[i].pol, E[i], aux, box)
-            E′[i] = Δ
+            pᵢ₁, Δ = _picard(dx[i], x0[i], box)
+            E′[i] = Δ + x0[i].rem
         end
         if all(E′ .⊆ E)
-            E .= E′
+            @inbounds for i in eachindex(dx)
+                xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
+            end
             break
         else
             εi = (1 - ε) .. (1 + ε)
             δi = -δ .. δ
-            E .= E′ .* εi .+ δi
-            # There is no need to re-evaluate the rhs of ode
-            # since only the remainder term changes
-            #f!(dx, xTM1K, params, t)
+            E .= (E′ .* εi) .+ δi
+            @inbounds for i in eachindex(dx)
+                xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
+            end
+        end
+    end
+    
+    @inbounds for i in eachindex(dx)
+        low_ratiov[i] = E′[i].lo / E[i].lo
+        hi_ratiov[i] = E′[i].hi / E[i].hi
+    end
+
+    for ind = 1:extrasteps
+        if all(low_ratiov .> 0.95) & all(hi_ratiov .> 0.95)
+            break
+        end
+        f!(dx, xTM1K, params, t)
+        @inbounds for i in eachindex(dx)
+            E[i] = E′[i]
+            _, Δ = _picard(dx[i], x0[i], box)
+            E′[i] = Δ + x0[i].rem
+            xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
+            low_ratiov[i] = E′[i].lo / E[i].lo
+            hi_ratiov[i] = E′[i].hi / E[i].hi
         end
     end
 
-    # for ind = 1:extrasteps
-    #     @inbounds for i in eachindex(dx)
-    #         aux = xTM1K[i].dom - xTM1K[i].x0
-    #         Δ = _bound_integration(xTM1K[i].pol, E[i], aux, box)
-    #         E[i] = Δ
-    #     end
-    # end
-
-    @inbounds for i in eachindex(xTM1K)
-        pol = xTM1K[i].pol
-        x00 = xTM1K[i].x0
-        dom = xTM1K[i].dom
-        xTM1K[i] = TaylorModel1(deepcopy(pol), E[i], x00, dom)
-    end
 
     f!(dx, xTM1K, params, t)
     @inbounds for i in eachindex(dx)
-        pii, Δk = _picard(dx[i], x0[i], box)
-        @show Δk
-        @show xTM1K[i].rem
-        @show (Δk) ⊆ xTM1K[i].rem
+        pii, Δ = _picard(dx[i], x0[i], box)
+        @assert (Δ + x0[i].rem) ⊆ xTM1K[i].rem
     end
 
     if nsteps == maxsteps
         @warn ("Maximum number of validate steps reached.")
     end
-    @show nsteps
-    return xTM1K
+
+    return nothing
 end
-
-function validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=30)
-    valid_vector = [false for _ in 1:dof]
-    xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
-    Δn = [interval(0) for _ in 1:dof]
-    nsteps = 0
-
-    while !all(valid_vector) & (nsteps < maxsteps)
-        nsteps += 1
-        @inbounds for i in eachindex(dx)
-            valid_vector[i] && continue
-            # xTM1K[i] = picard(dx[i], xTMN0[i], box)
-            # ∫f  = integrate(dx[i], 0., box)
-            #pol = ∫f.pol + xTMN0[i].pol
-            # Δk = xTM1K[i].rem
-            # Δk = ∫f.rem
-            pol, Δk = _picard(dx[i], xTMN0[i], box)
-            Δk1 = Δk + xTMN0[i].rem
-            x0 = dx[i].x0
-            dom = dx[i].dom
-            if Δk1 ⊆ Δn[i] 
-                valid_vector[i] = true
-                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk1, x0, dom)
-            else
-                xTM1K[i] = TaylorModel1(deepcopy(pol), Δk, x0, dom)
-            end
-            Δn[i] = Δk1
-        end
-        f!(dx, xTM1K, params, t)
-
-        @inbounds for i in eachindex(dx)
-            pii, Δk = _picard(dx[i], xTMN0[i], box)
-            @show Δk
-            @show xTM1K[i].rem
-            @show (Δk+xTMN0[i].rem) ⊆ xTM1K[i].rem
-        end
-    end
-    return xTM1K
-end
-
-function _validate(f!, dx, xTMN0, params, t, box, dof, maxsteps=50)
-    valid_vector = [false for _ in 1:dof]
-    xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
-    Δn = [interval(0) for _ in 1:dof]
-    nsteps = 0
-    maxsteps = 50
-    while !all(valid_vector) & (nsteps < maxsteps)
-        nsteps += 1
-        @inbounds for i in eachindex(dx)
-            valid_vector[i] && continue
-            ∫f  = integrate(dx[i], 0., box)
-            pol = ∫f.pol + xTMN0[i].pol
-            Δk = ∫f.rem
-            Δk = widen(Δk)
-            x0 = dx[i].x0
-            dom = dx[i].dom
-            Δk1 = Δk + xTMN0[i].rem
-            if Δk1 ⊆ Δn[i] 
-                valid_vector[i] = true
-               # xTM1K[i] = TaylorModel1(deepcopy(pol), Δn[i], x0, dom)
-                @show Δk1, Δn[i]
-            else
-                xTM1K[i] = TaylorModel1(deepcopy(pol), Δn[i], x0, dom)
-                Δn[i] = Δk
-            end
-        end
-        f!(dx, xTM1K, params, t)
-    end
-   
-    if nsteps == maxsteps
-        @warn ("Maximum number of validate steps reached.")
-    end
-    
-    # @show t
-    # @show nsteps
-    @show dof, valid_vector
-    @show nsteps, maxsteps
-    # f!(dx, xTM1K, params, t)
-    @inbounds for i in eachindex(dx)
-        pii, Δk = _picard(dx[i], xTMN0[i], box)
-        # ∫f = integrate(dx[i], 0., box)
-        # pol = ∫f.pol
-        #Δk_ = ∫f.rem
-        # @assert Δk == Δk_
-        @show Δk
-        @show xTM1K[i].rem
-        @assert (Δk) ⊆ xTM1K[i].rem
-    end
-
-
-    return xTM1K
-end
-
 
 function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
                          abstol, params=nothing, parse_eqs=true; maxsteps=500,
-                         validatesteps=30) where {N, T}
+                         validatesteps=30, ε=1e-10, δ=1e-3) where {N, T}
     dof = N
     @assert N == get_numvars()
     zI = zero(Interval{T})
@@ -808,10 +718,10 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
             Δ = zero(Interval{Float64})
             xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, x0, dom)
         end
-        f!(dxTM1, xTM1, params, t)
-
-        xTM1K = _validate(f!, dxTM1, xTMN, params, t, symIbox, dof, validatesteps)
-        # xTM1K = ε_inflation(f!, dxTM1, xTMN, params, t, symIbox, dof, maxsteps=validatesteps) 
+        
+        # to reuse the previous TaylorModel and save some allocations
+        ε_inflation!(xTM1, f!, dxTM1, xTMN, params, t, symIbox, dof,
+                     maxsteps=validatesteps, ε=ε, δ=δ)
         t0 += δt
         nsteps += 1
         
@@ -820,10 +730,18 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         xv[nsteps] = evaluate(xTMN, symIbox)
 
         @inbounds for i in eachindex(x)
-            aux_pol = evaluate(xTM1K[i], Interval(δt))
+            aux_pol = evaluate(xTM1[i], Interval(δt))
+            rem[i] = remainder(xTM1[i])
             xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zbox, symIbox))
+            # temporal solution
+            j = 0
+            while (j < 3) && (mag(rem[i]) > 1.0e-10)
+                j += 1
+                xTMN[i] = absorb_remainder(xTMN[i])
+                rem[i] = remainder(xTMN[i])
+            end
             x[i] = Taylor1(xTMN[i].pol, orderT)
-            xTM1v[i, nsteps] = xTM1K[i]
+            xTM1v[i, nsteps] = xTM1[i]
         end
 
         if nsteps > maxsteps
