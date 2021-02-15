@@ -7,6 +7,7 @@ makedocs(
     authors  = "Luis Benet and David P. Sanders",
     pages = [
         "Home" => "index.md",
+        "Examples" => Any["Range bounding" => "range_bounding.md"],
         "API" => "api.md"
     ]
 )
