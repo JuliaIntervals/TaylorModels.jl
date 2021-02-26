@@ -1,22 +1,21 @@
 # TaylorModels
 
-[![travis badge][travis_badge]][travis_url]
-[![appveyor badge][appveyor_badge]][appveyor_url]
-[![codecov badge][codecov_badge]][codecov_url]
+[![CI][CI_badge]][CI_url]
+[![Coverage Status][Coverage_badge]][Coverage_url]
 
+<!-- [![codecov badge][codecov_badge]][codecov_url] -->
 
 [![docs stable][docsbadge_stable]][documenter_stable]
 [![docs latest][docsbadge_latest]][documenter_latest]
 
+[CI_badge]: https://github.com/JuliaIntervals/TaylorModels.jl/actions/workflows/ci.yml/badge.svg
+[CI_url]: https://github.com/JuliaIntervals/TaylorModels.jl/actions/workflows/ci.yml
 
-[travis_badge]: https://travis-ci.org/JuliaIntervals/TaylorModels.jl.svg?branch=master
-[travis_url]: https://travis-ci.org/JuliaIntervals/TaylorModels.jl
+[Coverage_badge]: https://coveralls.io/repos/github/JuliaIntervals/TaylorModels.jl/badge.svg?branch=lb/github_actions
+[Coverage_url]: https://coveralls.io/github/JuliaIntervals/TaylorModels.jl?branch=lb/github_actions
 
-[appveyor_badge]: https://ci.appveyor.com/api/projects/status/github/dpsanders/TaylorModels.jl?svg=true&branch=master
-[appveyor_url]: https://ci.appveyor.com/project/dpsanders/taylormodels-jl-8keb2
-
-[codecov_badge]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl/coverage.svg?branch=master
-[codecov_url]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl?branch=master
+<!-- [codecov_badge]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl/coverage.svg?branch=master
+[codecov_url]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl?branch=master -->
 
 [docsbadge_stable]: https://img.shields.io/badge/docs-stable-blue.svg
 [documenter_stable]: https://juliaintervals.github.io/TaylorModels.jl/stable
