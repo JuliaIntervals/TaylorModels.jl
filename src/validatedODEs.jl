@@ -659,7 +659,8 @@ end
 
 function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
                          abstol, params=nothing, parse_eqs=true; maxsteps=500,
-                         validatesteps=30, ε=1e-10, δ=1e-3) where {N, T}
+                         validatesteps=30, ε=1e-10, δ=1e-3,
+                         absorb_steps=3) where {N, T}
     dof = N
     @assert N == get_numvars()
     zI = zero(Interval{T})
@@ -735,7 +736,7 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
             xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zbox, symIbox))
             # temporal solution
             j = 0
-            while (j < 3) && (mag(rem[i]) > 1.0e-10)
+            while (j < absorb_steps) && (mag(rem[i]) > 1.0e-10)
                 j += 1
                 xTMN[i] = absorb_remainder(xTMN[i])
                 rem[i] = remainder(xTMN[i])
