@@ -658,7 +658,7 @@ function ε_inflation!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5
 end
 
 function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
-                         abstol, params=nothing, parse_eqs=true; maxsteps=500,
+                         abstol, params=nothing; parse_eqs=true, maxsteps=500,
                          validatesteps=30, ε=1e-10, δ=1e-3,
                          absorb_steps=3) where {N, T}
     dof = N
