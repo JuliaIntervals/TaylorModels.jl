@@ -259,8 +259,8 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # ... and its jacobian matrix (full dependence!)
     jacmatrix_g = TaylorSeries.jacobian(g, X)
 
-    # Alternative to Step 7: Check the validity of Eq 16 (or 17) for Lemma 2 
-    # of Bünger's paper, for s=0, and s very small. If it satisfies it, 
+    # Alternative to Step 7: Check the validity of Eq 16 (or 17) for Lemma 2
+    # of Bünger's paper, for s=0, and s very small. If it satisfies it,
     # postverify and return. Otherwise, use Bünger's step 7.
     q = 1.0 .+ r̃
     s = zero(q)
@@ -397,14 +397,71 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     return δt
 end
 
+"""
+    initialize!(X0::IntervalBox, x, dx, xTMN, xI, dxI, rem, xTM1v)
 
-function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
-        t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
-        maxsteps::Int=500, parse_eqs::Bool=true,
-        check_property::Function=(t, x)->true) where {N, T<:Real}
+Initialize the integration varibles and normalize the given interval box to the
+domain ``[-1, 1]^n`.
+"""
+function initialize!(X0::IntervalBox, x, dx, xTMN, xI, dxI, rem, xTM1v)
+    qq0 = mid.(X0)
+    @inbounds for i in eachindex(x)
+        qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
+        x[i] = Taylor1(qaux, orderT)
+        dx[i] = x[i]
+        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
+        #
+        xI[i] = Taylor1(X0[i], orderT+1 )
+        dxI[i] = xI[i]
+        rem[i] = zI
+        #
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+    end
+end
+
+"""
+    initialize!(X0::Vector{TaylorModel1{Taylor{T}, T}}, x, dx, xTMN, xI, dxI, rem, xTM1v)
+
+Initialize the integration varibles assuming that the given vector `X0` is normalized
+to the domain `[-1, 1]^n`.
+"""
+function initialize!(X0::Vector{TaylorModel1{Taylor{T}, T}}, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
+    @inbounds for i in eachindex(x)
+        yi = X0[i]
+        pi = polynomial(yi)
+
+        # we only keep the t^0 coefficient
+        qaux = pi.coeffs[1]
+        @assert all(iszero, pi.coeffs[2:end])
+
+        x[i] = Taylor1(qaux, orderT)
+        dx[i] = x[i]
+        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
+
+        # we assume that qaux is normalized to [-1, 1]^N
+        pi_int = evaluate(qaux, symIbox)
+        xI[i] = Taylor1(pi_int, orderT+1)
+        dxI[i] = xI[i]
+
+        # remainder
+        rem[i] = remainder(yi)
+
+        # expansion point in time assumed zero
+        x0t = expansion_point(yi)
+        @assert x0t == zI
+
+        # domain in time assumed zero
+        @assert domt == zI
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), rem[i], x0t, domt)
+    end
+end
+
+function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T,
+                         params=nothing; maxsteps::Int=500, parse_eqs::Bool=true,
+                         check_property::Function=(t, x)->true) where {T<:Real}
 
     # Set proper parameters for jet transport
-    @assert N == get_numvars()
+    N = get_numvars()
     dof = N
 
     # Some variables
@@ -432,18 +489,7 @@ function validated_integ(f!, qq0::AbstractArray{T,1}, δq0::IntervalBox{N,T},
 
     # Set initial conditions
     rem = Array{Interval{T}}(undef, dof)
-    @inbounds for i in eachindex(x)
-        qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
-        x[i] = Taylor1( qaux, orderT)
-        dx[i] = x[i]
-        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
-        #
-        xI[i] = Taylor1( q0[i]+δq0[i], orderT+1 )
-        dxI[i] = xI[i]
-        rem[i] = zI
-        #
-        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
-    end
+    initialize!(X0, x, dx, xTMN, xI, dxI, rem, xTM1v)
     sign_tstep = copysign(1, tmax-t0)
 
     # Output vectors
