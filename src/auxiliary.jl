@@ -99,3 +99,8 @@ function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::IntervalBox,
     res[0:order] .= zero(res[0])
     return res(aux)
 end
+
+# auxiliary constructors for special intervals and boxes
+@inline zero_interval(T) = zero(Interval{T})
+@inline zero_box(N, T) = IntervalBox(zero_interval(T), Val(N))
+@inline symmetric_box(N, T) = IntervalBox(Interval{T}(-1, 1), Val(N))

@@ -24,7 +24,8 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         # Initial conditions
         tini, tend = 0.0, 10.0
         q0 = [10.0, 0.0]
-        δq0 = IntervalBox(-0.25 .. 0.25, Val(2))
+        δq0 = IntervalBox(-0.25 .. 0.25, 2)
+        X0 = IntervalBox(q0 .+ δq0)
 
         # Parameters
         abstol = 1e-20
@@ -33,8 +34,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
         normalized_box = IntervalBox(-1 .. 1, Val(orderQ))
 
-        tTM, qv, qTM = validated_integ(falling_ball!, q0, δq0,
-            tini, tend, orderQ, orderT, abstol)
+        tTM, qv, qTM = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
 
         @test length(qv) == length(qTM[1, :]) == length(tTM)
         @test length(tTM) < 501
@@ -60,7 +60,8 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         # Initial conditions
         tini, tend = 10.0, 0.0
         q0 = [10.0, 0.0]
-        δq0 = IntervalBox(-0.25 .. 0.25, Val(2))
+        δq0 = IntervalBox(-0.25 .. 0.25, 2)
+        X0 = IntervalBox(q0 .+ δq0)
 
         # Parameters
         abstol = 1e-20
@@ -69,8 +70,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
         normalized_box = IntervalBox(-1 .. 1, Val(orderQ))
 
-        tTM, qv, qTM = validated_integ(falling_ball!, q0, δq0,
-            tini, tend, orderQ, orderT, abstol)
+        tTM, qv, qTM = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
 
         @test length(qv) == length(qTM[1, :]) == length(tTM)
         @test length(tTM) < 501

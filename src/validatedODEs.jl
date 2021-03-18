@@ -72,10 +72,10 @@ Checks if `Δ .⊂ Δx` is satisfied. If ``Δ ⊆ Δx` is satisfied, it returns
 `true` if all cases where `==` holds corresponds to the zero `Interval`.
 """
 function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
-    zi = Interval{T}(0, 0)
+    zI = zero_interval(T)
     @inbounds for ind in 1:N
         Δ[ind] ⊂ Δx[ind] && continue
-        Δ[ind] == Δx[ind] == zi && continue
+        Δ[ind] == Δx[ind] == zI && continue
         return false
     end
     return true
@@ -95,7 +95,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
     # Extend `x` and `dx` to have interval coefficients
-    zI = zero(Interval{T})
+    zI = zero_interval(T)
     @inbounds for ind in eachindex(x)
         xxI[ind]  = x[ind] + Δx[ind]
         dxxI[ind] = dx[ind] + zI
@@ -155,7 +155,7 @@ IEEE Press.
 function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     Δ = remainder(a)
     orderQ = get_order(a)
-    δ = IntervalBox(Interval{T}(-1,1), Val(N))
+    δ = symmetric_box(N, T)
     aux = diam(Δ)/(2N)
     rem = Interval{T}(0, 0)
 
@@ -219,10 +219,10 @@ Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
 function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # Original domain of TaylorModelN should be the symmetric normalized box
-    B = IntervalBox(Interval{T}(-1,1), Val(N))
+    B = symmetric_box(N, T)
     @assert all(domain.(xTMN) .== (B,))
-    zI = zero(Interval{T})
-    x0 = IntervalBox(zI, Val(N))
+    zI = zero_interval(T)
+    x0 = zero_box(N, T)
     @assert all(expansion_point.(xTMN) .== (x0,))
 
     # Vector of independent TaylorN variables
@@ -398,34 +398,50 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
 end
 
 """
-    initialize!(X0::IntervalBox, x, dx, xTMN, xI, dxI, rem, xTM1v)
+    initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {N, T}
 
-Initialize the integration varibles and normalize the given interval box to the
-domain ``[-1, 1]^n`.
+Initialize the auxiliary integration variables and normalize the given interval
+box to the domain `[-1, 1]^n`.
 """
-function initialize!(X0::IntervalBox, x, dx, xTMN, xI, dxI, rem, xTM1v)
-    qq0 = mid.(X0)
+function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {N, T}
+    @assert N == get_numvars()
+
+    # center of the box and vector of widths
+    q0 = mid.(X0)
+    δq0 = X0 .- q0
+
+    # nomalized domain
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
+
     @inbounds for i in eachindex(x)
-        qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
+        qaux = normalize_taylor(q0[i] + TaylorN(i, order=orderQ), δq0, true)
         x[i] = Taylor1(qaux, orderT)
         dx[i] = x[i]
-        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
-        #
-        xI[i] = Taylor1(X0[i], orderT+1 )
+        xTMN[i] = TaylorModelN(qaux, zI, zB, S)
+
+        xI[i] = Taylor1(X0[i], orderT+1)
         dxI[i] = xI[i]
         rem[i] = zI
-        #
+
         xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
     end
 end
 
 """
-    initialize!(X0::Vector{TaylorModel1{Taylor{T}, T}}, x, dx, xTMN, xI, dxI, rem, xTM1v)
+    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
 
-Initialize the integration varibles assuming that the given vector `X0` is normalized
-to the domain `[-1, 1]^n`.
+Initialize the auxiliary integration variables assuming that the given vector
+of taylor models `X0` is normalized to the domain `[-1, 1]^n` in space.
 """
-function initialize!(X0::Vector{TaylorModel1{Taylor{T}, T}}, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
+function initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
+    # nomalized domain
+    N = get_numvars()
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
+
     @inbounds for i in eachindex(x)
         yi = X0[i]
         pi = polynomial(yi)
@@ -436,10 +452,10 @@ function initialize!(X0::Vector{TaylorModel1{Taylor{T}, T}}, x, dx, xTMN, xI, dx
 
         x[i] = Taylor1(qaux, orderT)
         dx[i] = x[i]
-        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
+        xTMN[i] = TaylorModelN(qaux, zI, zB, S)
 
         # we assume that qaux is normalized to [-1, 1]^N
-        pi_int = evaluate(qaux, symIbox)
+        pi_int = evaluate(qaux, S)
         xI[i] = Taylor1(pi_int, orderT+1)
         dxI[i] = xI[i]
 
@@ -448,10 +464,10 @@ function initialize!(X0::Vector{TaylorModel1{Taylor{T}, T}}, x, dx, xTMN, xI, dx
 
         # expansion point in time assumed zero
         x0t = expansion_point(yi)
-        @assert x0t == zI
+        @assert x0t == zero_int
 
         # domain in time assumed zero
-        @assert domt == zI
+        @assert domt == zero_int
         xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), rem[i], x0t, domt)
     end
 end
@@ -465,36 +481,38 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     dof = N
 
     # Some variables
-    zI = zero(Interval{T})
-    zbox = IntervalBox(zI, Val(N))
-    symIbox = IntervalBox(Interval{T}(-1, 1), Val(N))
-    q0 = IntervalBox(qq0)
-    t   = t0 + Taylor1(orderT)
-    tI  = t0 + Taylor1(orderT+1)
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S  = symmetric_box(N, T)
+    t  = t0 + Taylor1(orderT)
+    tI = t0 + Taylor1(orderT+1)
 
     # Allocation of vectors
+
     # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
+    rem = Array{Interval{T}}(undef, dof)
+
     # Internals: jet transport integration
     x     = Array{Taylor1{TaylorN{T}}}(undef, dof)
     dx    = Array{Taylor1{TaylorN{T}}}(undef, dof)
     xaux  = Array{Taylor1{TaylorN{T}}}(undef, dof)
     xTMN  = Array{TaylorModelN{N,T,T}}(undef, dof)
+
     # Internals: Taylor1{Interval{T}} integration
     xI    = Array{Taylor1{Interval{T}}}(undef, dof)
     dxI   = Array{Taylor1{Interval{T}}}(undef, dof)
     xauxI = Array{Taylor1{Interval{T}}}(undef, dof)
 
     # Set initial conditions
-    rem = Array{Interval{T}}(undef, dof)
-    initialize!(X0, x, dx, xTMN, xI, dxI, rem, xTM1v)
+    initialize!(X0, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v)
     sign_tstep = copysign(1, tmax-t0)
 
     # Output vectors
     @inbounds tv[1] = t0
-    @inbounds xv[1] = evaluate(xTMN, symIbox)
+    @inbounds xv[1] = evaluate(xTMN, S)
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
@@ -512,7 +530,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
         # Validated step of the integration
         δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
-            t0, tmax, sign_tstep, xTMN, xv, rem, zbox, symIbox,
+            t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
             nsteps, orderT, abstol, params, parse_eqs, check_property)
 
         # New initial conditions and time
@@ -525,10 +543,10 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
             δtI = sign_tstep * Interval{T}(0, sign_tstep*δt)
             xTM1v[i, nsteps] = TaylorModel1(deepcopy(x[i]), rem[i], zI, δtI)
             aux = x[i](δt)
-            x[i]  = Taylor1( aux, orderT )
-            dx[i] = Taylor1( zero(aux), orderT )
-            auxI = xTMN[i](symIbox)
-            xI[i] = Taylor1( auxI, orderT+1 )
+            x[i]  = Taylor1(aux, orderT)
+            dx[i] = Taylor1(zero(aux), orderT)
+            auxI = xTMN[i](S)
+            xI[i] = Taylor1(auxI, orderT+1)
             dxI[i] = xI[i]
         end
 
