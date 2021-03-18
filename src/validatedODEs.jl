@@ -410,7 +410,7 @@ function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, xI, dxI
     q0 = mid.(X0)
     δq0 = X0 .- q0
 
-    # nomalized domain
+    # normalized domain
     zI = zero_interval(T)
     zB = zero_box(N, T)
     S = symmetric_box(N, T)
