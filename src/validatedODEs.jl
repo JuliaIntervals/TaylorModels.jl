@@ -716,7 +716,7 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         δt = sign_tstep * δt
 
         @inbounds for i in eachindex(x)
-            dom = sign_tstep > 0 ? 0 .. δt : δt .. 0
+            dom = sign_tstep > 0 ? Interval(0, δt) : Interval(δt, 0)
             x0 = sign_tstep > 0 ? dom.lo : dom.hi
             Δ = zero(Interval{Float64})
             xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, x0, dom)
