@@ -582,6 +582,20 @@ function _picard(dx, x0, box)
     return pol, Δk
 end
 
+"""
+    verify_contraction(f!, dx, xTM1K, params, t, x0, box)
+
+Verifies contraction property for a given set of `f!`, `dx`, `xTM1K`,
+`params`, `t`, `x0`, `box`. It asserts the contention remainder(∫f!(dx, xTM1K, params, t)) ⊆ remainder(xTM1K).
+"""
+function verify_contraction(f!, dx, xTM1K, params, t, x0, box)
+    f!(dx, xTM1K, params, t)
+    @inbounds for i in eachindex(dx)
+        pii, Δ = _picard(dx[i], x0[i], box)
+        @assert (Δ + x0[i].rem) ⊆ xTM1K[i].rem
+    end
+end
+
 function _bound_integration(a::Taylor1, Δr, δ, δI)
     order = get_order(a)
     aux = δ^order / (order+1)
@@ -589,49 +603,49 @@ function _bound_integration(a::Taylor1, Δr, δ, δI)
     return Δ
 end
 
-function ε_inflation!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
+function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
                       maxsteps=20, extrasteps=50)
     E = [interval(0) for i in eachindex(x0)]
     E′ = [interval(0) for _ in 1:dof]
-    # xTM1K = Array{TaylorModel1{TaylorN{Float64}, Float64}}(undef, dof)
-    polv = [xTM1K[i].pol for i in eachindex(xTM1K)]
-    x0v = [xTM1K[i].x0 for i in eachindex(xTM1K)]
-    domv = [xTM1K[i].dom for i in eachindex(xTM1K)]
+    polv = polynomial.(xTM1K)
+    x0v = expansion_point.(xTM1K)
+    domv = domain.(xTM1K)
     low_ratiov = Array{Float64, 1}(undef, dof)
     hi_ratiov = Array{Float64, 1}(undef, dof)
     nsteps = 0
    
-    while true & (nsteps < maxsteps)
+    while nsteps < maxsteps
         nsteps += 1
         f!(dx, xTM1K, params, t)
         @inbounds for i in eachindex(dx)
             pᵢ₁, Δ = _picard(dx[i], x0[i], box)
             E′[i] = Δ + x0[i].rem
         end
-        if all(E′ .⊆ E)
-            @inbounds for i in eachindex(dx)
+
+        # Only inflates the required component
+        @inbounds for i in eachindex(dx)
+            if E′[i] ⊆ E[i] || E′[i] == E[i] == Interval(0)
                 xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
-            end
-            break
-        else
-            εi = (1 - ε) .. (1 + ε)
-            δi = -δ .. δ
-            E .= (E′ .* εi) .+ δi
-            @inbounds for i in eachindex(dx)
+            else
+                εi = (1 - ε) .. (1 + ε)
+                δi = -δ .. δ
+                E[i] = E′[i] * εi + δi
                 xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
             end
         end
+
+        all(E′ .⊆ E) && break
+
     end
     
     @inbounds for i in eachindex(dx)
         low_ratiov[i] = E′[i].lo / E[i].lo
         hi_ratiov[i] = E′[i].hi / E[i].hi
     end
-
+    
+    # Contract further the remainders if the last contraction improves more than 5%
     for ind = 1:extrasteps
-        if all(low_ratiov .> 0.95) & all(hi_ratiov .> 0.95)
-            break
-        end
+        all(low_ratiov .> 0.95) && all(hi_ratiov .> 0.95) && break
         f!(dx, xTM1K, params, t)
         @inbounds for i in eachindex(dx)
             E[i] = E′[i]
@@ -644,11 +658,7 @@ function ε_inflation!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5
     end
 
 
-    f!(dx, xTM1K, params, t)
-    @inbounds for i in eachindex(dx)
-        pii, Δ = _picard(dx[i], x0[i], box)
-        @assert (Δ + x0[i].rem) ⊆ xTM1K[i].rem
-    end
+    verify_contraction(f!, dx, xTM1K, params, t, x0, box)
 
     if nsteps == maxsteps
         @warn ("Maximum number of validate steps reached.")
@@ -721,8 +731,8 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         end
         
         # to reuse the previous TaylorModel and save some allocations
-        ε_inflation!(xTM1, f!, dxTM1, xTMN, params, t, symIbox, dof,
-                     maxsteps=validatesteps, ε=ε, δ=δ)
+        _validate_step!(xTM1, f!, dxTM1, xTMN, params, t, symIbox, dof,
+                        maxsteps=validatesteps, ε=ε, δ=δ)
         t0 += δt
         nsteps += 1
         
