@@ -706,15 +706,7 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
     @inbounds tv[1] = t0
     @inbounds xv[1] = evaluate(xTMN, symIbox)
 
-    parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
-    if parse_eqs
-        try
-            TaylorIntegration.jetcoeffs!(Val(f!), t, x, dx, params)
-        catch
-            parse_eqs = false
-        end
-    end
-
+    parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
     while t0 * sign_tstep < tf * sign_tstep
         δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
