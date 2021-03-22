@@ -47,6 +47,12 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
             end
         end
+
+        # initializaton with a Taylor model
+        X0tm = qTM[:, 1]
+        @assert X0tm isa Vector{TaylorModel1{TaylorN{Float64}, Float64}}
+        tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+        @test all(iszero, (qTM - qTM2))
     end
 
     @testset "Backward integration" begin
@@ -83,5 +89,11 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
             end
         end
+
+        # initializaton with a Taylor model
+        X0tm = qTM[:, 1]
+        @assert X0tm isa Vector{TaylorModel1{TaylorN{Float64}, Float64}}
+        tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+        @test all(iszero, (qTM - qTM2))
     end
 end

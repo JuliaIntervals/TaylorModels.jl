@@ -467,6 +467,7 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x,
         @assert x0t == zI
 
         # domain in time assumed zero
+        domt = domain(yi)
         @assert domt == zI
         xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), rem[i], x0t, domt)
     end
