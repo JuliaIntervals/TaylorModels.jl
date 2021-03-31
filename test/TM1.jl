@@ -435,11 +435,19 @@ end
     @testset "Display" begin
         tm = TaylorModel1(2, x1, ii1)
         use_show_default(true)
-        @test string(exp(tm)) == "TaylorModel1{Interval{Float64},Float64}" *
-            "(Taylor1{Interval{Float64}}(Interval{Float64}" *
-            "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
-            "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677604, 0.06448109909211741), " *
-            "Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        if VERSION < v"1.6"
+            @test string(exp(tm)) == "TaylorModel1{Interval{Float64},Float64}" *
+                "(Taylor1{Interval{Float64}}(Interval{Float64}" *
+                "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+                "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677604, 0.06448109909211741), " *
+                "Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        else
+            @test string(exp(tm)) == "TaylorModel1{Interval{Float64}, Float64}" *
+                "(Taylor1{Interval{Float64}}(Interval{Float64}" *
+                "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+                "Interval(1.3591409142295225, 1.3591409142295228)], 2), Interval(-0.05020487208677604, 0.06448109909211741), " *
+                "Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        end
         use_show_default(false)
         @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
             "Interval(3.0, 3.0) t² + Interval(-0.125, 0.125)"
@@ -447,7 +455,7 @@ end
             "Interval(2.718281828459045, 2.7182818284590455) t + " *
             "Interval(1.3591409142295225, 1.3591409142295228) t² + " *
             "Interval(-0.05020487208677604, 0.06448109909211741)"
-    end
+end
 
     @testset "Tests for bounders" begin
         @testset "Tests for linear dominated bounder" begin
@@ -863,11 +871,19 @@ end
     @testset "Display" begin
         tm = RTaylorModel1(3, x1, ii1)
         use_show_default(true)
-        @test string(exp(tm)) == "RTaylorModel1{Interval{Float64},Float64}" *
-            "(Taylor1{Interval{Float64}}(Interval{Float64}" *
-            "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
-            "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *
-            "Interval(0.10281598943126369, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        if VERSION < v"1.6"
+            @test string(exp(tm)) == "RTaylorModel1{Interval{Float64},Float64}" *
+                "(Taylor1{Interval{Float64}}(Interval{Float64}" *
+                "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+                "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *
+                "Interval(0.10281598943126369, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        else
+            @test string(exp(tm)) == "RTaylorModel1{Interval{Float64}, Float64}" *
+                "(Taylor1{Interval{Float64}}(Interval{Float64}" *
+                "[Interval(2.718281828459045, 2.7182818284590455), Interval(2.718281828459045, 2.7182818284590455), " *
+                "Interval(1.3591409142295225, 1.3591409142295228), Interval(0.45304697140984085, 0.45304697140984096)], 3), " *
+                "Interval(0.10281598943126369, 0.1256036426541982), Interval(1.0, 1.0), Interval(0.5, 1.5))"
+        end
         use_show_default(false)
         @test string(tm^3) == " Interval(1.0, 1.0) + Interval(3.0, 3.0) t + " *
             "Interval(3.0, 3.0) t² + Interval(1.0, 1.0) t³ + Interval(0.0, 0.0) t⁴"

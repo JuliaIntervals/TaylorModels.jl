@@ -355,17 +355,31 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xm = TaylorModelN(1, _order, b1, ib1)
         ym = TaylorModelN(2, _order, b1, ib1)
         use_show_default(true)
-        @test string(xm+ym) == "TaylorModelN{2,Interval{Float64},Float64}" *
-            "(TaylorN{Interval{Float64}}" *
-            "(HomogeneousPolynomial{Interval{Float64}}" *
-            "[HomogeneousPolynomial{Interval{Float64}}" *
-            "(Interval{Float64}[Interval(1.0, 1.0)], 0), " *
-            "HomogeneousPolynomial{Interval{Float64}}" *
-            "(Interval{Float64}[Interval(1.0, 1.0), Interval(1.0, 1.0)], 1), " *
-            "HomogeneousPolynomial{Interval{Float64}}" *
-            "(Interval{Float64}[Interval(0.0, 0.0), Interval(0.0, 0.0), " *
-            "Interval(0.0, 0.0)], 2)], 2), Interval(0.0, 0.0), IntervalBox(Interval(0.0, 0.0), " *
-            "Interval(1.0, 1.0)), IntervalBox(Interval(-0.5, 0.5), Interval(0.5, 1.5)))"
+        if VERSION < v"1.6"
+            @test string(xm+ym) == "TaylorModelN{2,Interval{Float64},Float64}" *
+                "(TaylorN{Interval{Float64}}" *
+                "(HomogeneousPolynomial{Interval{Float64}}" *
+                "[HomogeneousPolynomial{Interval{Float64}}" *
+                "(Interval{Float64}[Interval(1.0, 1.0)], 0), " *
+                "HomogeneousPolynomial{Interval{Float64}}" *
+                "(Interval{Float64}[Interval(1.0, 1.0), Interval(1.0, 1.0)], 1), " *
+                "HomogeneousPolynomial{Interval{Float64}}" *
+                "(Interval{Float64}[Interval(0.0, 0.0), Interval(0.0, 0.0), " *
+                "Interval(0.0, 0.0)], 2)], 2), Interval(0.0, 0.0), IntervalBox(Interval(0.0, 0.0), " *
+                "Interval(1.0, 1.0)), IntervalBox(Interval(-0.5, 0.5), Interval(0.5, 1.5)))"
+        else
+            @test string(xm+ym) == "TaylorModelN{2, Interval{Float64}, Float64}" *
+                "(TaylorN{Interval{Float64}}" *
+                "(HomogeneousPolynomial{Interval{Float64}}" *
+                "[HomogeneousPolynomial{Interval{Float64}}" *
+                "(Interval{Float64}[Interval(1.0, 1.0)], 0), " *
+                "HomogeneousPolynomial{Interval{Float64}}" *
+                "(Interval{Float64}[Interval(1.0, 1.0), Interval(1.0, 1.0)], 1), " *
+                "HomogeneousPolynomial{Interval{Float64}}" *
+                "(Interval{Float64}[Interval(0.0, 0.0), Interval(0.0, 0.0), " *
+                "Interval(0.0, 0.0)], 2)], 2), Interval(0.0, 0.0), IntervalBox(Interval(0.0, 0.0), " *
+                "Interval(1.0, 1.0)), IntervalBox(Interval(-0.5, 0.5), Interval(0.5, 1.5)))"
+        end
         use_show_default(false)
         @test string((xm+ym)^2) == " Interval(1.0, 1.0) + Interval(2.0, 2.0) x + " *
             "Interval(2.0, 2.0) y + Interval(1.0, 1.0) x² + Interval(2.0, 2.0) x y + " *
