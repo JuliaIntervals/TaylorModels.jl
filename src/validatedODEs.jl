@@ -588,12 +588,38 @@ end
 Verifies contraction property for a given set of `f!`, `dx`, `xTM1K`,
 `params`, `t`, `x0`, `box`. It asserts the contention remainder(∫f!(dx, xTM1K, params, t)) ⊆ remainder(xTM1K).
 """
-function verify_contraction(f!, dx, xTM1K, params, t, x0, box)
+# function picard_iteration(f!, dx, xTM1K, params, t, x0, box; first=false)
+#     f!(dx, xTM1K, params, t)
+#     E = zero.(remainder.(x0))
+#     @inbounds for i in eachindex(dx)
+#         pii, Δ = _picard(dx[i], x0[i], box)
+#         if first
+#             E[i] = Δ + x0[i].rem
+#         else
+#             E[i] = Δ
+#         end
+#         # @assert (Δ + x0[i].rem) ⊆ xTM1K[i].rem
+#     end
+#     return E
+# end
+
+function picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
     f!(dx, xTM1K, params, t)
+    E = zero.(remainder.(x0))
     @inbounds for i in eachindex(dx)
         pii, Δ = _picard(dx[i], x0[i], box)
-        @assert (Δ + x0[i].rem) ⊆ xTM1K[i].rem
+        E[i] = Δ + x0[i].rem
     end
+    return E
+end
+
+function picard_iteration(f!, dx, xTM1K, params, t, x0, box)
+    f!(dx, xTM1K, params, t)
+    E = zero.(remainder.(x0))
+    @inbounds for i in eachindex(dx)
+        _, E[i] = _picard(dx[i], x0[i], box)
+    end
+    return E
 end
 
 function _bound_integration(a::Taylor1, Δr, δ, δI)
@@ -604,8 +630,8 @@ function _bound_integration(a::Taylor1, Δr, δ, δI)
 end
 
 function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
-                      maxsteps=20, extrasteps=50)
-    E = [interval(0) for i in eachindex(x0)]
+                         maxsteps=20, extrasteps=50)
+    E = remainder.(x0)# [remainder(0) for i in eachindex(x0)]
     E′ = [interval(0) for _ in 1:dof]
     polv = polynomial.(xTM1K)
     x0v = expansion_point.(xTM1K)
@@ -613,29 +639,38 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
     low_ratiov = Array{Float64, 1}(undef, dof)
     hi_ratiov = Array{Float64, 1}(undef, dof)
     nsteps = 0
+    nextra = 0
    
     while nsteps < maxsteps
-        nsteps += 1
-        f!(dx, xTM1K, params, t)
-        @inbounds for i in eachindex(dx)
-            pᵢ₁, Δ = _picard(dx[i], x0[i], box)
-            E′[i] = Δ + x0[i].rem
+        # nsteps += 1
+        # f!(dx, xTM1K, params, t)
+        
+        if nsteps == 0
+            E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true))
+        else
+            E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) #+ remainder.(x0)
         end
+        # @inbounds for i in eachindex(dx)
+        #     pᵢ₁, Δ = _picard(dx[i], x0[i], box)
+        #     E′[i] = Δ + x0[i].rem
+        # end
 
         # Only inflates the required component
         @inbounds for i in eachindex(dx)
             if E′[i] ⊆ E[i] || E′[i] == E[i] == Interval(0)
-                xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
+                xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
             else
                 εi = (1 - ε) .. (1 + ε)
                 δi = -δ .. δ
+                # @show E′[i]
                 E[i] = E′[i] * εi + δi
                 xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
             end
         end
 
-        all(E′ .⊆ E) && break
-
+        
+        (all(E′ .⊆ E)) && break
+        nsteps += 1
     end
     
     @inbounds for i in eachindex(dx)
@@ -645,20 +680,33 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
     
     # Contract further the remainders if the last contraction improves more than 5%
     for ind = 1:extrasteps
-        all(low_ratiov .> 0.95) && all(hi_ratiov .> 0.95) && break
-        f!(dx, xTM1K, params, t)
+        all(low_ratiov .> 0.90) && all(hi_ratiov .> 0.90) && break
+        # f!(dx, xTM1K, params, t)
+        E .= remainder.(xTM1K)
+        E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) # .+ remainder.(x0)
+        # @show all(E′ .⊆ E)
+        # @show E′, E
         @inbounds for i in eachindex(dx)
-            E[i] = E′[i]
-            _, Δ = _picard(dx[i], x0[i], box)
-            E′[i] = Δ + x0[i].rem
+            # E[i] = E′[i]
+            # _, Δ = _picard(dx[i], x0[i], box)
+            # E′[i] = Δ + x0[i].rem
             xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
             low_ratiov[i] = E′[i].lo / E[i].lo
             hi_ratiov[i] = E′[i].hi / E[i].hi
         end
+        nextra += 1
     end
 
+    # E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true))
+    # @show nextra
 
-    verify_contraction(f!, dx, xTM1K, params, t, x0, box)
+    # @show E′
+    # E = picard_iteration(f!, dx, xTM1K, params, t, x0, box)
+    @assert all(E′ .⊆ remainder.(xTM1K)) # @show E, remainder.(xTM1K)
+    
+    @inbounds for i in eachindex(dx)
+        xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
+    end
 
     if nsteps == maxsteps
         @warn ("Maximum number of validate steps reached.")
