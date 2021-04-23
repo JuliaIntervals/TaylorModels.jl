@@ -429,6 +429,25 @@ function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, xI, dxI
     end
 end
 
+function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N, T}
+    @assert N == get_numvars()
+    q0 = mid.(X0)
+    δq0 = X0 .- q0
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
+
+    @inbounds for i in eachindex(x)
+        qaux = normalize_taylor(q0[i] + TaylorN(i, order=orderQ), δq0, true)
+        x[i] = Taylor1(qaux, orderT)
+        dx[i] = x[i]
+        xTMN[i] = TaylorModelN(qaux, zI, zB, S)
+        rem[i] = zI
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+    end
+end
+
+
 """
     initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
 
@@ -582,27 +601,6 @@ function _picard(dx, x0, box)
     return pol, Δk
 end
 
-"""
-    verify_contraction(f!, dx, xTM1K, params, t, x0, box)
-
-Verifies contraction property for a given set of `f!`, `dx`, `xTM1K`,
-`params`, `t`, `x0`, `box`. It asserts the contention remainder(∫f!(dx, xTM1K, params, t)) ⊆ remainder(xTM1K).
-"""
-# function picard_iteration(f!, dx, xTM1K, params, t, x0, box; first=false)
-#     f!(dx, xTM1K, params, t)
-#     E = zero.(remainder.(x0))
-#     @inbounds for i in eachindex(dx)
-#         pii, Δ = _picard(dx[i], x0[i], box)
-#         if first
-#             E[i] = Δ + x0[i].rem
-#         else
-#             E[i] = Δ
-#         end
-#         # @assert (Δ + x0[i].rem) ⊆ xTM1K[i].rem
-#     end
-#     return E
-# end
-
 function picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
     f!(dx, xTM1K, params, t)
     E = zero.(remainder.(x0))
@@ -631,7 +629,7 @@ end
 
 function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
                          maxsteps=20, extrasteps=50)
-    E = remainder.(x0)# [remainder(0) for i in eachindex(x0)]
+    E = remainder.(x0)
     E′ = [interval(0) for _ in 1:dof]
     polv = polynomial.(xTM1K)
     x0v = expansion_point.(xTM1K)
@@ -642,18 +640,12 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
     nextra = 0
    
     while nsteps < maxsteps
-        # nsteps += 1
-        # f!(dx, xTM1K, params, t)
         
         if nsteps == 0
             E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true))
         else
             E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) #+ remainder.(x0)
         end
-        # @inbounds for i in eachindex(dx)
-        #     pᵢ₁, Δ = _picard(dx[i], x0[i], box)
-        #     E′[i] = Δ + x0[i].rem
-        # end
 
         # Only inflates the required component
         @inbounds for i in eachindex(dx)
@@ -662,7 +654,6 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
             else
                 εi = (1 - ε) .. (1 + ε)
                 δi = -δ .. δ
-                # @show E′[i]
                 E[i] = E′[i] * εi + δi
                 xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
             end
@@ -681,15 +672,9 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
     # Contract further the remainders if the last contraction improves more than 5%
     for ind = 1:extrasteps
         all(low_ratiov .> 0.90) && all(hi_ratiov .> 0.90) && break
-        # f!(dx, xTM1K, params, t)
         E .= remainder.(xTM1K)
         E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) # .+ remainder.(x0)
-        # @show all(E′ .⊆ E)
-        # @show E′, E
         @inbounds for i in eachindex(dx)
-            # E[i] = E′[i]
-            # _, Δ = _picard(dx[i], x0[i], box)
-            # E′[i] = Δ + x0[i].rem
             xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
             low_ratiov[i] = E′[i].lo / E[i].lo
             hi_ratiov[i] = E′[i].hi / E[i].hi
@@ -697,11 +682,6 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
         nextra += 1
     end
 
-    # E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true))
-    # @show nextra
-
-    # @show E′
-    # E = picard_iteration(f!, dx, xTM1K, params, t, x0, box)
     @assert all(E′ .⊆ remainder.(xTM1K)) # @show E, remainder.(xTM1K)
     
     @inbounds for i in eachindex(dx)
@@ -715,16 +695,16 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
     return nothing
 end
 
-function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orderT,
-                         abstol, params=nothing; parse_eqs=true, maxsteps=500,
-                         validatesteps=30, ε=1e-10, δ=1e-3,
-                         absorb_steps=3) where {N, T}
+function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
+                         abstol::T, params=nothing; parse_eqs=true, maxsteps::Int=500,
+                         validatesteps::Int=30, ε::T=1e-10, δ::T=1e-3,
+                         absorb_steps::Int=3) where {T <: Real}
+    N = get_numvars()
     dof = N
-    @assert N == get_numvars()
-    zI = zero(Interval{T})
-    zbox = IntervalBox(zI, Val(N))
-    symIbox = IntervalBox(Interval{T}(-1 .. 1), Val(N))
-    q0 = IntervalBox(qq0)
+
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
     t = t0 + Taylor1(orderT)
     
     tv = Array{T}(undef, maxsteps+1)
@@ -740,19 +720,13 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
 
     rem = Array{Interval{T}}(undef, dof)
 
-    @inbounds for i in eachindex(x)
-        qaux = normalize_taylor(qq0[i] + TaylorN(i, order=orderQ), δq0, true)
-        x[i] = Taylor1(qaux, orderT)
-        dx[i] = x[i]
-        xTMN[i] = TaylorModelN(qaux, zI, zbox, symIbox)
-        rem[i] = zI
-        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
-    end
+    # Set initial conditions
+    initialize!(X0, orderQ, orderT, x, dx, xTMN, rem, xTM1v)
 
     sign_tstep = copysign(1, tf - t0)
     nsteps = 1
     @inbounds tv[1] = t0
-    @inbounds xv[1] = evaluate(xTMN, symIbox)
+    @inbounds xv[1] = evaluate(xTMN, S)
 
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
@@ -771,19 +745,19 @@ function validated_integ2(f!, qq0, δq0::IntervalBox{N, T}, t0, tf, orderQ, orde
         end
         
         # to reuse the previous TaylorModel and save some allocations
-        _validate_step!(xTM1, f!, dxTM1, xTMN, params, t, symIbox, dof,
+        _validate_step!(xTM1, f!, dxTM1, xTMN, params, t, S, dof,
                         maxsteps=validatesteps, ε=ε, δ=δ)
         t0 += δt
         nsteps += 1
         
         @inbounds t[0] = t0
         @inbounds tv[nsteps] = t0
-        xv[nsteps] = evaluate(xTMN, symIbox)
+        xv[nsteps] = evaluate(xTMN, S)
 
         @inbounds for i in eachindex(x)
             aux_pol = evaluate(xTM1[i], Interval(δt))
             rem[i] = remainder(xTM1[i])
-            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zbox, symIbox))
+            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zB, S))
             # temporal solution
             j = 0
             while (j < absorb_steps) && (mag(rem[i]) > 1.0e-10)
