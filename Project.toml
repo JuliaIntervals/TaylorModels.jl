@@ -1,7 +1,7 @@
 name = "TaylorModels"
 uuid = "314ce334-5f6e-57ae-acf6-00b6e903104a"
 repo = "https://github.com/JuliaIntervals/TaylorModels.jl.git"
-version = "0.3.8"
+version = "0.3.9"
 
 [deps]
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
@@ -14,7 +14,7 @@ TaylorIntegration = "92b13dbe-c966-51a2-8445-caca9f8a7d42"
 TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
 
 [compat]
-IntervalArithmetic = "0.16, 0.17"
+IntervalArithmetic = "0.16, 0.17, 0.18"
 IntervalRootFinding = "0.5.1"
 RecipesBase = "0.8, 1.0"
 Reexport = "0.2, 1.0"
