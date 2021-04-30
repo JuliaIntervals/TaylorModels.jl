@@ -461,7 +461,7 @@ end
         @testset "Tests for linear dominated bounder" begin
             order = 3
             
-            f(x) = 1 + x^5 - x^4
+            f = x -> 1 + x^5 - x^4
             D = 0.9375 .. 1
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
@@ -482,7 +482,7 @@ end
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
             
-            f(x) = x^2 * sin(x)
+            f = x -> x^2 * sin(x)
             D = -1.875 .. -1.25
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
@@ -507,7 +507,7 @@ end
         @testset "Tests for quadratic fast bounder" begin
             order = 3
             
-            f(x) = 1 + x^5 - x^4
+            f = x -> 1 + x^5 - x^4
             D = 0.75 .. 0.8125
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
@@ -518,7 +518,7 @@ end
             @test bound_qfb ⊆ bound_naive_tm
             # @test diam(bound_qfb) <= diam(bound_ldb)
 
-            f(x) = x^2 * sin(x)
+            f = x -> x^2 * sin(x)
             D = -2.5 .. -1.875
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
@@ -529,7 +529,7 @@ end
             @test bound_qfb ⊆ bound_naive_tm
             @test diam(bound_qfb) <= diam(bound_ldb)
 
-            f(x) = x^3 * cos(x) + x
+            f = x -> x^3 * cos(x) + x
             D = 3.75 .. 4.375
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
