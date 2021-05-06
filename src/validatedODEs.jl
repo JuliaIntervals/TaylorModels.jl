@@ -429,6 +429,12 @@ function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, xI, dxI
     end
 end
 
+"""
+    initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N, T}
+
+Initialize the auxiliary integration variables and normalize the given interval
+box to the domain `[-1, 1]^n`.
+"""
 function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N, T}
     @assert N == get_numvars()
     q0 = mid.(X0)
@@ -446,7 +452,6 @@ function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xT
         xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
     end
 end
-
 
 """
     initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
@@ -588,12 +593,6 @@ end
 Computes the picard (integral) operator for the initial condition `x0`.
 `dx` must be the rhs of the differential equation.
 """
-function picard(dx, x0, box)
-    ∫f = integrate(dx, 0., box)
-    pol = ∫f.pol + x0.pol # picard operator
-    return TaylorModel1(deepcopy(pol), ∫f.rem + x0.rem, ∫f.x0, ∫f.dom)
-end
-
 function _picard(dx, x0, box)
     ∫f = integrate(dx, 0., box)
     pol = ∫f.pol + x0.pol
@@ -601,6 +600,13 @@ function _picard(dx, x0, box)
     return pol, Δk
 end
 
+"""
+    picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
+
+Computes the picard (integral) operator for the set of equations `f!` and the initial condition`x0`.
+The Val parameter enables the selection of the desired method. This one returns the remainder of
+the resulting Taylor Model with the remainder of the initial condition included.
+"""
 function picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
     f!(dx, xTM1K, params, t)
     E = zero.(remainder.(x0))
@@ -611,6 +617,12 @@ function picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
     return E
 end
 
+"""
+    picard_iteration(f!, dx, xTM1K, params, t, x0, box)
+
+Computes the picard (integral) operator for the set of equations `f!` and the initial condition`x0`.
+This method returns the remainder of the resulting Taylor Model without the remainder of the initial condition.
+"""
 function picard_iteration(f!, dx, xTM1K, params, t, x0, box)
     f!(dx, xTM1K, params, t)
     E = zero.(remainder.(x0))
@@ -620,13 +632,16 @@ function picard_iteration(f!, dx, xTM1K, params, t, x0, box)
     return E
 end
 
-function _bound_integration(a::Taylor1, Δr, δ, δI)
-    order = get_order(a)
-    aux = δ^order / (order+1)
-    Δ = δ * (Δr + getcoeff(a, order)(δI) * aux)
-    return Δ
-end
+"""
+    _validate_step(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, maxsteps=20, extrasteps=50)
 
+Validate the Taylor Model solution for the current integration time step.
+This function implements the epsilon inflation algorithm proposed by Bünger
+with some custom adaptations.
+
+Ref: Florian B\"unger, A Taylor model toolbox for solving ODEs implemented in MATLAB/INTLAB,
+J. Comput. Appl. Math. 368, 112511, https://doi.org/10.1016/j.cam.2019.112511
+"""
 function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
                          maxsteps=20, extrasteps=50)
     E = remainder.(x0)
@@ -682,8 +697,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
         nextra += 1
     end
 
-    @assert all(E′ .⊆ remainder.(xTM1K)) # @show E, remainder.(xTM1K)
-    
+    @assert all(E′ .⊆ remainder.(xTM1K))   
     @inbounds for i in eachindex(dx)
         xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
     end
