@@ -105,7 +105,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     f!(dxxI, xxI, params, t)
 
     # Picard iteration, considering only the bound of `f` and the last coeff of f
-    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI ) )
+    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), (δI,) ) )
     Δ = Δ0 + Δdx * δt
     return Δ
 end
