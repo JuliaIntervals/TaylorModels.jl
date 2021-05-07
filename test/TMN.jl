@@ -258,9 +258,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xm = TaylorModelN(1, _order, b0, ib0)
         ym = TaylorModelN(2, _order, b0, ib0)
         
-        f(x, y) = cos(x)
-        ∫fdx(x, y) = sin(x)
-        ∫fdy(x, y) = cos(x) * y
+        f = (x, y) -> cos(x)
+        ∫fdx = (x, y) -> sin(x)
+        ∫fdy = (x, y) -> cos(x) * y
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
         ∫fTdy = integrate(fT, :y)
@@ -274,9 +274,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
 
-        f(x, y) = sin(x) * cos(y)
-        ∫fdx(x, y) = -cos(x) * cos(y)
-        ∫fdy(x, y) = sin(x) * sin(y)
+        f = (x, y) -> sin(x) * cos(y)
+        ∫fdx = (x, y) -> -cos(x) * cos(y)
+        ∫fdy = (x, y) -> sin(x) * sin(y)
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
         ∫fTdy = integrate(fT, :y)
@@ -290,9 +290,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
 
-        f(x, y) = exp(x)
-        ∫fdx(x, y) = exp(x)
-        ∫fdy(x, y) = exp(x) * y
+        f = (x, y) -> exp(x)
+        ∫fdx = (x, y) -> exp(x)
+        ∫fdy = (x, y) -> exp(x) * y
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
         ∫fTdy = integrate(fT, :y)
@@ -306,9 +306,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
 
-        f(x, y) = log(x) * x^2 + cos(x * y) + sin(x * y)
-        ∫fdx(x, y) = (x^3 * y * (3log(x) - 1) + 9sin(x * y) - 9cos(x * y)) / 9y
-        ∫fdy(x, y) = (x^3 * y * log(x) + sin(x * y) - cos(x * y)) / x
+        f = (x, y) -> log(x) * x^2 + cos(x * y) + sin(x * y)
+        ∫fdx = (x, y) -> (x^3 * y * (3log(x) - 1) + 9sin(x * y) - 9cos(x * y)) / 9y
+        ∫fdy = (x, y) -> (x^3 * y * log(x) + sin(x * y) - cos(x * y)) / x
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
         ∫fTdy = integrate(fT, :y)
@@ -322,8 +322,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
         
-        f(x, y) = exp(-0.5 * (x^2 + y^2)) * x
-        ∫fdx(x, y) = -exp(-0.5 * (x^2 + y^2))
+        f = (x, y) -> exp(-0.5 * (x^2 + y^2)) * x
+        ∫fdx = (x, y) -> -exp(-0.5 * (x^2 + y^2))
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
 
@@ -334,9 +334,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
         end
 
-        f(x, y) = x * cos(y) * exp(x + y)
-        ∫fdx(x, y) = (x - 1) * exp(x + y) * cos(y)
-        ∫fdy(x, y) = 0.5 * x * exp(x + y) * (sin(y) + cos(y))
+        f = (x, y) -> x * cos(y) * exp(x + y)
+        ∫fdx = (x, y) -> (x - 1) * exp(x + y) * cos(y)
+        ∫fdy = (x, y) -> 0.5 * x * exp(x + y) * (sin(y) + cos(y))
         fT = f(xm, ym)
         ∫fTdx = integrate(fT, :x)
         ∫fTdy = integrate(fT, :y)
