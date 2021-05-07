@@ -430,6 +430,30 @@ function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, xI, dxI
 end
 
 """
+    initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N, T}
+
+Initialize the auxiliary integration variables and normalize the given interval
+box to the domain `[-1, 1]^n`.
+"""
+function initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N, T}
+    @assert N == get_numvars()
+    q0 = mid.(X0)
+    δq0 = X0 .- q0
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
+
+    @inbounds for i in eachindex(x)
+        qaux = normalize_taylor(q0[i] + TaylorN(i, order=orderQ), δq0, true)
+        x[i] = Taylor1(qaux, orderT)
+        dx[i] = x[i]
+        xTMN[i] = TaylorModelN(qaux, zI, zB, S)
+        rem[i] = zI
+        xTM1v[i, 1] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+    end
+end
+
+"""
     initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
 
 Initialize the auxiliary integration variables assuming that the given vector
@@ -561,4 +585,211 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     end
 
     return view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v, :, 1:nsteps)
+end
+
+"""
+    picard(dx, x0, box)
+
+Computes the picard (integral) operator for the initial condition `x0`.
+`dx` must be the rhs of the differential equation.
+"""
+function _picard(dx, x0, box)
+    ∫f = integrate(dx, 0., box)
+    pol = ∫f.pol + x0.pol
+    Δk = ∫f.rem
+    return pol, Δk
+end
+
+"""
+    picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
+
+Computes the picard (integral) operator for the set of equations `f!` and the initial condition`x0`.
+The Val parameter enables the selection of the desired method. This one returns the remainder of
+the resulting Taylor Model with the remainder of the initial condition included.
+"""
+function picard_iteration(f!, dx, xTM1K, params, t, x0, box, ::Val{true})
+    f!(dx, xTM1K, params, t)
+    E = zero.(remainder.(x0))
+    @inbounds for i in eachindex(dx)
+        pii, Δ = _picard(dx[i], x0[i], box)
+        E[i] = Δ + x0[i].rem
+    end
+    return E
+end
+
+"""
+    picard_iteration(f!, dx, xTM1K, params, t, x0, box)
+
+Computes the picard (integral) operator for the set of equations `f!` and the initial condition`x0`.
+This method returns the remainder of the resulting Taylor Model without the remainder of the initial condition.
+"""
+function picard_iteration(f!, dx, xTM1K, params, t, x0, box)
+    f!(dx, xTM1K, params, t)
+    E = zero.(remainder.(x0))
+    @inbounds for i in eachindex(dx)
+        _, E[i] = _picard(dx[i], x0[i], box)
+    end
+    return E
+end
+
+"""
+    _validate_step(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, maxsteps=20, extrasteps=50)
+
+Validate the Taylor Model solution for the current integration time step.
+This function implements the epsilon inflation algorithm proposed by Bünger
+with some custom adaptations.
+
+Ref: Florian B\"unger, A Taylor model toolbox for solving ODEs implemented in MATLAB/INTLAB,
+J. Comput. Appl. Math. 368, 112511, https://doi.org/10.1016/j.cam.2019.112511
+"""
+function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
+                         maxsteps=20, extrasteps=50)
+    E = remainder.(x0)
+    E′ = [interval(0) for _ in 1:dof]
+    polv = polynomial.(xTM1K)
+    x0v = expansion_point.(xTM1K)
+    domv = domain.(xTM1K)
+    low_ratiov = Array{Float64, 1}(undef, dof)
+    hi_ratiov = Array{Float64, 1}(undef, dof)
+    nsteps = 0
+    nextra = 0
+   
+    while nsteps < maxsteps
+        
+        if nsteps == 0
+            E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true))
+        else
+            E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) #+ remainder.(x0)
+        end
+
+        # Only inflates the required component
+        @inbounds for i in eachindex(dx)
+            if E′[i] ⊆ E[i] || E′[i] == E[i] == Interval(0)
+                xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
+            else
+                εi = (1 - ε) .. (1 + ε)
+                δi = -δ .. δ
+                E[i] = E′[i] * εi + δi
+                xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
+            end
+        end
+
+        
+        (all(E′ .⊆ E)) && break
+        nsteps += 1
+    end
+    
+    @inbounds for i in eachindex(dx)
+        low_ratiov[i] = E′[i].lo / E[i].lo
+        hi_ratiov[i] = E′[i].hi / E[i].hi
+    end
+    
+    # Contract further the remainders if the last contraction improves more than 5%
+    for ind = 1:extrasteps
+        all(low_ratiov .> 0.90) && all(hi_ratiov .> 0.90) && break
+        E .= remainder.(xTM1K)
+        E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) # .+ remainder.(x0)
+        @inbounds for i in eachindex(dx)
+            xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
+            low_ratiov[i] = E′[i].lo / E[i].lo
+            hi_ratiov[i] = E′[i].hi / E[i].hi
+        end
+        nextra += 1
+    end
+
+    @assert all(E′ .⊆ remainder.(xTM1K))   
+    @inbounds for i in eachindex(dx)
+        xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
+    end
+
+    if nsteps == maxsteps
+        @warn ("Maximum number of validate steps reached.")
+    end
+
+    return nothing
+end
+
+function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
+                         abstol::T, params=nothing; parse_eqs=true, maxsteps::Int=500,
+                         validatesteps::Int=30, ε::T=1e-10, δ::T=1e-3,
+                         absorb_steps::Int=3) where {T <: Real}
+    N = get_numvars()
+    dof = N
+
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
+    t = t0 + Taylor1(orderT)
+    
+    tv = Array{T}(undef, maxsteps+1)
+    xv = Array{IntervalBox{N, T}}(undef, maxsteps+1)
+    xTM1v = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof, maxsteps+1)
+    x = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    dx = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    xaux = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    xTMN = Array{TaylorModelN{N, T, T}}(undef, dof)
+    dxTM1 = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
+    xTM1 = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
+    xTM1K = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
+
+    rem = Array{Interval{T}}(undef, dof)
+
+    # Set initial conditions
+    initialize!(X0, orderQ, orderT, x, dx, xTMN, rem, xTM1v)
+
+    sign_tstep = copysign(1, tf - t0)
+    nsteps = 1
+    @inbounds tv[1] = t0
+    @inbounds xv[1] = evaluate(xTMN, S)
+
+    parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
+
+    while t0 * sign_tstep < tf * sign_tstep
+        δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
+        f!(dx, x, params, t)
+
+        δt = min(δt, sign_tstep*(tf-t0))
+        δt = sign_tstep * δt
+
+        @inbounds for i in eachindex(x)
+            dom = sign_tstep > 0 ? Interval(0, δt) : Interval(δt, 0)
+            x0 = sign_tstep > 0 ? dom.lo : dom.hi
+            Δ = zero(Interval{Float64})
+            xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, x0, dom)
+        end
+        
+        # to reuse the previous TaylorModel and save some allocations
+        _validate_step!(xTM1, f!, dxTM1, xTMN, params, t, S, dof,
+                        maxsteps=validatesteps, ε=ε, δ=δ)
+        t0 += δt
+        nsteps += 1
+        
+        @inbounds t[0] = t0
+        @inbounds tv[nsteps] = t0
+        xv[nsteps] = evaluate(xTMN, S)
+
+        @inbounds for i in eachindex(x)
+            aux_pol = evaluate(xTM1[i], Interval(δt))
+            rem[i] = remainder(xTM1[i])
+            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zB, S))
+            # temporal solution
+            j = 0
+            while (j < absorb_steps) && (mag(rem[i]) > 1.0e-10)
+                j += 1
+                xTMN[i] = absorb_remainder(xTMN[i])
+                rem[i] = remainder(xTMN[i])
+            end
+            x[i] = Taylor1(xTMN[i].pol, orderT)
+            xTM1v[i, nsteps] = xTM1[i]
+        end
+
+        if nsteps > maxsteps
+            @warn("""
+            Maximum number of integration steps reached; exiting.
+            """)
+            break
+        end
+    end
+
+    return view(tv, 1:nsteps), view(xv, 1:nsteps), view(xTM1v, :, 1:nsteps)
 end
