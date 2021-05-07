@@ -105,7 +105,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     f!(dxxI, xxI, params, t)
 
     # Picard iteration, considering only the bound of `f` and the last coeff of f
-    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), δI ) )
+    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), (δI,) ) )
     Δ = Δ0 + Δdx * δt
     return Δ
 end
@@ -540,14 +540,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     @inbounds xv[1] = evaluate(xTMN, S)
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
-    parse_eqs = parse_eqs && (length(methods(TaylorIntegration.jetcoeffs!)) > 2)
-    if parse_eqs
-        try
-            TaylorIntegration.jetcoeffs!(Val(f!), t, x, dx, params)
-        catch
-            parse_eqs = false
-        end
-    end
+    parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
     # Integration
     nsteps = 1
@@ -752,10 +745,9 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         δt = sign_tstep * δt
 
         @inbounds for i in eachindex(x)
-            dom = sign_tstep > 0 ? Interval(0, δt) : Interval(δt, 0)
-            x0 = sign_tstep > 0 ? dom.lo : dom.hi
-            Δ = zero(Interval{Float64})
-            xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, x0, dom)
+            dom = sign_tstep * Interval{T}(0, sign_tstep*δt)
+            Δ = zero(dom)
+            xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, zI, dom)
         end
         
         # to reuse the previous TaylorModel and save some allocations

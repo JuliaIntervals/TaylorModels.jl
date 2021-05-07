@@ -235,4 +235,52 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             end
         end
     end
+
+    @testset "Pendulum with constant torque" begin
+        @taylorize function pendulum!(dx, x, p, t)
+            si = sin(x[1])
+            aux = 2 *  si
+            dx[1] = x[2]
+            dx[2] = aux + 8*x[3]
+            dx[3] = zero(x[1])
+            nothing
+        end
+        # Conseerved quantity
+        ene_pendulum(x) = x[2]^2/2 + 2 * cos(x[1]) - 8 * x[3]
+
+        # Initial conditions
+        tini, tend = 0.0, 12.0
+        q0 = [1.1, 0.1, 0.0]
+        δq0 = IntervalBox(-0.1 .. 0.1, -0.1 .. 0.1, 0..0)
+        X0 = IntervalBox(q0 .+ δq0)
+        ene0 = ene_pendulum(X0)
+
+        # Parameters
+        abstol = 1e-20
+        orderQ = 3
+        orderT = 10
+        ξ = set_variables("ξ", order=2*orderQ, numvars=length(q0))
+
+        tTM, qv, qTM = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+            maxsteps=1800);
+        @test all(ene0 .⊆ ene_pendulum.(qv))
+
+        # tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+        #     maxsteps=1800);
+        # @test all(ene0 .⊆ ene_pendulum.(qv))
+
+        # Initial conditions 2
+        q0 = [1.1, 0.1, 0.0]
+        δq0 = IntervalBox(-0.1 .. 0.1, -0.1 .. 0.1, -0.01 .. 0.01)
+        X0 = IntervalBox(q0 .+ δq0)
+        ene0 = ene_pendulum(X0)
+
+        tTM, qv, qTM = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+            maxsteps=1800);
+        @test all(ene0 .⊆ ene_pendulum.(qv))
+
+        # tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+        #     maxsteps=1800);
+        # @test all(ene0 .⊆ ene_pendulum.(qv))
+    end
 end
