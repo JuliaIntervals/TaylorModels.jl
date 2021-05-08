@@ -48,13 +48,18 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             end
         end
 
+        tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            adaptive=false)
+        @test length(qvf) == length(qv)
+        @test all(qTM .== qTMf)
+
         # initializaton with a Taylor model
         X0tm = qTM[:, 1]
         @assert X0tm isa Vector{TaylorModel1{TaylorN{Float64}, Float64}}
         tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
         @test all(iszero, (qTM - qTM2))
         
-        @taylorize function x_square(dx, x, p, t)
+        @taylorize function x_square!(dx, x, p, t)
             dx[1] = x[1]^2
             nothing
         end
@@ -70,7 +75,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         X0 = IntervalBox(q0 .+ δq0)
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
         
-        tTM, qv, qTM = validated_integ(x_square, X0, tini, tend, orderQ, orderT, abstol)
+        tTM, qv, qTM = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
 
         @test length(qv) == length(qTM[1, :]) == length(tTM)
         @test length(tTM) < 501
@@ -85,6 +90,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             end
         end
 
+        tTMf, qvf, qTMf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
+            adaptive=false)
+        @test length(qvf) == length(qv)
+        @test all(qTMf .== qTM)
     end
 
     @testset "Forward integration for validated_integ2" begin
@@ -192,11 +201,21 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             end
         end
 
+        tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            adaptive=false)
+        @test length(qvf) == length(qv)
+        @test all(qTM .== qTMf)
+
         # initializaton with a Taylor model
         X0tm = qTM[:, 1]
         @assert X0tm isa Vector{TaylorModel1{TaylorN{Float64}, Float64}}
         tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
         @test all(iszero, (qTM - qTM2))
+
+        tTM2f, qv2f, qTM2f = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol,
+            adaptive=false)
+        @test length(qv2f) == length(qv2)
+        @test all(qTM2 .== qTM2f)
     end
 
     @testset "Backward integration for validated_integ2" begin
@@ -245,7 +264,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             dx[3] = zero(x[1])
             nothing
         end
-        # Conseerved quantity
+        # Conserved quantity
         ene_pendulum(x) = x[2]^2/2 + 2 * cos(x[1]) - 8 * x[3]
 
         # Initial conditions
@@ -256,7 +275,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
         ene0 = ene_pendulum(X0)
 
         # Parameters
-        abstol = 1e-20
+        abstol = 1e-10
         orderQ = 3
         orderT = 10
         ξ = set_variables("ξ", order=2*orderQ, numvars=length(q0))

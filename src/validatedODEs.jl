@@ -9,7 +9,7 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::IntervalBox{N,T}, δt::Interval{T}, params) where {N,T}
+        δI::IntervalBox{N,T}, δt::Interval{T}, params, adaptive::Bool) where {N,T}
 
     orderT = get_order(dx[1])
     aux = δt^(orderT+1)
@@ -20,7 +20,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
     Δxold = Δx
 
     # Checking existence and uniqueness
-    iscontractive(Δ, Δx) && return Δx
+    iscontractive(Δ, Δx) && return (true, Δx, t[0])
 
     # If the check didn't work, compute new remainders. A new Δx is proposed,
     # and the corresponding Δdx is computed
@@ -32,7 +32,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
         # Checking existence and uniqueness
-        iscontractive(Δ, Δx) && return Δx
+        iscontractive(Δ, Δx) && return (true, Δx, t[0])
         # iscontractive(Δ, Δx) && return _contract_iteration!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δdx, Δ0, params)
 
         # Expand Δx in the directions needed
@@ -51,7 +51,8 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         Δx = Δ
     end
 
-    # If it didn't work, throw an error
+    # If it didn't work and adaptive is false, throw an error
+    adaptive && return (false, Δx, t[0])
     @format full
     error("""
     Error: it cannot prove existence and unicity of the solution:
@@ -111,33 +112,33 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
 end
 
 
-# Picard iterations to contract further Δx, once Δ ⊂ Δx holds
-# **Currently not used**
-function _contract_iteration!(f!::Function, t::Taylor1{T},
-        x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
-        xxI::Vector{Taylor1{TaylorN{Interval{T}}}}, dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
-        δI::IntervalBox{N,T}, δt::Interval{T},
-        Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
+# # Picard iterations to contract further Δx, once Δ ⊂ Δx holds
+# # **Currently not used**
+# function _contract_iteration!(f!::Function, t::Taylor1{T},
+#         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
+#         xxI::Vector{Taylor1{TaylorN{Interval{T}}}}, dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
+#         δI::IntervalBox{N,T}, δt::Interval{T},
+#         Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
-    # Some abbreviations
-    Δ = Δ0 + Δdx * δt
-    Δxold = Δx
+#     # Some abbreviations
+#     Δ = Δ0 + Δdx * δt
+#     Δxold = Δx
 
-    # Picard contractions
-    for its = 1:10
-        # Remainder of Picard iteration
-        Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
+#     # Picard contractions
+#     for its = 1:10
+#         # Remainder of Picard iteration
+#         Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
-        # If contraction doesn't hold, return old bound
-        iscontractive(Δ, Δx) || return Δxold
+#         # If contraction doesn't hold, return old bound
+#         iscontractive(Δ, Δx) || return Δxold
 
-        # Contract estimate
-        Δxold = Δx
-        Δx = Δ
-    end
+#         # Contract estimate
+#         Δxold = Δx
+#         Δx = Δ
+#     end
 
-    return Δxold
-end
+#     return Δxold
+# end
 
 
 """
@@ -157,7 +158,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     orderQ = get_order(a)
     δ = symmetric_box(N, T)
     aux = diam(Δ)/(2N)
-    rem = Interval{T}(0, 0)
+    rem = zero_interval(T)
 
     # Linear shift
     lin_shift = mid(Δ) + sum((aux*TaylorN(i, order=orderQ) for i in 1:N))
@@ -191,7 +192,7 @@ function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,T,T}},
     postverify = true
     x0 = xTMN[1].x0
     B = domain(xTMN[1])
-    zI = zero(B[1])
+    zI = zero_interval(T)#zero(B[1])
     @inbounds for i in eachindex(xTMN)
         pol = polynomial(xTMN[i])
         ppol = fp_rpa(TaylorModelN(pol(X), zI, x0, B ))
@@ -332,7 +333,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
         nsteps::Int, orderT::Int, abstol::T, params, parse_eqs::Bool,
-        check_property::Function=(t, x)->true) where {N,T}
+        check_property::Function=(t, x)->true, adaptive::Bool=true) where {N,T}
 
     # One step integration (non-validated)
     # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux, params)
@@ -355,10 +356,26 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     nsteps += 1
     issatisfied = false
     rem_old = copy(rem)
+
+    local success, _t0
+    reduced_abstol = abstol
     for nchecks = 1:25
         # Validate the solution: remainder consistent with Schauder thm
         δtI = sign_tstep * Interval(0, sign_tstep*δt)
-        Δ = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, params)
+        (success, Δ, _t0) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, params, adaptive)
+
+        # Shrink stepsize δt if adaptive is true and success is false
+        if adaptive && !success
+            if reduced_abstol > 1.e-35
+                reduced_abstol = reduced_abstol/10
+                δt = δt * 0.1^(1/orderT)
+                continue
+            else
+                @warn("Minimum absolute tolerance reached: ", _t0, δt, reduced_abstol)
+            end
+        end
+
+        # Remainder
         rem .= rem_old .+ Δ
 
         # Create TaylorModelN to store remainders and evaluation
@@ -376,17 +393,23 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
             end
             xv[nsteps] = evaluate(xTMN, symIbox) # IntervalBox
 
-            if !check_property(t0+δt, xv[nsteps])
-                δt = δt/2
-                continue
+            issatisfied = check_property(t0+δt, xv[nsteps])
+            if !issatisfied
+                # δt = δt/2
+                @info("issatisfied: ", reduced_abstol, δt)
+                if reduced_abstol > 1.e-35
+                    reduced_abstol = reduced_abstol / 10
+                    δt = δt * 0.1^(1/orderT)
+                    continue
+                else
+                    @warn("Minimum absolute tolerance reached: ", reduced_abstol)
+                end
             end
         end # @inbounds
-
-        issatisfied = true
         break
     end
 
-    if !issatisfied
+    if !issatisfied && !adaptive # TEMP do not return the error msg if adaptive is true
         error("""
             `check_property` is not satisfied:
             $t0 $nsteps $δt
@@ -394,7 +417,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
             $(check_property(t0+δt, xv[nsteps]))""")
     end
 
-    return δt
+    return (success, δt, _t0)
 end
 
 """
@@ -497,8 +520,8 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x,
     end
 end
 
-function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T,
-                         params=nothing; maxsteps::Int=500, parse_eqs::Bool=true,
+function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
+                         maxsteps::Int=2000, parse_eqs::Bool=true, adaptive::Bool=true,
                          check_property::Function=(t, x)->true) where {T<:Real}
 
     # Set proper parameters for jet transport
@@ -513,7 +536,6 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     tI = t0 + Taylor1(orderT+1)
 
     # Allocation of vectors
-
     # Output
     tv    = Array{T}(undef, maxsteps+1)
     xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
@@ -542,14 +564,21 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
+    local success # if true, the validation step succeeded
+    local _t0 # represents how much the integration could advance until validation failed
+
     # Integration
     nsteps = 1
     while sign_tstep*t0 < sign_tstep*tmax
 
         # Validated step of the integration
-        δt = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
-            t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
-            nsteps, orderT, abstol, params, parse_eqs, check_property)
+        (success, δt, _t0) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
+                                t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
+                                nsteps, orderT, abstol, params, 
+                                parse_eqs, check_property, adaptive)
+
+        # # 
+        # adaptive && !success && break
 
         # New initial conditions and time
         nsteps += 1
