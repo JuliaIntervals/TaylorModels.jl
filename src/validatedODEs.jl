@@ -333,7 +333,8 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
         nsteps::Int, orderT::Int, abstol::T, params, parse_eqs::Bool,
-        check_property::Function=(t, x)->true, adaptive::Bool=true) where {N,T}
+        adaptive::Bool, absorb::Bool,
+        check_property::Function=(t, x)->true) where {N,T}
 
     # One step integration (non-validated)
     # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux, params)
@@ -385,7 +386,8 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
 
                 # If remainder is still too big, do it again
                 j = 0
-                while (j < 10) && (mag(rem[i]) > 1.0e-10)
+                while absorb && (j < 10) && (mag(rem[i]) > 1.0e-10)
+                    t[0] == 0 && println("absorb_remainder ")
                     j += 1
                     xTMN[i] = absorb_remainder(xTMN[i])
                     rem[i] = remainder(xTMN[i])
@@ -521,7 +523,8 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x,
 end
 
 function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
-                         maxsteps::Int=2000, parse_eqs::Bool=true, adaptive::Bool=true,
+                         maxsteps::Int=2000, parse_eqs::Bool=true, 
+                         adaptive::Bool=true, absorb::Bool=false,
                          check_property::Function=(t, x)->true) where {T<:Real}
 
     # Set proper parameters for jet transport
@@ -575,7 +578,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
         (success, δt, _t0) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
                                 t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
                                 nsteps, orderT, abstol, params, 
-                                parse_eqs, check_property, adaptive)
+                                parse_eqs, adaptive, absorb, check_property)
 
         # # 
         # adaptive && !success && break
@@ -664,8 +667,8 @@ with some custom adaptations.
 Ref: Florian B\"unger, A Taylor model toolbox for solving ODEs implemented in MATLAB/INTLAB,
 J. Comput. Appl. Math. 368, 112511, https://doi.org/10.1016/j.cam.2019.112511
 """
-function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e-5,
-                         maxsteps=20, extrasteps=50)
+function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; 
+                         ε=1e-10, δ=1e-5, maxsteps=20, extrasteps=50)
     E = remainder.(x0)
     E′ = [interval(0) for _ in 1:dof]
     polv = polynomial.(xTM1K)
@@ -732,7 +735,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; ε=1e-10, δ=1e
 end
 
 function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
-                         abstol::T, params=nothing; parse_eqs=true, maxsteps::Int=500,
+                         abstol::T, params=nothing; 
+                         parse_eqs=true, maxsteps::Int=2000, absorb::Bool=false,
                          validatesteps::Int=30, ε::T=1e-10, δ::T=1e-3,
                          absorb_steps::Int=3) where {T <: Real}
     N = get_numvars()
@@ -795,7 +799,8 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
             xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zB, S))
             # temporal solution
             j = 0
-            while (j < absorb_steps) && (mag(rem[i]) > 1.0e-10)
+            while absorb && (j < absorb_steps) && (mag(rem[i]) > 1.0e-10)
+                t[0] == 0 && println("absorb_remainder ")
                 j += 1
                 xTMN[i] = absorb_remainder(xTMN[i])
                 rem[i] = remainder(xTMN[i])
