@@ -284,9 +284,9 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             maxsteps=1800);
         @test all(ene0 .⊆ ene_pendulum.(qv))
 
-        # tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
-        #     maxsteps=1800);
-        # @test all(ene0 .⊆ ene_pendulum.(qv))
+        tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+            maxsteps=1800);
+        @test all(ene0 .⊆ ene_pendulum.(qv))
 
         # Initial conditions 2
         q0 = [1.1, 0.1, 0.0]
@@ -298,8 +298,8 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
             maxsteps=1800);
         @test all(ene0 .⊆ ene_pendulum.(qv))
 
-        # tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
-        #     maxsteps=1800);
-        # @test all(ene0 .⊆ ene_pendulum.(qv))
+        tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+            maxsteps=1800);
+        @test all(ene0 .⊆ ene_pendulum.(qv))
     end
 end
