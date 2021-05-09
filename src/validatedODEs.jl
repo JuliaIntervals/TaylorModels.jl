@@ -72,16 +72,17 @@ end
 Checks if `Δ .⊂ Δx` is satisfied. If ``Δ ⊆ Δx` is satisfied, it returns
 `true` if all cases where `==` holds corresponds to the zero `Interval`.
 """
+function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where{T}
+    (Δ ⊂ Δx || Δ == Δx == zero_interval(T)) && return true
+    return false
+end
 function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
-    zI = zero_interval(T)
     @inbounds for ind in 1:N
-        Δ[ind] ⊂ Δx[ind] && continue
-        Δ[ind] == Δx[ind] == zI && continue
+        iscontractive(Δ[ind], Δx[ind]) && continue
         return false
     end
     return true
 end
-
 
 """
     picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
@@ -667,67 +668,59 @@ with some custom adaptations.
 Ref: Florian B\"unger, A Taylor model toolbox for solving ODEs implemented in MATLAB/INTLAB,
 J. Comput. Appl. Math. 368, 112511, https://doi.org/10.1016/j.cam.2019.112511
 """
-function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof; 
-                         ε=1e-10, δ=1e-5, maxsteps=20, extrasteps=50)
+function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof,
+                        δt, sign_tstep, polv, low_ratiov, hi_ratiov;
+                        ε=1e-10, δ=1e-5, validatesteps=20, extrasteps=50)
+    #
+    T = eltype(box[1])
+    zI = zero_interval(T)
+    dom = sign_tstep * Interval{T}(0, sign_tstep*δt)
+    @inbounds for i in eachindex(x)
+        xTM1K[i] = TaylorModel1(deepcopy(x[i]), zI, zI, dom)
+    end
     E = remainder.(x0)
-    E′ = [interval(0) for _ in 1:dof]
-    polv = polynomial.(xTM1K)
-    x0v = expansion_point.(xTM1K)
-    domv = domain.(xTM1K)
-    low_ratiov = Array{Float64, 1}(undef, dof)
-    hi_ratiov = Array{Float64, 1}(undef, dof)
+    polv .= deepcopy.(polynomial.(xTM1K))
+    εi = (1 - ε) .. (1 + ε)
+    δi = -δ .. δ
+
+    # Try to prove existence and uniqueness up to validatesteps
     nsteps = 0
-    nextra = 0
-   
-    while nsteps < maxsteps
-        
-        if nsteps == 0
-            E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true))
-        else
-            E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) #+ remainder.(x0)
-        end
+    E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true)) # 0-th iteration
+    xTM1K .= TaylorModel1.(polv, E′, (zI,), (dom,))
+    while nsteps < validatesteps
+        E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) #+ remainder.(x0)
 
         # Only inflates the required component
         @inbounds for i in eachindex(dx)
-            if E′[i] ⊆ E[i] || E′[i] == E[i] == Interval(0)
-                xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
-            else
-                εi = (1 - ε) .. (1 + ε)
-                δi = -δ .. δ
+            if !iscontractive(E′[i], E[i])
                 E[i] = E′[i] * εi + δi
-                xTM1K[i] = TaylorModel1(polv[i], E[i], x0v[i], domv[i])
             end
+            xTM1K[i] = TaylorModel1(polv[i], E[i], zI, dom)
         end
 
-        
-        (all(E′ .⊆ E)) && break
+        # iscontractive(E′, E) && break#
+        all(E′ .⊆ E) && break
         nsteps += 1
     end
-    
-    @inbounds for i in eachindex(dx)
-        low_ratiov[i] = E′[i].lo / E[i].lo
-        hi_ratiov[i] = E′[i].hi / E[i].hi
+
+    @. begin
+        low_ratiov = infimum(E′) / infimum(E)
+        hi_ratiov  = supremum(E′) / supremum(E)
     end
-    
+
     # Contract further the remainders if the last contraction improves more than 5%
     for ind = 1:extrasteps
-        all(low_ratiov .> 0.90) && all(hi_ratiov .> 0.90) && break
-        E .= remainder.(xTM1K)
-        E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box) # .+ remainder.(x0)
-        @inbounds for i in eachindex(dx)
-            xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
-            low_ratiov[i] = E′[i].lo / E[i].lo
-            hi_ratiov[i] = E′[i].hi / E[i].hi
+        minimum(low_ratiov) > 0.90 && minimum(hi_ratiov) > 0.90 && break
+        E′ = picard_iteration(f!, dx, xTM1K, params, t, x0, box)
+        @. begin
+            E = remainder(xTM1K)
+            xTM1K = TaylorModel1(polv, E′, (zI,), (dom,))
+            low_ratiov = infimum(E′) / infimum(E)
+            hi_ratiov  = supremum(E′) / supremum(E)
         end
-        nextra += 1
     end
 
-    @assert all(E′ .⊆ remainder.(xTM1K))   
-    @inbounds for i in eachindex(dx)
-        xTM1K[i] = TaylorModel1(polv[i], E′[i], x0v[i], domv[i])
-    end
-
-    if nsteps == maxsteps
+    if nsteps == validatesteps
         @warn ("Maximum number of validate steps reached.")
     end
 
@@ -735,7 +728,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, t, box, dof;
 end
 
 function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
-                         abstol::T, params=nothing; 
+                         abstol::T, params=nothing;
                          parse_eqs=true, maxsteps::Int=2000, absorb::Bool=false,
                          validatesteps::Int=30, ε::T=1e-10, δ::T=1e-3,
                          absorb_steps::Int=3) where {T <: Real}
@@ -756,12 +749,16 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     xTMN = Array{TaylorModelN{N, T, T}}(undef, dof)
     dxTM1 = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
     xTM1 = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
-    xTM1K = Array{TaylorModel1{TaylorN{T}, T}}(undef, dof)
-
+    low_ratiov = Array{T}(undef, dof)
+    hi_ratiov = Array{T}(undef, dof)
     rem = Array{Interval{T}}(undef, dof)
 
     # Set initial conditions
     initialize!(X0, orderQ, orderT, x, dx, xTMN, rem, xTM1v)
+    @inbounds for i in eachindex(x)
+        xTM1[i] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
+    end
+    polv = polynomial.(xTM1)
 
     sign_tstep = copysign(1, tf - t0)
     nsteps = 1
@@ -777,15 +774,10 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         δt = min(δt, sign_tstep*(tf-t0))
         δt = sign_tstep * δt
 
-        @inbounds for i in eachindex(x)
-            dom = sign_tstep * Interval{T}(0, sign_tstep*δt)
-            Δ = zero(dom)
-            xTM1[i] = TaylorModel1(deepcopy(x[i]), Δ, zI, dom)
-        end
-        
-        # to reuse the previous TaylorModel and save some allocations
-        _validate_step!(xTM1, f!, dxTM1, xTMN, params, t, S, dof,
-                        maxsteps=validatesteps, ε=ε, δ=δ)
+        # Reuse previous TaylorModel1 to save some allocations
+        _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t, S, dof,
+                        δt, sign_tstep, polv, low_ratiov, hi_ratiov,
+                        validatesteps=validatesteps, ε=ε, δ=δ)
         t0 += δt
         nsteps += 1
         
