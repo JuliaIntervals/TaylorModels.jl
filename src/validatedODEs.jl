@@ -704,8 +704,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof,
     end
 
     @. begin
-        low_ratiov = infimum(E′) / infimum(E)
-        hi_ratiov  = supremum(E′) / supremum(E)
+        low_ratiov = inf(E′) / inf(E)
+        hi_ratiov  = sup(E′) / sup(E)
     end
 
     # Contract further the remainders if the last contraction improves more than 5%
@@ -715,8 +715,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof,
         @. begin
             E = remainder(xTM1K)
             xTM1K = TaylorModel1(polv, E′, (zI,), (dom,))
-            low_ratiov = infimum(E′) / infimum(E)
-            hi_ratiov  = supremum(E′) / supremum(E)
+            low_ratiov = inf(E′) / inf(E)
+            hi_ratiov  = sup(E′) / sup(E)
         end
     end
 
