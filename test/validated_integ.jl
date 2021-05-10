@@ -44,7 +44,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 δt = interval_rand(domain(qTM[1,n]))
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
-                @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                # @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb = all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb || @show(n, δt, exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ), q)
+                @test bb
             end
         end
 
@@ -86,7 +89,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 δt = interval_rand(domain(qTM[1, n]))
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:, n], δt), (normalized_box,))
-                @test all(exactsol(tTM[n-1]+δt, q0 .+ q0ξ) .∈ q)
+                # @test all(exactsol(tTM[n-1]+δt, q0 .+ q0ξ) .∈ q)
+                bb = all(exactsol(tTM[n-1]+δt, q0 .+ q0ξ) .∈ q)
+                bb || @show(n, δt, exactsol(tTM[n-1]+δt, q0 .+ q0ξ), q)
+                @test bb
             end
         end
 
@@ -129,7 +135,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 δt = interval_rand(domain(qTM[1,n]))
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
-                @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                # @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb = all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb || @show(n, δt, exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ), q)
+                @test bb
             end
         end
 
@@ -159,7 +168,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 δt = interval_rand(domain(qTM[1, n]))
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:, n], δt), (normalized_box,))
-                @test all(exactsol(tTM[n-1]+δt, q0 .+ q0ξ) .∈ q)
+                # @test all(exactsol(tTM[n-1]+δt, q0 .+ q0ξ) .∈ q)
+                bb = all(exactsol(tTM[n-1]+δt, q0 .+ q0ξ) .∈ q)
+                bb || @show(n, δt, exactsol(tTM[n-1]+δt, q0 .+ q0ξ), q)
+                @test bb
             end
         end
 
@@ -197,7 +209,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 δt = interval_rand(domain(qTM[1,n]))
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
-                @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                # @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb = all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb || @show(n, δt, exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ), q)
+                @test bb
             end
         end
 
@@ -250,7 +265,10 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
                 δt = interval_rand(domain(qTM[1,n]))
                 q0ξ = interval_rand(δq0)
                 q = evaluate.(evaluate.(qTM[:,n], δt), (normalized_box,))
-                @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                # @test all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb = all(exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ) .∈ q)
+                bb || @show(n, δt, exactsol(tTM[n-1]+δt, tini, q0 .+ q0ξ), q)
+                @test bb
             end
         end
     end
