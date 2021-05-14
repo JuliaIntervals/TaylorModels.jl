@@ -3,7 +3,7 @@
 using TaylorModels
 # using LinearAlgebra: norm
 using Test
-using Random
+# using Random
 
 const _num_tests = 1_000
 
@@ -63,7 +63,7 @@ end
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
             end_idx = lastindex(tTM)
-            Random.seed!(1)
+            # Random.seed!(1)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
                 @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
@@ -86,7 +86,7 @@ end
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
-            Random.seed!(1)
+            # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
@@ -110,7 +110,7 @@ end
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
-            Random.seed!(1)
+            # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
@@ -139,7 +139,7 @@ end
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
-            Random.seed!(1)
+            # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
@@ -171,7 +171,7 @@ end
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
-            Random.seed!(1)
+            # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
@@ -194,7 +194,7 @@ end
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
-            Random.seed!(1)
+            # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
