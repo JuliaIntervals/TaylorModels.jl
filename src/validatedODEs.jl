@@ -1,5 +1,7 @@
 # Some methods for validated integration of ODEs
 
+const _DEF_MINABSTOL = 1.0e-50
+
 """
     remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt, params)
 
@@ -334,7 +336,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
         nsteps::Int, orderT::Int, abstol::T, params, parse_eqs::Bool,
-        adaptive::Bool, absorb::Bool,
+        adaptive::Bool, minabstol::T, absorb::Bool, 
         check_property::Function=(t, x)->true) where {N,T}
 
     # One step integration (non-validated)
@@ -361,7 +363,8 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
 
     local _success, _t0
     reduced_abstol = abstol
-    for nchecks = 1:25
+    bool_red = true
+    while bool_red
         # Validate the solution: remainder consistent with Schauder thm
         δtI = sign_tstep * Interval(0, sign_tstep*δt)
         (_success, Δ, _t0) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, 
@@ -369,7 +372,8 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
 
         # Shrink stepsize δt if adaptive is true and _success is false
         if adaptive && !_success
-            if reduced_abstol > 1.e-35
+            bool_red = reduced_abstol > minabstol
+            if bool_red
                 reduced_abstol = reduced_abstol/10
                 δt = δt * 0.1^(1/orderT)
                 continue
@@ -400,8 +404,9 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
             issatisfied = check_property(t0+δt, xv[nsteps])
             if !issatisfied
                 # δt = δt/2
-                @info("issatisfied: ", reduced_abstol, δt)
-                if reduced_abstol > 1.e-35
+                bool_red = reduced_abstol > minabstol
+                @info("issatisfied: ", bool_red, δt)
+                if bool_red
                     reduced_abstol = reduced_abstol / 10
                     δt = δt * 0.1^(1/orderT)
                     continue
@@ -413,12 +418,12 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         break
     end
 
-    if !issatisfied && !adaptive # TEMP do not return the error msg if adaptive is true
+    if !issatisfied && !adaptive
         error("""
             `check_property` is not satisfied:
-            $t0 $nsteps $δt
-            $(xv[nsteps])
-            $(check_property(t0+δt, xv[nsteps]))""")
+            """, issatisfied, adaptive, bool_red, reduced_abstol,
+            t0, nsteps, δt, xv[nsteps], check_property(t0+δt, xv[nsteps])
+        )
     end
 
     return (_success, δt, _t0)
@@ -515,7 +520,8 @@ end
 
 function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
                          maxsteps::Int=2000, parse_eqs::Bool=true,
-                         adaptive::Bool=true, absorb::Bool=false,
+                         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL),
+                         absorb::Bool=false,
                          check_property::Function=(t, x)->true) where {T<:Real}
 
     # Set proper parameters for jet transport
@@ -569,7 +575,8 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
         (_success, δt, _t0) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
                                 t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
                                 nsteps, orderT, abstol, params, 
-                                parse_eqs, adaptive, absorb, check_property)
+                                parse_eqs, adaptive, minabstol, 
+                                absorb, check_property)
         δtI = sign_tstep * Interval{T}(0, sign_tstep*δt)
 
         # New initial conditions and time
@@ -649,9 +656,8 @@ J. Comput. Appl. Math. 368, 112511, https://doi.org/10.1016/j.cam.2019.112511
 """
 function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                         δt, sign_tstep, E, E′, polv, low_ratiov, hi_ratiov,
-                        adaptive::Bool;
-                        ε=1e-10, δ=1e-6, validatesteps=20, extrasteps=50,
-                        numchecks=25)
+                        adaptive::Bool, minabstol;
+                        ε=1e-10, δ=1e-6, validatesteps=20, extrasteps=50)
     #
     T = eltype(box[1])
     zI = zero_interval(T)
@@ -671,7 +677,9 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     reduced_abstol = abstol
     # Try to prove existence and uniqueness up to numchecks, including reducing the
     # time step
-    for nchecks = 1:numchecks
+    bool_red = true
+    # for nchecks = 1:numchecks
+    while bool_red
 
         # Try to prove existence and uniqueness up to validatesteps
         nsteps = 0
@@ -693,9 +701,11 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
         _success = all(iscontractive.(E′, E))
         _success && break
 
-        # Shrink stepsize `δt` if `adaptive` is `true` and `_success` is false
+        # Shrink stepsize `δt` if `adaptive` is `true` and `_success` is false,
+        # up to some minimum
         if adaptive && !_success
-            if reduced_abstol > 1.e-35
+            bool_red = reduced_abstol > minabstol
+            if bool_red
                 reduced_abstol = reduced_abstol/10
                 δt = δt * 0.1^(1/orderT)
                 domT = sign_tstep * Interval{T}(0, sign_tstep*δt)
@@ -705,9 +715,9 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                     E = remainder(xTM1K)
                     # E = remainder(x0)
                 end
-                # continue
             else
-                error("Minimum absolute tolerance reached: ", t[0], δt, reduced_abstol)
+                error("Minimum absolute tolerance reached: ", t[0], E′, E, 
+                _success, all(iscontractive.(E′, E)), reduced_abstol)
             end
         end
     end
@@ -742,7 +752,8 @@ end
 function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
                          abstol::T, params=nothing;
                          parse_eqs=true, maxsteps::Int=2000, 
-                         absorb::Bool=false, adaptive::Bool=true,
+                         absorb::Bool=false, 
+                         adaptive::Bool=true, minabstol=T(_DEF_MINABSTOL),
                          validatesteps::Int=30, ε::T=1e-10, δ::T=1e-6,
                          absorb_steps::Int=3) where {T <: Real}
     N = get_numvars()
@@ -794,7 +805,8 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         # Reuse previous TaylorModel1 to save some allocations
         (_success, δt, domt) = _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t, 
                                             S, dof, rem, abstol, δt, sign_tstep, E, E′, 
-                                            polv, low_ratiov, hi_ratiov, adaptive,
+                                            polv, low_ratiov, hi_ratiov, 
+                                            adaptive, minabstol,
                                             ε=ε, δ=δ,
                                             validatesteps=validatesteps)
 
