@@ -11,7 +11,7 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::IntervalBox{N,T}, δt::Interval{T}, params, adaptive::Bool) where {N,T}
+        δI::IntervalBox{N,T}, δt::Interval{T}, params) where {N,T}
 
     orderT = get_order(dx[1])
     aux = δt^(orderT+1)
@@ -53,7 +53,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         Δx = Δ
     end
 
-    return (false, Δx, t[0])
+    return (false, Δx)
 end
 
 
@@ -355,8 +355,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     while bool_red
         # Validate the solution: remainder consistent with Schauder thm
         δtI = sign_tstep * Interval(0, sign_tstep*δt)
-        (_success, Δ, _t0) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, 
-                                                params, adaptive)
+        (_success, Δ) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, params)
 
         # Shrink stepsize δt if adaptive is true and _success is false
         if !_success
@@ -367,10 +366,10 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
                     δt = δt * 0.1^(1/orderT)
                     continue
                 else
-                    @warn("Minimum absolute tolerance reached: ", _t0, δt, reduced_abstol, Δ)
+                    @warn("Minimum absolute tolerance reached: ", t[0], δt, reduced_abstol, Δ)
                 end
             else
-                @warn("It cannot prove existence and unicity of the solution: ", _t0, δt, Δ)
+                @warn("It cannot prove existence and unicity of the solution: ", t[0], δt, Δ)
             end
         end
 
@@ -403,7 +402,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
                     δt = δt * 0.1^(1/orderT)
                     continue
                 else
-                    @warn("Minimum absolute tolerance reached (issatisfied): ", _t0, δt, reduced_abstol, Δ)
+                    @warn("Minimum absolute tolerance reached (issatisfied): ", t[0], δt, reduced_abstol, Δ)
                 end
             end
         end # @inbounds
@@ -418,7 +417,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         )
     end
 
-    return (_success, δt, _t0)
+    return (_success, δt, reduced_abstol)
 end
 
 """
@@ -562,15 +561,16 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     local _success # if true, the validation step succeeded
     local _t0 # represents how much the integration could advance until validation failed
     setformat(:full)
+    red_abstol = abstol
 
     # Integration
     nsteps = 1
     while sign_tstep*t0 < sign_tstep*tmax
 
         # Validated step of the integration
-        (_success, δt, _t0) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
+        (_success, δt, red_abstol) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
                                 t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
-                                nsteps, orderT, abstol, params, 
+                                nsteps, orderT, red_abstol, params, 
                                 parse_eqs, adaptive, minabstol, 
                                 absorb, check_property)
         δtI = sign_tstep * Interval{T}(0, sign_tstep*δt)
@@ -587,6 +587,11 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
             # dx = Taylor1(zero(constant_term(x)), orderT)
             xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
             # dxI = xI
+        end
+
+        # Try to increase `red_abstol` if `adaptive` is true
+        if adaptive
+            red_abstol = min(abstol, 10*red_abstol)
         end
 
         # If the integration step is unsuccessfull, break with a warning; note that the
@@ -738,7 +743,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     if !all(iscontractive.(E′, E))
         @warn("Maximum number of validate steps reached.", t[0], E′, E, 
             _success, all(iscontractive.(E′, E)))
-        return (_success, δt, domT)
+        return (_success, δt, reduced_abstol)
     end
 
     # @. begin
@@ -759,7 +764,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     #     # @show(ind, E, E′, all(iscontractive.(E′, E)), low_ratiov)
     # end
 
-    return (_success, δt, domT)
+    return (_success, δt, reduced_abstol)
 end
 
 function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
@@ -807,6 +812,7 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     @inbounds xv[1] = evaluate(xTMN, S)
 
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
+    red_abstol = abstol
     setformat(:full)
 
     while t0 * sign_tstep < tf * sign_tstep
@@ -817,14 +823,13 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         δt = sign_tstep * δt
 
         # Reuse previous TaylorModel1 to save some allocations
-        (_success, δt, domt) = _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t, 
-                                            S, dof, rem, abstol, δt, sign_tstep, E, E′, 
+        (_success, δt, red_abstol) = _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t, 
+                                            S, dof, rem, red_abstol, δt, sign_tstep, E, E′, 
                                             polv, low_ratiov, hi_ratiov, 
                                             adaptive, minabstol,
                                             ε=ε, δ=δ,
                                             validatesteps=validatesteps)
-
-        !_success && return view(tv, 1:nsteps), view(xv, 1:nsteps), view(xTM1v, :, 1:nsteps)
+        domt = sign_tstep * Interval{T}(0, sign_tstep*δt)
 
         # δtI = (δt .. δt) ∩ domt # assure it is inside the domain in t
         t0 += δt
@@ -858,6 +863,11 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
 
             x[i] = Taylor1(polynomial(xTMN[i]), orderT)
             xTM1v[i, nsteps] = xTM1[i]
+        end
+
+        # Try to increase `red_abstol` if `adaptive` is true
+        if adaptive
+            red_abstol = min(abstol, 10*red_abstol)
         end
 
         # If the integration step is unsuccessfull, break with a warning; note that the
