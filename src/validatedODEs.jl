@@ -53,18 +53,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         Δx = Δ
     end
 
-    # If it didn't work and adaptive is false, throw an error
-    adaptive && return (false, Δx, t[0])
-    setformat(:full)
-    error("""
-    Error: it cannot prove existence and unicity of the solution:
-        t0 = $(t[0])
-        δt = $(δt)
-        Δ  = $(Δ)
-        Δxo = $(Δxold)
-        Δx = $(Δx)
-        $(Δ .⊆ Δxold)
-    """)
+    return (false, Δx, t[0])
 end
 
 
@@ -80,8 +69,7 @@ function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where{T}
 end
 function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
     @inbounds for ind in 1:N
-        iscontractive(Δ[ind], Δx[ind]) && continue
-        return false
+        iscontractive(Δ[ind], Δx[ind]) || return false
     end
     return true
 end
@@ -122,24 +110,24 @@ end
 #         xxI::Vector{Taylor1{TaylorN{Interval{T}}}}, dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
 #         δI::IntervalBox{N,T}, δt::Interval{T},
 #         Δx::IntervalBox{N,T}, Δdx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
-
+#
 #     # Some abbreviations
 #     Δ = Δ0 + Δdx * δt
 #     Δxold = Δx
-
+#
 #     # Picard contractions
 #     for its = 1:10
 #         # Remainder of Picard iteration
 #         Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
-
+# 
 #         # If contraction doesn't hold, return old bound
 #         iscontractive(Δ, Δx) || return Δxold
-
+#
 #         # Contract estimate
 #         Δxold = Δx
 #         Δx = Δ
 #     end
-
+#
 #     return Δxold
 # end
 
@@ -371,14 +359,18 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
                                                 params, adaptive)
 
         # Shrink stepsize δt if adaptive is true and _success is false
-        if adaptive && !_success
-            bool_red = reduced_abstol > minabstol
-            if bool_red
-                reduced_abstol = reduced_abstol/10
-                δt = δt * 0.1^(1/orderT)
-                continue
+        if !_success
+            if adaptive
+                bool_red = reduced_abstol > minabstol
+                if bool_red
+                    reduced_abstol = reduced_abstol/10
+                    δt = δt * 0.1^(1/orderT)
+                    continue
+                else
+                    @warn("Minimum absolute tolerance reached: ", _t0, δt, reduced_abstol, Δ)
+                end
             else
-                @warn("Minimum absolute tolerance reached: ", _t0, δt, reduced_abstol)
+                @warn("It cannot prove existence and unicity of the solution: ", _t0, δt, Δ)
             end
         end
 
@@ -411,7 +403,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
                     δt = δt * 0.1^(1/orderT)
                     continue
                 else
-                    @warn("Minimum absolute tolerance reached: ", reduced_abstol)
+                    @warn("Minimum absolute tolerance reached (issatisfied): ", _t0, δt, reduced_abstol, Δ)
                 end
             end
         end # @inbounds
@@ -419,10 +411,10 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     end
 
     if !issatisfied && !adaptive
-        error("""
-            `check_property` is not satisfied:
+        @warn("""
+            Something went wrong:
             """, issatisfied, adaptive, bool_red, reduced_abstol,
-            t0, nsteps, δt, xv[nsteps], check_property(t0+δt, xv[nsteps])
+            t0, δt, Δ, nsteps, xv[nsteps], check_property(t0+δt, xv[nsteps])
         )
     end
 
@@ -459,6 +451,7 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, dx, xTMN, xI, dxI,
 
         xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
     end
+    return nothing
 end
 
 """
@@ -483,6 +476,7 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, dx, xTMN, rem, xTM
         rem = zI
         xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
     end
+    return nothing
 end
 
 """
@@ -516,6 +510,7 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, 
         # output vector
         xTM1v[:, 1] = TaylorModel1(deepcopy(x), rem, x0t, domt)
     end
+    return nothing
 end
 
 function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
@@ -566,6 +561,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
     local _success # if true, the validation step succeeded
     local _t0 # represents how much the integration could advance until validation failed
+    setformat(:full)
 
     # Integration
     nsteps = 1
@@ -591,6 +587,15 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
             # dx = Taylor1(zero(constant_term(x)), orderT)
             xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
             # dxI = xI
+        end
+
+        # If the integration step is unsuccessfull, break with a warning; note that the
+        # last integration step (which was not successfull) is returned
+        if !_success
+            @warn("""
+            Exiting due to unsuccessfull step
+            """, _success, t0)
+            break
         end
 
         if nsteps > maxsteps
@@ -703,21 +708,29 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
 
         # Shrink stepsize `δt` if `adaptive` is `true` and `_success` is false,
         # up to some minimum
-        if adaptive && !_success
-            bool_red = reduced_abstol > minabstol
-            if bool_red
-                reduced_abstol = reduced_abstol/10
-                δt = δt * 0.1^(1/orderT)
-                domT = sign_tstep * Interval{T}(0, sign_tstep*δt)
-                @. begin
-                    xTM1K = TaylorModel1(polv, zI, zI, domT)
-                    # xTM1K = TaylorModel1(polv, rem, zI, domT)
-                    E = remainder(xTM1K)
-                    # E = remainder(x0)
+        if !_success
+            if adaptive
+                bool_red = reduced_abstol > minabstol
+                if bool_red
+                    reduced_abstol = reduced_abstol/10
+                    δt = δt * 0.1^(1/orderT)
+                    domT = sign_tstep * Interval{T}(0, sign_tstep*δt)
+                    @. begin
+                        xTM1K = TaylorModel1(polv, zI, zI, domT)
+                        # xTM1K = TaylorModel1(polv, rem, zI, domT)
+                        E = remainder(xTM1K)
+                        # E = remainder(x0)
+                    end
+                else
+                    @warn("Minimum absolute tolerance reached: ", t[0], E′, E, 
+                    _success, all(iscontractive.(E′, E)), reduced_abstol)
                 end
             else
-                error("Minimum absolute tolerance reached: ", t[0], E′, E, 
-                _success, all(iscontractive.(E′, E)), reduced_abstol)
+                @warn("""It cannot prove existence and unicity of the solution:
+                    t0 = $(t[0])
+                    δt = $(δt)
+                    Δx = $(E)
+                """)
             end
         end
     end
@@ -794,6 +807,7 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     @inbounds xv[1] = evaluate(xTMN, S)
 
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
+    setformat(:full)
 
     while t0 * sign_tstep < tf * sign_tstep
         δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
@@ -844,6 +858,15 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
 
             x[i] = Taylor1(polynomial(xTMN[i]), orderT)
             xTM1v[i, nsteps] = xTM1[i]
+        end
+
+        # If the integration step is unsuccessfull, break with a warning; note that the
+        # last integration step (which was not successfull) is returned
+        if !_success
+            @warn("""
+            Exiting due to unsuccessfull step
+            """, _success, t0)
+            break
         end
 
         if nsteps > maxsteps
