@@ -31,7 +31,7 @@ import LinearAlgebra: norm
 #         taylor1_var, integrate, degree,
 #         calculate_set, Taylor_step
 
-export TaylorModel1, RTaylorModel1, TaylorModelN
+export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
 
 export remainder, polynomial, domain, expansion_point,
     rpa, fp_rpa, bound_remainder,
@@ -47,9 +47,9 @@ include("evaluate.jl")
 include("rpa_functions.jl")
 include("arithmetic.jl")
 include("integration.jl")
-include("recipe.jl")
 include("show.jl")
 include("validatedODEs.jl")
+include("recipe.jl")
 
 # include("Taylor1/Taylor1.jl")
 # include("TaylorN/TaylorN.jl")

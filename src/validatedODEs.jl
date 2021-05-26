@@ -2,6 +2,33 @@
 
 const _DEF_MINABSTOL = 1.0e-50
 
+
+"""
+    TMSol{N,T}
+
+Structure containing the solution of a validated integration.
+
+# Fields
+`time :: Vector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
+
+`fp   :: Vector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
+
+`xTMv :: Matrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
+    the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
+"""
+struct TMSol{N,T<:Real}
+    time :: Vector{T}
+    fp   :: Vector{IntervalBox{N,T}}
+    xTMv :: Array{TaylorModel1{TaylorN{T},T},2}
+
+    function TMSol(time::Vector{T}, fp::Vector{IntervalBox{N,T}}, 
+            xTMv::Array{TaylorModel1{TaylorN{T},T},2}) where {N,T}
+        @assert length(time) == length(fp) == size(xTMv,2) && N == size(xTMv,1)
+        return new{N,T}(time, fp, xTMv)
+    end
+end
+
+
 """
     remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt, params)
 
@@ -628,7 +655,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
     end
 
-    return view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v, :, 1:nsteps)
+    return TMSol(tv[1:nsteps], xv[1:nsteps], xTM1v[:,1:nsteps])
 end
 
 """
@@ -904,5 +931,5 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         end
     end
 
-    return view(tv, 1:nsteps), view(xv, 1:nsteps), view(xTM1v, :, 1:nsteps)
+    return TMSol(tv[1:nsteps], xv[1:nsteps], xTM1v[:,1:nsteps])
 end

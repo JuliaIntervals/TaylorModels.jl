@@ -14,6 +14,8 @@ setformat(:full)
 interval_rand(X::Interval{T}) where {T} = X.lo + rand(T) * (X.hi - X.lo)
 interval_rand(X::IntervalBox) = interval_rand.(X)
 
+# Function to check, against an exact solution of the ODE, the computed
+# validted solution
 function test_integ(fexact, t0, qTM, q0, δq0)
     normalized_box = symmetric_box(length(q0), Float64)
     # Time domain
@@ -58,8 +60,8 @@ end
         ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
 
         @testset "Forward integration 1" begin
-            tTM, qv, qTM = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
-
+            sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
             end_idx = lastindex(tTM)
@@ -69,21 +71,23 @@ end
                 @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
-            tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
                 adaptive=false)
+            tTMf, qvf, qTMf = getfield.((solf,), 1:3)
+
             @test length(qvf) == length(qv)
             @test qTM == qTMf
 
             # initializaton with a Taylor model
             X0tm = qTM[:, 1]
-            tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test qTM == qTM2
         end
 
         @testset "Forward integration 2" begin
-            tTM, qv, qTM = validated_integ2(falling_ball!, X0,
-                tini, tend, orderQ, orderT, abstol)
-
+            sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
             # Random.seed!(1)
@@ -95,7 +99,8 @@ end
 
             # initializaton with a Taylor model
             X0tm = qTM[:, 1]
-            tTM2, qv2, qTM2 = validated_integ2(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ2(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test qTM == qTM2
         end
 
@@ -106,7 +111,8 @@ end
         X0 = IntervalBox(q0 .+ δq0)
 
         @testset "Backward integration 1" begin
-            tTM, qv, qTM = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
@@ -117,25 +123,29 @@ end
                 @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
-            tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
                 adaptive=false)
+            tTMf, qvf, qTMf = getfield.((solf,), 1:3)
+
             @test length(qvf) == length(qv)
             @test all(qTM .== qTMf)
 
             # initializaton with a Taylor model
             X0tm = qTM[:, 1]
-            tTM2, qv2, qTM2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test qTM == qTM2
 
-            tTM2f, qv2f, qTM2f = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol,
+            sol2f = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol,
                 adaptive=false)
+            tTM2f, qv2f, qTM2f = getfield.((sol2f,), 1:3)
             @test length(qv2f) == length(qv2)
             @test all(qTM .== qTM2f)
         end
 
         @testset "Backward integration 2" begin
-            tTM, qv, qTM = validated_integ2(falling_ball!, X0,
-            tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
@@ -167,7 +177,8 @@ end
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
         @testset "Forward integration 1" begin
-            tTM, qv, qTM = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
@@ -178,19 +189,23 @@ end
                 @test test_integ((t,x)->exactsol(t,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
-            tTMf, qvf, qTMf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
                 adaptive=false)
+            tTMf, qvf, qTMf = getfield.((solf,), 1:3)
+
             @test length(qvf) == length(qv)
             @test all(qTMf .== qTM)
 
             # initializaton with a Taylor model
             X0tm = copy(qTM[:, 1])
-            tTM2, qv2, qTM2 = validated_integ(x_square!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ(x_square!, X0tm, tini, tend, orderQ, orderT, abstol)
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test qTM == qTM2
         end
 
         @testset "Forward integration 2" begin
-            tTM, qv, qTM = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
@@ -228,11 +243,13 @@ end
         orderT = 10
         ξ = set_variables("ξ", order=2*orderQ, numvars=length(q0))
 
-        tTM, qv, qTM = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        tTM, qv, qTM = getfield.((sol,), 1:3)
         @test all(ene0 .⊆ ene_pendulum.(qv))
 
-        tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+        sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
+        tTM, qv, qTM = getfield.((sol,), 1:3)
         @test all(ene0 .⊆ ene_pendulum.(qv))
 
         # Initial conditions 2
@@ -241,11 +258,13 @@ end
         X0 = IntervalBox(q0 .+ δq0)
         ene0 = ene_pendulum(X0)
 
-        tTM, qv, qTM = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        tTM, qv, qTM = getfield.((sol,), 1:3)
         @test all(ene0 .⊆ ene_pendulum.(qv))
 
-        tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+        sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
+        tTM, qv, qTM = getfield.((sol,), 1:3)
         @test all(ene0 .⊆ ene_pendulum.(qv))
     end
 end
