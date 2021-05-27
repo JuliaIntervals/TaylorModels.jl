@@ -66,7 +66,7 @@ end
             # Random.seed!(1)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
             tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -90,13 +90,13 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
-            # # initializaton with a Taylor model
-            # X0tm = qTM[:, 1]
-            # tTM2, qv2, qTM2 = validated_integ2(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
-            # @test qTM == qTM2
+            # initializaton with a Taylor model
+            X0tm = qTM[:, 1]
+            tTM2, qv2, qTM2 = validated_integ2(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            @test qTM == qTM2
         end
 
         # Initial conditions
@@ -114,7 +114,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
             tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -143,7 +143,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
             end
         end
     end
@@ -174,8 +174,8 @@ end
             # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
-                n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n-1], qTM[:,n], q0, δq0)
+                n = rand(1:end_idx)
+                @test test_integ((t,x)->exactsol(t,x), tTM[n], qTM[:,n], q0, δq0)
             end
 
             tTMf, qvf, qTMf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
@@ -197,8 +197,8 @@ end
             # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
-                n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n-1], qTM[:,n], q0, δq0)
+                n = rand(1:end_idx)
+                @test test_integ((t,x)->exactsol(t,x), tTM[n], qTM[:,n], q0, δq0)
             end
         end
     end

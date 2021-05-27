@@ -452,13 +452,6 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, dx, xTMN, xI, dxI,
     end
     return nothing
 end
-
-"""
-    initialize!(X0::IntervalBox{N, T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N, T}
-
-Initialize the auxiliary integration variables and normalize the given interval
-box to the domain `[-1, 1]^n`.
-"""
 function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {N,T}
     @assert N == get_numvars()
     q0 = mid.(X0)
@@ -511,6 +504,29 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, 
     end
     return nothing
 end
+function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {T}
+    # nomalized domain
+    N = get_numvars()
+    zI = zero_interval(T)
+    zB = zero_box(N, T)
+    S = symmetric_box(N, T)
+
+    qaux = constant_term.(polynomial.(X0))
+    x0t = expansion_point(X0[1])
+    domt = domain(X0[1])
+    @. begin
+        x = Taylor1(qaux, orderT)
+        dx = x
+        xTMN = TaylorModelN(qaux, zI, (zB,), (S,))
+
+        # remainder
+        rem = remainder(X0)
+
+        # output vector
+        xTM1v[:, 1] = TaylorModel1(deepcopy(x), rem, x0t, domt)
+    end
+    return nothing
+end
 
 function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, abstol::T, params=nothing;
                          maxsteps::Int=2000, parse_eqs::Bool=true,
@@ -523,6 +539,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     dof = N
 
     # Some variables
+    zt = zero(t0)
     zI = zero_interval(T)
     zB = zero_box(N, T)
     S  = symmetric_box(N, T)
@@ -559,7 +576,6 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
     local _success # if true, the validation step succeeded
-    local _t0 # represents how much the integration could advance until validation failed
     setformat(:full)
     red_abstol = abstol
 
@@ -573,14 +589,14 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
                                 nsteps, orderT, red_abstol, params, 
                                 parse_eqs, adaptive, minabstol, 
                                 absorb, check_property)
-        δtI = sign_tstep * Interval{T}(0, sign_tstep*δt)
+        δtI = sign_tstep * Interval(zt, sign_tstep*δt)
 
-        # New initial conditions and time
+        # New initial conditions and time, and output vectors
         nsteps += 1
+        @inbounds tv[nsteps] = t0
         t0 += δt
         @inbounds t[0] = t0
         @inbounds tI[0] = t0
-        @inbounds tv[nsteps] = t0
         @. begin
             xTM1v[:, nsteps] = TaylorModel1(x, rem, zI, δtI)  # deepcopy?
             x = Taylor1(evaluate(x, δt), orderT)
@@ -736,6 +752,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                     δt = $(δt)
                     Δx = $(E)
                 """)
+                break
             end
         end
     end
@@ -777,6 +794,7 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     N = get_numvars()
     dof = N
 
+    zt = zero(t0)
     zI = zero_interval(T)
     zB = zero_box(N, T)
     S = symmetric_box(N, T)
@@ -829,15 +847,14 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
                                             adaptive, minabstol,
                                             ε=ε, δ=δ,
                                             validatesteps=validatesteps)
-        domt = sign_tstep * Interval{T}(0, sign_tstep*δt)
+        domt = sign_tstep * Interval(zt, sign_tstep*δt)
 
         # δtI = (δt .. δt) ∩ domt # assure it is inside the domain in t
-        t0 += δt
         nsteps += 1
-        
-        @inbounds t[0] = t0
         @inbounds tv[nsteps] = t0
-
+        t0 += δt
+        @inbounds t[0] = t0
+        
         # Flowpipe
         @. begin
             rem = remainder(xTM1)
