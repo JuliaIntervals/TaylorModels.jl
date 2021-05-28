@@ -57,10 +57,9 @@ end
 
 function _plot_intvbox(sol; vars=(0,1), ntdiv=1)
     # Initializations
-    normalized_box = symmetric_box(2, Float64)
-    tTM = getfield(sol, :time)
+    normalized_box = symmetric_box(get_numvars(), Float64)
+    tTM  = getfield(sol, :time)
     xTMv = getfield(sol, :xTMv)
-    ltime = lastindex(tTM)
     plotbox = Vector{IntervalBox{2, Float64}}(undef, ntdiv*(ltime-1))
     v1 = Vector{Interval{Float64}}(undef, length(plotbox))
     v2 = similar(v1)
@@ -70,7 +69,7 @@ function _plot_intvbox(sol; vars=(0,1), ntdiv=1)
         tupT = findfirst(0 ∈ vars)
         tup2 = vars[3-tupT]
         ii = 1
-        @inbounds for indT in 2:ltime
+        @inbounds for indT in eachindex(tTM)
             domTv = mince(domain(xTMv[tup2,indT]), ntdiv)
             for domT in domTv
                 v1[ii] = tTM[indT]+domT
@@ -90,7 +89,7 @@ function _plot_intvbox(sol; vars=(0,1), ntdiv=1)
         var1 = vars[1]
         var2 = vars[2]
         ii = 1
-        @inbounds for indT in 2:ltime
+        @inbounds for indT in eachindex(tTM)
             domTv = mince(domain(xTMv[var1,indT]), ntdiv)
             for domT in domTv
                 v1[ii] = evaluate(xTMv[var1,indT](domT), normalized_box)

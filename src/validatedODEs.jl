@@ -4,27 +4,29 @@ const _DEF_MINABSTOL = 1.0e-50
 
 
 """
-    TMSol{N,T}
+    TMSol{N,T,V1,V2,M}
 
 Structure containing the solution of a validated integration.
 
 # Fields
-`time :: Vector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
+    `time :: AbstractVector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
 
-`fp   :: Vector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
+    `fp   :: AbstractVector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
 
-`xTMv :: Matrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
+    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
     the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
 """
-struct TMSol{N,T<:Real}
-    time :: Vector{T}
-    fp   :: Vector{IntervalBox{N,T}}
-    xTMv :: Array{TaylorModel1{TaylorN{T},T},2}
+struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
+        M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
+    time :: V1
+    fp   :: V2
+    xTMv :: M
 
-    function TMSol(time::Vector{T}, fp::Vector{IntervalBox{N,T}}, 
-            xTMv::Array{TaylorModel1{TaylorN{T},T},2}) where {N,T}
+    function TMSol(time::V1, fp::V2, xTMv::M) where 
+            {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
+            M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
         @assert length(time) == length(fp) == size(xTMv,2) && N == size(xTMv,1)
-        return new{N,T}(time, fp, xTMv)
+        return new{N,T,V1,V2,M}(time, fp, xTMv)
     end
 end
 
@@ -655,7 +657,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
     end
 
-    return TMSol(tv[1:nsteps], xv[1:nsteps], xTM1v[:,1:nsteps])
+    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v,:,1:nsteps))
 end
 
 """
@@ -931,5 +933,5 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         end
     end
 
-    return TMSol(tv[1:nsteps], xv[1:nsteps], xTM1v[:,1:nsteps])
+    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v,:,1:nsteps))
 end
