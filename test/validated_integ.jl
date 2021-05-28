@@ -28,7 +28,7 @@ function test_integ(fexact, t0, qTM, q0, δq0)
     # Box computed from the exact solution must be within q
     bb = all(fexact(t0+δtI, q0 .+ q0ξB) .⊆ q)
     # Display details if bb is false
-    bb || @show(t0, domt, remainder.(qTM), 
+    bb || @show(t0, domt, remainder.(qTM),
             δt, δtI, q0ξ, q0ξB, q,
             fexact(t0+δtI, q0 .+ q0ξB))
     return bb
@@ -66,7 +66,7 @@ end
             # Random.seed!(1)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
             end
 
             tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -90,7 +90,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
             end
 
             # initializaton with a Taylor model
@@ -114,7 +114,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
             end
 
             tTMf, qvf, qTMf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -143,7 +143,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], qTM[:,n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n-1], qTM[:,n], q0, δq0)
             end
         end
     end
@@ -174,8 +174,8 @@ end
             # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
-                n = rand(1:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n], qTM[:,n], q0, δq0)
+                n = rand(2:end_idx)
+                @test test_integ((t,x)->exactsol(t,x), tTM[n-1], qTM[:,n], q0, δq0)
             end
 
             tTMf, qvf, qTMf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
@@ -197,8 +197,8 @@ end
             # Random.seed!(1)
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
-                n = rand(1:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n], qTM[:,n], q0, δq0)
+                n = rand(2:end_idx)
+                @test test_integ((t,x)->exactsol(t,x), tTM[n-1], qTM[:,n], q0, δq0)
             end
         end
     end
@@ -247,5 +247,29 @@ end
         tTM, qv, qTM = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
         @test all(ene0 .⊆ ene_pendulum.(qv))
+    end
+
+    @testset "Time domain checks" begin
+        @taylorize function f!(dx, x, p, t)
+            dx[1] = x[2]
+            dx[2] = one(x[2])
+            return dx
+        end
+
+        # Initial conditions
+        tini, tend = 0.0, 0.1
+        X0 = interval(0.95, 0.99) × interval(0.1, 0.1)
+
+        # Parameters
+        abstol = 1e-10
+        orderQ = 2
+        orderT = 4
+        ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=2)
+
+        tTM, qv, qTM = validated_integ2(f!, X0, tini, tend, orderQ, orderT, abstol)
+
+        @test interval(0) == domain(qTM[:, 1][1]) # reach-set at the initial time point (0)
+        dt = interval(tTM[1], tTM[2])
+        @test dt == domain(qTM[:, 2][1]) # reach-set at the time interval (dt)
     end
 end
