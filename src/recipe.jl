@@ -60,7 +60,7 @@ function _plot_intvbox(sol; vars=(0,1), ntdiv=1)
     normalized_box = symmetric_box(get_numvars(), Float64)
     tTM  = getfield(sol, :time)
     xTMv = getfield(sol, :xTMv)
-    plotbox = Vector{IntervalBox{2, Float64}}(undef, ntdiv*(ltime-1))
+    plotbox = Vector{IntervalBox{2, Float64}}(undef, ntdiv*length(tTM))
     v1 = Vector{Interval{Float64}}(undef, length(plotbox))
     v2 = similar(v1)
 
