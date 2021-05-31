@@ -104,3 +104,15 @@ end
 @inline zero_interval(T) = zero(Interval{T})
 @inline zero_box(N, T) = IntervalBox(zero_interval(T), Val(N))
 @inline symmetric_box(N, T) = IntervalBox(Interval{T}(-1, 1), Val(N))
+
+
+# TMSol utilities
+@inline firstindex(a::TMSol) = firstindex(a.time)
+@inline lastindex(a::TMSol)  = lastindex(a.time)
+@inline Base.length(a::TMSol) = length(a.time)
+@inline Base.iterate(a::TMSol, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
+
+getindex(a::TMSol, n::Integer) = a.xTM[:,n]
+getindex(a::TMSol, u::UnitRange) = a.xTM[:,u]
+getindex(a::TMSol, c::Colon) = a.xTM[:,c]
+getindex(a::TMSol, n::Integer, m::Integer) = a.xTM[m,n]

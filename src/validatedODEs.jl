@@ -4,34 +4,6 @@ const _DEF_MINABSTOL = 1.0e-50
 
 
 """
-    TMSol{N,T,V1,V2,M}
-
-Structure containing the solution of a validated integration.
-
-# Fields
-    `time :: AbstractVector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
-
-    `fp   :: AbstractVector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
-
-    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
-    the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
-"""
-struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
-        M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
-    time :: V1
-    fp   :: V2
-    xTMv :: M
-
-    function TMSol(time::V1, fp::V2, xTMv::M) where 
-            {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
-            M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
-        @assert length(time) == length(fp) == size(xTMv,2) && N == size(xTMv,1)
-        return new{N,T,V1,V2,M}(time, fp, xTMv)
-    end
-end
-
-
-"""
     remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt, params)
 
 Returns a remainder for the integration step for the dependent variables (`x`)

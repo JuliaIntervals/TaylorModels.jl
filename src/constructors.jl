@@ -146,3 +146,38 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
+
+
+"""
+    TMSol{N,T,V1,V2,M}
+
+Structure containing the solution of a validated integration.
+
+# Fields
+    `time :: AbstractVector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
+
+    `fp   :: AbstractVector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
+
+    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
+    the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
+"""
+struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
+        M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
+    time :: V1
+    fp   :: V2
+    xTM  :: M
+
+    function TMSol(time::V1, fp::V2, xTM::M) where 
+            {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
+            M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
+        @assert length(time) == length(fp) == size(xTM,2) && N == size(xTM,1)
+        return new{N,T,V1,V2,M}(time, fp, xTM)
+    end
+end
+
+get_time(a::TMSol) = a.time
+get_fp(a::TMSol) = a.fp
+get_xTM(a::TMSol) = a.xTM
+get_time(a::TMSol, n::Int) = a.time[n]
+get_fp(a::TMSol, n::Int) = a.fp[n]
+get_xTM(a::TMSol, n::Int) = a.xTM[:,n]

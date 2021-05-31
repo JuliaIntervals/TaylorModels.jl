@@ -33,7 +33,8 @@ import LinearAlgebra: norm
 
 export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
 
-export remainder, polynomial, domain, expansion_point,
+export remainder, polynomial, domain, expansion_point, 
+    get_time, get_fp, get_xTM,
     rpa, fp_rpa, bound_remainder,
     validated_integ, validated_integ2
 
