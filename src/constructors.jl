@@ -175,9 +175,9 @@ struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}
     end
 end
 
-get_time(a::TMSol) = a.time
-get_fp(a::TMSol) = a.fp
-get_xTM(a::TMSol) = a.xTM
-get_time(a::TMSol, n::Int) = a.time[n]
-get_fp(a::TMSol, n::Int) = a.fp[n]
-get_xTM(a::TMSol, n::Int) = a.xTM[:,n]
+get_time(a::TMSol) = getfield(a,:time)
+get_fp(a::TMSol)   = getfield(a,:fp)
+get_xTM(a::TMSol)  = getfield(a,:xTM)
+get_time(a::TMSol, n::Int) = getindex(getfield(a,:time),n)
+get_fp(a::TMSol, n::Int)   = getindex(getfield(a,:fp),n)
+get_xTM(a::TMSol, n::Int)  = getindex(getfield(a,:xTM),:,n)

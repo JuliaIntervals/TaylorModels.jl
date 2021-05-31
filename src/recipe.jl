@@ -82,20 +82,17 @@ end
 
 # Mince in time var (var == 0)
 function _mince_in_time(sol::TMSol, ::Val{true}, timediv::Int=1)
-    tTM  = getfield(sol, :time)
-    xTMv = getfield(sol, :xTMv)
-
     # Case timediv == 1
     if timediv == 1
-        return @. tTM + domain.(xTMv[1,:])
+        return @. sol.time + domain(sol.xTM[1,:])
     end
 
     # Case timediv > 1
-    domT = Vector{typeof(domain(xTMv[1,1]))}(undef, timediv*length(tTM))
+    domT = Vector{typeof(domain(sol[1,1]))}(undef, timediv*length(sol))
     i0 = 1
-    @inbounds for indT in eachindex(tTM)
+    @inbounds for indT in eachindex(sol)
         i1 = indT*timediv
-        domT[i0:i1] .= tTM[indT] .+ mince(domain(xTMv[1,indT]), timediv)
+        domT[i0:i1] .= get_time(sol,indT) .+ mince(domain(sol.xTM[1,indT]), timediv)
         i0 = i1 + 1
     end
 
@@ -109,22 +106,20 @@ function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int, timediv
 
     # Case timediv == 1
     if timediv == 1
-        fp = getfield(sol, :fp)
-        return @. getindex(getfield(fp, :v), var)
+        return @. getindex(getfield(sol.fp, :v), var)
     end
 
     # Case timediv > 1
     vv = similar(domT)
     normalized_box = symmetric_box(N, Float64)
-    tTM  = getfield(sol, :time)
-    xTMv = getfield(sol, :xTMv)
-    δt = mince(domain(xTMv[1,1]), timediv)
+    # tTM  = get_time(sol)
+    δt = mince(domain(sol[1,1]), timediv)
 
     i0 = 1
-    @inbounds for indT in eachindex(tTM)
+    @inbounds for indT in eachindex(sol)
         i1 = indT*timediv
-        δt .= mince(domain(xTMv[1,indT]), timediv)
-        @. vv[i0:i1] = evaluate(evaluate(xTMv[var,indT], δt), (normalized_box,))
+        δt .= mince(domain(sol[indT,1]), timediv)
+        @. vv[i0:i1] = evaluate(evaluate(sol[indT,var], δt), (normalized_box,))
         i0 = i1 + 1
     end
 
