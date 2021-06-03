@@ -72,6 +72,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test linear_polynomial(xm) == xT
         @test linear_polynomial(ym) == yT
         @test linear_polynomial(xm^2) == zero(xT)
+        @test nonlinear_polynomial(xm) == zero(xT)
+        @test nonlinear_polynomial(xm^2) == xT^2
     end
 
     @testset "Arithmetic operations" begin

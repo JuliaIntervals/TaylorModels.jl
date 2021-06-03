@@ -21,7 +21,8 @@ import Base: setindex!, getindex, copy, firstindex, lastindex,
 using TaylorSeries: derivative, ∇
 
 import TaylorSeries: integrate, get_order, evaluate, pretty_print,
-    constant_term, linear_polynomial, fixorder, get_numvars
+    constant_term, linear_polynomial, nonlinear_polynomial,
+    fixorder, get_numvars
 
 import IntervalArithmetic: showfull
 
