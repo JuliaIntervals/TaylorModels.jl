@@ -20,14 +20,14 @@ function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI
     fTIend = polfI[_order]
     if (sup(fTIend) < 0 || inf(fTIend) > 0)
         # Absolute remainder is monotonic
-        a = interval(I.lo)
-        b = interval(I.hi)
+        a = Interval(inf(I))
+        b = Interval(sup(I))
         Δlo = f(a) - polf(a-x0)
         # Δlo = f(a) - bound_taylor1(polf, a-x0)
         Δhi = f(b) - polf(b-x0)
         # Δhi = f(b) - bound_taylor1(polf, b-x0)
         Δx0 = f(x0) - polf[0]
-        Δ = hull(hull(Δlo, Δx0), Δhi)
+        Δ = hull(Δlo, Δx0, Δhi)
     else
         # Lagrange bound
         Δ = fTIend * (I-x0)^_order
@@ -41,16 +41,15 @@ function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{Taylor
     fTIend = polfI[_order]
     if (sup(fTIend) < 0 || inf(fTIend) > 0)
         # Absolute remainder is monotonic
-        a = interval(I.lo)
-        b = interval(I.hi)
-        N = get_numvars()
-        symIbox = IntervalBox(-1 .. 1, Val(N))
+        a = Interval(inf(I))
+        b = Interval(sup(I))
+        symIbox = IntervalBox(-1 .. 1, get_numvars())
         Δlo = (f(a) - polf(a-x0))(symIbox)
         # Δlo = f(a) - bound_taylor1(polf, a-x0)
         Δhi = (f(b) - polf(b-x0))(symIbox)
         # Δhi = f(b) - bound_taylor1(polf, b-x0)
         Δx0 = (f(x0) - polf[0])(symIbox)
-        Δ = hull(hull(Δlo, Δx0), Δhi)
+        Δ = hull(Δlo, Δx0, Δhi)
     else
         # Lagrange bound
         Δ = fTIend * (I-x0)^_order
@@ -76,8 +75,8 @@ function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polf
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order+1]
-    a = interval(I.lo)
-    b = interval(I.hi)
+    a = Interval(inf(I))
+    b = Interval(sup(I))
     if (sup(fTIend) < 0 || inf(fTIend) > 0) && isempty(a ∩ x0) && isempty(b ∩ x0)
         # Error is monotonic
         denom_lo = (a-x0)^_order
@@ -123,8 +122,8 @@ function bound_taylor1(fT::Taylor1, I::Interval)
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
     num_roots == 0 && return fT(I)
-    rangepoly = hull( fT(interval(I.lo)), fT(interval(I.hi)) )
-    for ind in 1:num_roots
+    rangepoly = hull( fT(Interval(inf(I))), fT(Interval(sup(I))) )
+    @inbounds for ind in 1:num_roots
         rangepoly = hull(rangepoly, fT(rootsder[ind].interval))
     end
 
@@ -142,20 +141,24 @@ a definite sign.
 """
 function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
     #
+    I_lo = inf(I)
+    I_hi = sup(I)
     if inf(fTd(I)) ≥ 0
-        return Interval(fT(I.lo), fT(I.hi))
+        return Interval(fT(I_lo), fT(I_hi))
     elseif sup(fTd(I)) ≤ 0
-        return Interval(fT(I.hi), fT(I.lo))
+        return Interval(fT(I_hi), fT(I_lo))
     end
     return fT(I)
 end
 function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
         I::Interval{S}) where {T,S}
     #
+    I_lo = inf(I)
+    I_hi = sup(I)
     if inf(fTd(I)) ≥ 0
-        return hull(fT(I.lo), fT(I.hi))
+        return hull(fT(I_lo), fT(I_hi))
     elseif sup(fTd(I)) ≤ 0
-        return hull(fT(I.hi), fT(I.lo))
+        return hull(fT(I_hi), fT(I_lo))
     end
     return fT(I)
 end
@@ -180,42 +183,47 @@ The returned bound corresponds to the improved polynomial bound with the remaind
 of the `TaylorModel1` included.
 """
 function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) where {T, S}
-    d = 1.
-    Dn = fT.dom
-    Dm = fT.x0
-    Pm = Taylor1(copy(fT.pol.coeffs))
-    bound = interval(0.)
+    d = one(T)
+    dom = domain(fT)
+    x0 = expansion_point(fT)
+    pol = polynomial(fT)
+    Pm = deepcopy(pol)
+    bound = zero_interval(S)
+    hi = sup(pol(dom - x0))
+
     n_iter = 0
     while d > ϵ && n_iter < max_iter
-        x0 = mid(Dn - Dm)
-        c = mid(Dn)
+        x0 = mid(dom - x0)
+        c = mid(dom)
         update!(Pm, x0)
-        linear = Taylor1(Pm.coeffs[1:2], Pm.order)
-        non_linear = Pm - linear
+        non_linear = nonlinear_polynomial(Pm)
+        linear = Pm - non_linear
         if T <: Interval
             Li = mid(linear[1])
         else
             Li = linear[1]
         end
-        I1 = linear(Dn - c)
-        Ih = non_linear(Dn - c)
-        bound = I1.lo + Ih
+        I1 = linear(dom - c)
+        Ih = non_linear(dom - c)
+        bound = inf(I1) + Ih
         d = diam(bound)
         n_iter += 1
+        dom_lo = inf(dom)
+        dom_hi = sup(dom)
         if Li == 0
             break
         elseif Li > 0
-            new_hi = min(Dn.lo + (d / abs(Li)), Dn.hi)
-            Dm = Dn
-            Dn = interval(Dn.lo, new_hi)
+            new_hi = min(dom_lo + (d / abs(Li)), dom_hi)
+            x0 = dom
+            dom = Interval(dom_lo, new_hi)
         else
-            new_lo = max(Dn.hi - (d / abs(Li)), Dn.lo)
-            Dm = Dn
-            Dn = interval(new_lo, Dn.hi)
+            new_lo = max(dom_hi - (d / abs(Li)), dom_lo)
+            x0 = dom
+            dom = Interval(new_lo, dom_hi)
         end
     end
-    hi = fT.pol(fT.dom - fT.x0).hi
-    return interval(bound.lo, hi) + fT.rem
+
+    return Interval(inf(bound), hi) + remainder(fT)
 end
 
 """
@@ -227,52 +235,57 @@ the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter
 The returned bound corresponds to the improved polynomial bound with the remainder
 of the `TaylorModelN` included.
 """
-function linear_dominated_bounder(fT::TaylorModelN{N, T, S}; ϵ=1e-5, max_iter=5) where {N, T, S}
-    d = 1.
-    Dn = fT.dom
-    Dm = fT.x0
-    Pm = TaylorN(deepcopy(fT.pol.coeffs))
-    bound = interval(0.)
+function linear_dominated_bounder(fT::TaylorModelN{N,T,S}; ϵ=1e-5, max_iter=5) where {N, T, S}
+    d = one(T)
+    dom = domain(fT)
+    x0 = expansion_point(fT)
+    pol = polynomial(fT)
+    Pm = deepcopy(pol)
+    bound = zero_interval(S)
+    pol_hi = sup(pol(dom - x0))
+
     n_iter = 0
-    x0 = Array{S}(undef, N)
+    x00 = Array{S}(undef, N)
+    new_boxes = fill(bound, N)
     linear_coeffs = Array{Float64}(undef, N)
     while d > ϵ && n_iter < max_iter
-        x0 .= mid(Dn - Dm)
-        c = mid(Dn)
-        update!(Pm, x0)
+        x00 .= mid(dom - x0)
+        c = mid(dom)
+        update!(Pm, x00)
         linear_part = Pm[1]
         if T <: Interval
-            linear_coeffs .= mid.(linear_part.coeffs)
+            @. linear_coeffs = mid(linear_part.coeffs)
         else
-            linear_coeffs .= linear_part.coeffs
+            @. linear_coeffs = linear_part.coeffs
         end
-        linear = TaylorN(deepcopy(Pm.coeffs[1:2]), Pm.order)
-        non_linear = Pm - linear
-        centered_domain = Dn .- c
+        non_linear = nonlinear_polynomial(Pm)
+        linear = Pm - non_linear
+        centered_domain = dom .- c
         I1 = linear(centered_domain)
         Ih = non_linear(centered_domain)
-        bound = I1.lo + Ih
+        bound = inf(I1) + Ih
         d = diam(bound)
         n_iter += 1
-        new_boxes = Interval[]
-        for (idx, box) in enumerate(Dn)
+        for (idx, box) in enumerate(dom)
             Li = linear_coeffs[idx]
+            box_lo = inf(box)
+            box_hi = sup(box)
             if Li == 0
-                Dni = box
+                domi = box
             elseif Li < 0
-                lo = max(box.hi - (d / abs(Li)), box.lo)
-                Dni = interval(lo, box.hi)
+                lo = max(box_hi - (d / abs(Li)), box_lo)
+                domi = Interval(lo, box_hi)
             else
-                hi = min(box.lo + (d / abs(Li)), box.hi)
-                Dni = interval(box.lo, hi)
+                hi = min(box_lo + (d / abs(Li)), box_hi)
+                domi = Interval(box_lo, hi)
             end
-            push!(new_boxes, Dni)
+            new_boxes[idx] = domi
         end
-        Dm = Dn
-        Dn = IntervalBox(new_boxes...)
+        x0 = dom
+        dom = IntervalBox(new_boxes...)
     end
-    hi = fT.pol(fT.dom - fT.x0).hi
-    return interval(bound.lo, hi) + fT.rem
+
+    return Interval(inf(bound), pol_hi) + remainder(fT)
 end
 
 """
@@ -292,20 +305,21 @@ For this algorithm the linear part is bounded by solving a simple
 set of linear equations (compared to the iterative procedure by Makino & Berz).
 """
 function quadratic_fast_bounder(fT::TaylorModel1)
-    P = fT.pol
-    bound_tm = fT(fT.dom - fT.x0)
-    if signbit(P[2])
-        return bound_tm
-    else
-        x0 = -P[1] / (2 * P[2])
-        x = Taylor1(fT.pol.order)
-        Qx0 = (x - x0) * P[2] * (x - x0)
-        bound_qfb = (P - Qx0)(fT.dom - fT.x0)
-        hi = P(fT.dom - fT.x0).hi
-        bound_qfb = interval(bound_qfb.lo, hi) + fT.rem
-        bound = bound_qfb ∩ bound_tm
-        return bound
-    end
+    P = polynomial(fT)
+    dom = domain(fT)
+    x00 = expansion_point(fT)
+    bound_tm = fT(dom - x00)
+    signbit(P[2]) && return bound_tm
+
+    cent_dom = dom - x00
+    x0 = -P[1] / (2 * P[2])
+    x = Taylor1(P.order)
+    Qx0 = (x - x0) * P[2] * (x - x0)
+    bound_qfb = (P - Qx0)(cent_dom)
+    hi = sup(P(cent_dom))
+    bound_qfb = Interval(inf(bound_qfb), hi) + remainder(fT)
+
+    return bound_qfb ∩ bound_tm
 end
 
 """
@@ -325,20 +339,23 @@ For this algorithm the linear part is bounded by solving a simple
 set of linear equations (compared to the iterative procedure by Makino & Berz).
 """
 function quadratic_fast_bounder(fT::TaylorModelN)
-    P = fT.pol
+    @assert get_numvars() == get_numvars(fT)
+    P = polynomial(fT)
+    dom = domain(fT)
+    x0 = expansion_point(fT)
     H = Matrix(TaylorSeries.hessian(P))
-    bound_tm = fT(fT.dom - fT.x0)
+    bound_tm = fT(dom - x0)
     if isposdef(H)
         P1 = -P[1].coeffs
         xn = H \ P1
-        x = set_variables("x", numvars=length(xn))
+        x = get_variables()#set_variables("x", numvars=length(xn))
         Qxn = 0.5 * (x - xn)' * H * (x - xn)
-        bound_qfb = (P - Qxn)(fT.dom - fT.x0)
-        hi = P(fT.dom - fT.x0).hi
-        bound_qfb = interval(bound_qfb.lo, hi) + fT.rem
+        bound_qfb = (P - Qxn)(dom - x0)
+        hi = sup(P(dom - x0))
+        bound_qfb = interval(inf(bound_qfb), hi) + remainder(fT)
         bound = bound_qfb ∩ bound_tm
         return bound
-    else
-        return bound_tm
     end
+
+    return bound_tm
 end
