@@ -21,7 +21,7 @@ import Base: setindex!, getindex, copy, firstindex, lastindex,
 using TaylorSeries: derivative, ∇
 
 import TaylorSeries: integrate, get_order, evaluate, pretty_print,
-    constant_term, linear_polynomial, fixorder
+    constant_term, linear_polynomial, fixorder, get_numvars
 
 import IntervalArithmetic: showfull
 
@@ -33,8 +33,7 @@ import LinearAlgebra: norm
 
 export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
 
-export remainder, polynomial, domain, expansion_point, 
-    get_time, get_fp, get_xTM,
+export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
     rpa, fp_rpa, bound_remainder,
     validated_integ, validated_integ2
 

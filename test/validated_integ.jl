@@ -61,12 +61,13 @@ end
 
         @testset "Forward integration 1" begin
             sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
-            tTM = get_time(sol)
-            qv  = get_fp(sol)
+            tTM = expansion_point(sol)
+            qv  = flowpipe(sol)
             qTM = get_xTM(sol)
             @test length(qv) == length(qTM[1,:]) == length(sol)
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
+            @test domain(sol,1) == 0..0
 
             end_idx = lastindex(sol)
             Random.seed!(1)
@@ -88,16 +89,27 @@ end
             qTM2 = getfield(sol2, 3)
             @test qTM == qTM2
             @test sol2[1,2] == X0tm[2]
+
+            # Tests for TaylorModels.mince_in_time
+            domT = TaylorModels.mince_in_time(sol)
+            @test domT == expansion_point(sol) .+ domain(sol)
+            timesdiv = TaylorModels.mince_in_time(sol, var=0, timediv=2)
+            fpdiv = TaylorModels.mince_in_time(sol, var=1, timediv=2)
+            @test timesdiv[3] ⊂ domT[2]
+            @test hull(timesdiv[1],timesdiv[2]) == domT[1]
+            @test fpdiv[3] ⊂ qv[2][1]
+            @test hull(fpdiv[3],fpdiv[4]) ⊂ qv[2][1]
         end
 
         @testset "Forward integration 2" begin
             sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
-            tTM = get_time(sol)
-            qv  = get_fp(sol)
+            tTM = expansion_point(sol)
+            qv  = flowpipe(sol)
             qTM = get_xTM(sol)
             @test length(qv) == length(qTM[1,:]) == length(sol)
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
+            @test domain(sol,1) == 0..0
 
             Random.seed!(1)
             end_idx = lastindex(sol)
@@ -126,12 +138,13 @@ end
             @test length(qv) == length(qTM[1,:]) == length(sol)
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
+            @test domain(sol,1) == 0..0
 
             Random.seed!(1)
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), get_time(sol,n), sol[n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
             end
 
             solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -160,12 +173,13 @@ end
             @test length(qv) == length(qTM[1,:]) == length(sol)
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
+            @test domain(sol,1) == 0..0
 
             Random.seed!(1)
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), get_time(sol,n), sol[n], q0, δq0)
+                @test test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
             end
         end
     end
@@ -192,6 +206,7 @@ end
             sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == length(qTM[1, :]) == length(tTM)
+            @test domain(sol,1) == 0..0
 
             Random.seed!(1)
             end_idx = lastindex(tTM)
@@ -217,6 +232,7 @@ end
         @testset "Forward integration 2" begin
             sol = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol)
             tTM, qv, qTM = getfield.((sol,), 1:3)
+            @test domain(sol,1) == 0..0
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
 
@@ -255,11 +271,11 @@ end
         ξ = set_variables("ξ", order=2*orderQ, numvars=length(q0))
 
         sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
-        @test all(ene0 .⊆ ene_pendulum.(get_fp(sol)))
+        @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
 
         sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
-        @test all(ene0 .⊆ ene_pendulum.(get_fp(sol)))
+        @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
 
         # Initial conditions 2
         q0 = [1.1, 0.1, 0.0]
@@ -268,10 +284,10 @@ end
         ene0 = ene_pendulum(X0)
 
         sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
-        @test all(ene0 .⊆ ene_pendulum.(get_fp(sol)))
+        @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
 
         sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
-        @test all(ene0 .⊆ ene_pendulum.(get_fp(sol)))
+        @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
     end
 end

@@ -146,7 +146,7 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
-
+@inline get_numvars(::TaylorModelN{N,T,S}) where {N,T,S} = N
 
 """
     TMSol{N,T,V1,V2,M}
@@ -175,9 +175,12 @@ struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}
     end
 end
 
-get_time(a::TMSol) = getfield(a,:time)
-get_fp(a::TMSol)   = getfield(a,:fp)
-get_xTM(a::TMSol)  = getfield(a,:xTM)
-get_time(a::TMSol, n::Int) = getindex(getfield(a,:time),n)
-get_fp(a::TMSol, n::Int)   = getindex(getfield(a,:fp),n)
-get_xTM(a::TMSol, n::Int)  = getindex(getfield(a,:xTM),:,n)
+@inline expansion_point(a::TMSol) = getfield(a,:time)
+@inline expansion_point(a::TMSol, n::Int) = getindex(getfield(a,:time),n)
+@inline flowpipe(a::TMSol) = getfield(a,:fp)
+@inline flowpipe(a::TMSol, n::Int) = getindex(getfield(a,:fp),n)
+@inline get_xTM(a::TMSol) = getfield(a,:xTM)
+@inline get_xTM(a::TMSol, n::Int) = getindex(getfield(a,:xTM),:,n)
+@inline domain(a::TMSol) = domain.(getindex(getfield(a, :xTM), 1, :)) # vector!
+@inline domain(a::TMSol, n::Int) = domain(getindex(getfield(a, :xTM), 1, n))
+@inline get_numvars(::TMSol{N,T,V1,V2,M}) where {N,T,V1,V2,M} = N
