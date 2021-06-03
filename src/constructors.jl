@@ -146,3 +146,41 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
+@inline get_numvars(::TaylorModelN{N,T,S}) where {N,T,S} = N
+
+"""
+    TMSol{N,T,V1,V2,M}
+
+Structure containing the solution of a validated integration.
+
+# Fields
+    `time :: AbstractVector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
+
+    `fp   :: AbstractVector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
+
+    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
+    the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
+"""
+struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
+        M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
+    time :: V1
+    fp   :: V2
+    xTM  :: M
+
+    function TMSol(time::V1, fp::V2, xTM::M) where 
+            {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
+            M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
+        @assert length(time) == length(fp) == size(xTM,2) && N == size(xTM,1)
+        return new{N,T,V1,V2,M}(time, fp, xTM)
+    end
+end
+
+@inline expansion_point(a::TMSol) = getfield(a,:time)
+@inline expansion_point(a::TMSol, n::Int) = getindex(getfield(a,:time),n)
+@inline flowpipe(a::TMSol) = getfield(a,:fp)
+@inline flowpipe(a::TMSol, n::Int) = getindex(getfield(a,:fp),n)
+@inline get_xTM(a::TMSol) = getfield(a,:xTM)
+@inline get_xTM(a::TMSol, n::Int) = getindex(getfield(a,:xTM),:,n)
+@inline domain(a::TMSol) = domain.(getindex(getfield(a, :xTM), 1, :)) # vector!
+@inline domain(a::TMSol, n::Int) = domain(getindex(getfield(a, :xTM), 1, n))
+@inline get_numvars(::TMSol{N,T,V1,V2,M}) where {N,T,V1,V2,M} = N

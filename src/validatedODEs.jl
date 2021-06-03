@@ -2,6 +2,7 @@
 
 const _DEF_MINABSTOL = 1.0e-50
 
+
 """
     remainder_taylorstep!(f!, t, x, dx, xI, dxI, δI, δt, params)
 
@@ -628,7 +629,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
     end
 
-    return view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v, :, 1:nsteps)
+    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v,:,1:nsteps))
 end
 
 """
@@ -904,5 +905,5 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         end
     end
 
-    return view(tv, 1:nsteps), view(xv, 1:nsteps), view(xTM1v, :, 1:nsteps)
+    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v,:,1:nsteps))
 end
