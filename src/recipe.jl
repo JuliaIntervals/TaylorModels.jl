@@ -118,7 +118,7 @@ function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int,
 
     # Case timediv == 1
     if timediv == 1
-        return @. getindex(getfield(flowpipe(sol), :v), var)
+        return getindex.(flowpipe(sol), var)
     end
 
     # Case timediv > 1
