@@ -681,7 +681,7 @@ with some custom adaptations.
 Ref: Florian B\"unger, A Taylor model toolbox for solving ODEs implemented in MATLAB/INTLAB,
 J. Comput. Appl. Math. 368, 112511, https://doi.org/10.1016/j.cam.2019.112511
 """
-function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
+function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, abstol,
                         δt, sign_tstep, E, E′, polv, low_ratiov, hi_ratiov,
                         adaptive::Bool, minabstol;
                         ε=1e-10, δ=1e-6, validatesteps=20, extrasteps=50)
@@ -692,10 +692,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     orderT = get_order(t)
     @. begin
         polv = deepcopy.(x)
-        xTM1K = TaylorModel1(polv, zI, zI, domT)
-        # xTM1K = TaylorModel1(polv, rem, zI, domT)
-        E = remainder(xTM1K)
-        # E = remainder(x0)
+        xTM1K = TaylorModel1(polv, E, zI, domT)
     end
     εi = (1 - ε) .. (1 + ε)
     δi = -δ .. δ
@@ -711,7 +708,14 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
         # Try to prove existence and uniqueness up to validatesteps
         nsteps = 0
         E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true)) # 0-th iteration
-        @. xTM1K = TaylorModel1(polv, E′, zI, domT)
+        _success = all(iscontractive.(E′, E))
+        _success && break
+
+        @. begin
+            E = E′
+            xTM1K = TaylorModel1(polv, E′, zI, domT)
+        end
+
         while nsteps < validatesteps
             E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box)
             all(iscontractive.(E′, E)) && break
@@ -738,10 +742,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                     δt = δt * 0.1^(1/orderT)
                     domT = sign_tstep * Interval{T}(0, sign_tstep*δt)
                     @. begin
-                        xTM1K = TaylorModel1(polv, zI, zI, domT)
-                        # xTM1K = TaylorModel1(polv, rem, zI, domT)
+                        xTM1K = TaylorModel1(polv, E, zI, domT)
                         E = remainder(xTM1K)
-                        # E = remainder(x0)
                     end
                 else
                     @warn("Minimum absolute tolerance reached: ", t[0], E′, E, 
@@ -775,7 +777,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     #     E .= remainder.(xTM1K)
     #     E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box)
     #     @. begin
-    #         xTM1K = TaylorModel1(polv, E′, zI, dom)
+    #         xTM1K = TaylorModel1(polv, E′, zI, domT)
     #         low_ratiov = inf(E′) / inf(E)
     #         hi_ratiov  = sup(E′) / sup(E)
     #     end
@@ -812,17 +814,13 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     xTM1 = Array{TaylorModel1{TaylorN{T},T}}(undef, dof)
     low_ratiov = Array{T}(undef, dof)
     hi_ratiov = Array{T}(undef, dof)
-    rem = Array{Interval{T}}(undef, dof)
     E = Array{Interval{T}}(undef, dof)
     E′ = Array{Interval{T}}(undef, dof)
 
     # Set initial conditions
-    initialize!(X0, orderQ, orderT, x, dx, xTMN, rem, xTM1v)
-    @inbounds for i in eachindex(x)
-        xTM1[i] = TaylorModel1(deepcopy(x[i]), zI, zI, zI)
-    end
+    initialize!(X0, orderQ, orderT, x, dx, xTMN, E, xTM1v)
+    @. xTM1 = TaylorModel1(deepcopy(x), E, zI, zI)
     polv = polynomial.(xTM1)
-    fill!(E, zI)
     fill!(E′, zI)
 
     sign_tstep = copysign(1, tf - t0)
@@ -843,40 +841,35 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
 
         # Reuse previous TaylorModel1 to save some allocations
         (_success, δt, red_abstol) = _validate_step!(xTM1, f!, dxTM1, xTMN, params, x, t, 
-                                            S, dof, rem, red_abstol, δt, sign_tstep, E, E′, 
+                                            S, dof, red_abstol, δt, sign_tstep, E, E′, 
                                             polv, low_ratiov, hi_ratiov, 
                                             adaptive, minabstol,
                                             ε=ε, δ=δ,
                                             validatesteps=validatesteps)
         domt = sign_tstep * Interval(zt, sign_tstep*δt)
 
-        # δtI = (δt .. δt) ∩ domt # assure it is inside the domain in t
+        δtI = (δt .. δt) ∩ domt # assure it is inside the domain in t
         nsteps += 1
         @inbounds tv[nsteps] = t0
         t0 += δt
         @inbounds t[0] = t0
         
         # Flowpipe
-        @. begin
-            rem = remainder(xTM1)
-            xTMN = fp_rpa(TaylorModelN(copy(evaluate(xTM1, domt)), rem, (zB,), (S,)))
-        end
+        @. xTMN = fp_rpa(TaylorModelN(evaluate(xTM1, domt), E, (zB,), (S,)))
         xv[nsteps] = evaluate(xTMN, S)
 
         # New initial condition
         @inbounds for i in eachindex(x)
-            aux_pol = evaluate(xTM1[i], δt) #δtI
-            # rem[i] = remainder(xTM1[i])
-            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), rem[i], zB, S))
-            # xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zB, S))
+            aux_pol = evaluate(xTM1[i], δtI) #δtI
+            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), E[i], zB, S))
 
             # Absorb remainder
             j = 0
-            while absorb && (j < absorb_steps) && (mag(rem[i]) > 1.0e-10)
+            while absorb && (j < absorb_steps) && (mag(E[i]) > 1.0e-10)
                 t[0] == 0 && println("absorb_remainder ")
                 j += 1
                 xTMN[i] = absorb_remainder(xTMN[i])
-                rem[i] = remainder(xTMN[i])
+                E[i] = remainder(xTMN[i])
             end
 
             x[i] = Taylor1(polynomial(xTMN[i]), orderT)
