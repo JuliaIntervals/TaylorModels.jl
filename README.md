@@ -7,12 +7,16 @@
 
 [![docs stable][docsbadge_stable]][documenter_stable]
 [![docs latest][docsbadge_latest]][documenter_latest]
+[![DOI][Zenodo_badge]][Zenodo_url]
 
 [CI_badge]: https://github.com/JuliaIntervals/TaylorModels.jl/actions/workflows/ci.yml/badge.svg
 [CI_url]: https://github.com/JuliaIntervals/TaylorModels.jl/actions/workflows/ci.yml
 
 [Coverage_badge]: https://coveralls.io/repos/github/JuliaIntervals/TaylorModels.jl/badge.svg?branch=lb/github_actions
 [Coverage_url]: https://coveralls.io/github/JuliaIntervals/TaylorModels.jl?branch=lb/github_actions
+
+[Zenodo_badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.2613102.svg
+[Zenodo_url]: https://doi.org/10.5281/zenodo.2613102
 
 <!-- [codecov_badge]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl/coverage.svg?branch=master
 [codecov_url]: http://codecov.io/github/JuliaIntervals/TaylorModels.jl?branch=master -->
