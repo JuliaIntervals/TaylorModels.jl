@@ -12,18 +12,18 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::IntervalBox{N,T}, δt::Interval{T}, params) where {N,T}
+        δI::IntervalBox{N,T}, δt::Interval{T}, rem::Vector{Interval{T}}, params) where {N,T}
 
     orderT = get_order(dx[1])
     aux = δt^(orderT+1)
-    Δx  = IntervalBox([xI[i][orderT+1] for i in eachindex(xI)]) * aux
-    Δdx = IntervalBox([dxI[i][orderT+1] for i in eachindex(xI)]) * aux
-    Δ0  = IntervalBox([dx[i][orderT](δI) for i in eachindex(x)]) * aux / (orderT+1)
+    Δx  = IntervalBox([rem[i] +  xI[i][orderT+1] * aux for i in eachindex(xI)])
+    Δdx = IntervalBox([rem[i] + dxI[i][orderT+1] * aux for i in eachindex(xI)])
+    Δ0  = IntervalBox([         dx[i][orderT](δI) * aux / (orderT+1) for i in eachindex(x)])
     Δ = Δ0 + Δdx * δt
-    Δxold = Δx
+    # Δxold = Δx
 
     # Checking existence and uniqueness
-    iscontractive(Δ, Δx) && return (true, Δx, t[0])
+    iscontractive(Δ, Δx) && return (true, Δx)
 
     # If the check didn't work, compute new remainders. A new Δx is proposed,
     # and the corresponding Δdx is computed
@@ -35,11 +35,11 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         Δ = picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
         # Checking existence and uniqueness
-        iscontractive(Δ, Δx) && return (true, Δx, t[0])
+        iscontractive(Δ, Δx) && return (true, Δx)
         # iscontractive(Δ, Δx) && return _contract_iteration!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δdx, Δ0, params)
 
         # Expand Δx in the directions needed
-        Δxold = Δx
+        # Δxold = Δx
         if Δ ⊆ Δx
             @inbounds for ind in 1:N
                 # Widen the directions where ⊂ does not hold
@@ -350,13 +350,13 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     issatisfied = false
     rem_old = copy(rem)
 
-    local _success, _t0
+    local _success, Δ
     reduced_abstol = abstol
     bool_red = true
     while bool_red
         # Validate the solution: remainder consistent with Schauder thm
         δtI = sign_tstep * Interval(0, sign_tstep*δt)
-        (_success, Δ) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, params)
+        (_success, Δ) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, rem, params)
 
         # Shrink stepsize δt if adaptive is true and _success is false
         if !_success
@@ -375,7 +375,7 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         end
 
         # Remainder
-        rem .= rem_old .+ Δ
+        @. rem = rem_old + Δ
 
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
@@ -481,7 +481,7 @@ of taylor models `X0` is normalized to the domain `[-1, 1]^n` in space.
 function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
     # nomalized domain
     N = get_numvars()
-    zI = zero_interval(T)
+    # zI = zero_interval(T)
     zB = zero_box(N, T)
     S = symmetric_box(N, T)
 
@@ -491,14 +491,14 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, 
     @. begin
         x = Taylor1(qaux, orderT)
         dx = x
-        xTMN = TaylorModelN(qaux, zI, (zB,), (S,))
-
-        # we assume that qaux is normalized to S=[-1, 1]^N
-        xI = Taylor1(evaluate(qaux, (S,)), orderT+1)
-        dxI = xI
 
         # remainder
         rem = remainder(X0)
+        xTMN = TaylorModelN(qaux, rem, (zB,), (S,))
+
+        # we assume that qaux is normalized to S=[-1, 1]^N
+        xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
+        dxI = xI
 
         # output vector
         xTM1v[:, 1] = TaylorModel1(deepcopy(x), rem, x0t, domt)
@@ -508,7 +508,7 @@ end
 function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {T}
     # nomalized domain
     N = get_numvars()
-    zI = zero_interval(T)
+    # zI = zero_interval(T)
     zB = zero_box(N, T)
     S = symmetric_box(N, T)
 
@@ -518,10 +518,10 @@ function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, 
     @. begin
         x = Taylor1(qaux, orderT)
         dx = x
-        xTMN = TaylorModelN(qaux, zI, (zB,), (S,))
 
         # remainder
         rem = remainder(X0)
+        xTMN = TaylorModelN(qaux, rem, (zB,), (S,))
 
         # output vector
         xTM1v[:, 1] = TaylorModel1(deepcopy(x), rem, x0t, domt)
@@ -602,6 +602,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
             xTM1v[:, nsteps] = TaylorModel1(x, rem, zI, δtI)  # deepcopy?
             x = Taylor1(evaluate(x, δt), orderT)
             # dx = Taylor1(zero(constant_term(x)), orderT)
+            xTMN = fp_rpa( TaylorModelN(evaluate(x, (δt .. δt) ∩ δtI) + rem, zI, (zB,), (S,)) )
             xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
             # dxI = xI
         end
@@ -699,8 +700,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, abstol,
 
     _success = false
     reduced_abstol = abstol
-    # Try to prove existence and uniqueness up to numchecks, including reducing the
-    # time step
+    # Try to prove existence and uniqueness up to numchecks, including reducing the time step
     bool_red = true
     # for nchecks = 1:numchecks
     while bool_red
@@ -819,7 +819,7 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
 
     # Set initial conditions
     initialize!(X0, orderQ, orderT, x, dx, xTMN, E, xTM1v)
-    @. xTM1 = TaylorModel1(deepcopy(x), E, zI, zI)
+    @. xTM1 = TaylorModel1(deepcopy(x), zI, zI, zI)
     polv = polynomial.(xTM1)
     fill!(E′, zI)
 
@@ -855,13 +855,13 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
         @inbounds t[0] = t0
         
         # Flowpipe
-        @. xTMN = fp_rpa(TaylorModelN(evaluate(xTM1, domt), E, (zB,), (S,)))
+        @. xTMN = fp_rpa(TaylorModelN(evaluate(xTM1, domt), zI, (zB,), (S,)))
         xv[nsteps] = evaluate(xTMN, S)
 
         # New initial condition
         @inbounds for i in eachindex(x)
             aux_pol = evaluate(xTM1[i], δtI) #δtI
-            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), E[i], zB, S))
+            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), zI, zB, S))
 
             # Absorb remainder
             j = 0
