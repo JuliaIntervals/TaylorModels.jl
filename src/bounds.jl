@@ -179,7 +179,7 @@ the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter
 The returned bound corresponds to the improved polynomial bound with the remainder
 of the `TaylorModel1` included.
 """
-function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) where {T, S}
+function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ::Float64=1e-3, max_iter::Int=5) where {T, S}
     d = 1.
     Dn = fT.dom
     Dm = fT.x0
@@ -217,6 +217,24 @@ function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) w
     hi = fT.pol(fT.dom - fT.x0).hi
     return interval(bound.lo, hi) + fT.rem
 end
+
+function linear_dominated_bounder(fT::TaylorModel1{T, S}, bound::Symbol=:lower, max_iter::Int=5, tol::Float64=1e-5) where {T, S}
+    if bound == :upper
+        bound = -linear_dominated_bounder(-fT, ϵ=tol, max_iter=max_iter)
+    elseif bound == :lower
+        bound = linear_dominated_bounder(fT, ϵ=tol, max_iter=max_iter)
+    elseif bound == :both
+        ldb_bounds = Array{Interval{T}}(undef, 2)
+        aux = [-1, 1]
+        Threads.@threads for i in eachindex(aux)
+            @inbounds ldb_bounds[i] = aux[i] * linear_dominated_bounder(aux[i] * fT, ϵ=tol, max_iter=max_iter)
+        end
+        bound = ldb_bounds[1] ∩ ldb_bounds[2]
+    end
+
+    return bound
+end
+
 
 """
     linear_dominated_bounder(fT::TaylorModelN, ϵ=1e-3::Float64, max_iter=5::Int)
