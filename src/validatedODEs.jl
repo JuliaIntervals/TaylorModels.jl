@@ -577,7 +577,6 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
     local _success # if true, the validation step succeeded
-    setformat(:full)
     red_abstol = abstol
 
     # Integration
@@ -832,7 +831,6 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
 
     parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
     red_abstol = abstol
-    setformat(:full)
 
     while t0 * sign_tstep < tf * sign_tstep
         δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
