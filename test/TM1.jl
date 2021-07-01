@@ -72,6 +72,7 @@ end
         @test expansion_point(tv) == x0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
+        @test nonlinear_polynomial(tv) == zero(Taylor1(Interval{Float64},5))
 
         # Tests related to fixorder
         a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
@@ -99,10 +100,14 @@ end
         b = a * tv
         @test b == TaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
         @test remainder(b/tv) ⊆ Interval(-0.78125, 0.84375)
+        @test constant_term(b) == 1..1
+        @test linear_polynomial(b) == 2*x1*Taylor1(5)
+        @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
         b = a * a.pol[0]
         @test b == a
         @test constant_term(a) == x1
         @test linear_polynomial(a) == Taylor1(5)
+        @test nonlinear_polynomial(a) == Taylor1(0..0, 5)
 
         a = TaylorModel1(x0, 5, x0, ii0)
         @test a^0 == TaylorModel1(x0^0, 5, x0, ii0)
@@ -579,6 +584,7 @@ end
         @test expansion_point(tv) == x0
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
+        @test nonlinear_polynomial(tv) == zero(Taylor1(Interval{Float64},5))
 
         # Tests related to fixorder
         a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
@@ -607,10 +613,13 @@ end
         b = a * tv
         @test b == RTaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
         @test remainder(b/tv) ⊆ Interval(-2.75, 4.75)
+        @test linear_polynomial(b) == 2*x1*Taylor1(5)
+        @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
         b = a * a.pol[0]
         @test b == a
         @test constant_term(a) == x1
         @test linear_polynomial(a) == Taylor1(5)
+        @test nonlinear_polynomial(a) == Taylor1(0..0, 5)
 
         a = RTaylorModel1(x0, 5, x0, ii0)
         @test a^0 == RTaylorModel1(x0^0, 5, x0, ii0)

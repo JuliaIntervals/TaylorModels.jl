@@ -7,13 +7,14 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
         @inline firstindex(a::$TM) = 0
         @inline lastindex(a::$TM) = get_order(a)
 
-        getindex(a::$TM, n::Integer) = a.pol[n]
-        getindex(a::$TM, u::UnitRange) = a.pol[u]
-        getindex(a::$TM, c::Colon) = a.pol[c]
-        # getindex(a::$TM, u::StepRange{Int,Int}) = a.pol[u[:]]
+        getindex(a::$TM, n::Integer) = getindex(polynomial(a), n)
+        getindex(a::$TM, u::UnitRange) = getindex(polynomial(a), u)
+        getindex(a::$TM, c::Colon) = getindex(polynomial(a), c)
+        # getindex(a::$TM, u::StepRange{Int,Int}) = getindex(polynomial(a), u)
 
         constant_term(a::$TM) = constant_term(polynomial(a))
         linear_polynomial(a::$TM) = linear_polynomial(polynomial(a))
+        nonlinear_polynomial(a::$TM) = nonlinear_polynomial(polynomial(a))
 
         # norm
         norm(x::$TM, p::Real=2) = norm(polynomial(x), p)
