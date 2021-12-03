@@ -685,9 +685,9 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                         adaptive::Bool, minabstol;
                         ε=1e-10, δ=1e-6, validatesteps=20, extrasteps=50)
     #
-    T = numtype(box[1])
+    T = IntervalArithmetic.numtype(box[1])
     zI = zero_interval(T)
-    domT = sign_tstep * Interval{T}(0, sign_tstep*δt)
+    domT = sign_tstep * Interval{T}(zI.lo, sign_tstep*δt)
     orderT = get_order(t)
     @. begin
         polv = deepcopy.(x)

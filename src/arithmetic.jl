@@ -95,7 +95,7 @@ for TM in tupleTMs
                 Δnegl = rnegl(aux)
                 Δ = remainder_product(a, b, aux, Δnegl, order)
             end
-        
+
             return $TM(res, Δ, a.x0, a.dom)
         end
 
@@ -260,10 +260,10 @@ function *(a::TaylorModelN, b::TaylorModelN)
     order = res.order
 
     # Remaing terms of the product
-    vv = Array{HomogeneousPolynomial{eltype(res)}}(undef, rnegl_order-order)
-    suma = Array{promote_type(eltype(res), eltype(a.dom))}(undef, rnegl_order-order)
+    vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
+    suma = Array{promote_type(TS.numtype(res), TS.numtype(a.dom))}(undef, rnegl_order-order)
     for k in order+1:rnegl_order
-        vv[k-order] = HomogeneousPolynomial(zero(eltype(res)), k)
+        vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
         @inbounds for i = 0:k
             (i > a_order || k-i > b_order) && continue
             TaylorSeries.mul!(vv[k-order], a.pol[i], b.pol[k-i])
