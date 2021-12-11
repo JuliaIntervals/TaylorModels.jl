@@ -142,6 +142,9 @@ end
 
         @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 1..1, -1..1)
         @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 0..0, -2..2)
+        f(x) = x + x^2
+        tm = TaylorModel1(5, x0, ii0)
+        @test_throws ArgumentError f(tm)/tm
     end
 
     @testset "TM1's with TaylorN coefficients" begin
@@ -166,14 +169,14 @@ end
         gT = g(tm)
 
         for ind = 1:_num_tests
-            fgTM1 = fT * gT
+            fgTM1 = fT / gT
             xξ = rand(domain(fgTM1))
             q0ξ = (q0 .+ rand(δq0))[1]
             t = Taylor1(orderT) + q0ξ
-            fgT1 = f(t) * g(t)
-            @test fgT1(xξ - q0ξ) ∈ fgTM1(xξ-fgTM1.x0)(symIbox)
+            fgT1 = f(t) / g(t)
+            @test fgT1(xξ - q0ξ) ∈ fgTM1(dom-x00)(symIbox)
         end
-        
+
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -302,7 +305,7 @@ end
         qaux = normalize_taylor(TaylorN(1, order=orderQ) + q0[1], δq0, true)
         xT = Taylor1([qaux, 1], orderT)
         tm = TaylorModel1(deepcopy(xT), 0 .. 0, x00, dom)
-        
+
         f(x) = sin(x)
         ff(x) = cos(x)
         g(x) = exp(x)
@@ -460,12 +463,12 @@ end
             "Interval(2.718281828459045, 2.7182818284590455) t + " *
             "Interval(1.3591409142295225, 1.3591409142295228) t² + " *
             "Interval(-0.05020487208677604, 0.06448109909211741)"
-end
+    end
 
     @testset "Tests for bounders" begin
         @testset "Tests for linear dominated bounder" begin
             order = 3
-            
+
             f = x -> 1 + x^5 - x^4
             D = 0.9375 .. 1
             x0 = mid(D)
@@ -486,7 +489,7 @@ end
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
-            
+
             f = x -> x^2 * sin(x)
             D = -1.875 .. -1.25
             x0 = mid(D)
@@ -497,7 +500,7 @@ end
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
-            
+
             D = 1.25 .. 1.875
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
@@ -511,7 +514,7 @@ end
 
         @testset "Tests for quadratic fast bounder" begin
             order = 3
-            
+
             f = x -> 1 + x^5 - x^4
             D = 0.75 .. 0.8125
             x0 = mid(D)
@@ -654,6 +657,40 @@ end
 
         @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 1..1, -1..1)
         @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 0..0, -2..2)
+        f(x) = x + x^2
+        tm = RTaylorModel1(5, 0.0, -0.5 .. 0.5)
+        @test f(tm)/tm == 1+tm
+    end
+
+    @testset "RTM1's with TaylorN coefficients" begin
+        # Tests for RTM1's with TaylorN coefficients
+        orderT = 4
+        orderQ = 5
+        ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
+        q0 = [0.5]
+        δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ),
+                                δq0, true)
+        symIbox = IntervalBox(-1 .. 1, Val(1))
+        t = Taylor1([qaux, 1], orderT)
+        dom = -0.5 .. 0.5
+        x00 = mid(dom)
+        tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+
+        f(x) = x + x^2
+        g(x) = x
+
+        fT = f(tm)
+        gT = g(tm)
+
+        for ind = 1:_num_tests
+            fgTM1 = fT * gT
+            xξ = rand(domain(fgTM1))
+            q0ξ = (q0 .+ rand(δq0))[1]
+            t = Taylor1(orderT) + q0ξ
+            fgT1 = f(t) * g(t)
+            @test fgT1(xξ - q0ξ) ∈ fgTM1(dom-x00)(symIbox)
+        end
     end
 
     @testset "RPAs, functions and remainders" begin

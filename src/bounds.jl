@@ -120,6 +120,24 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
     Δhi = Δhi / denom_hi
     return hull(Δlo, Δhi)
 end
+@inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
+        polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
+
+    _order = get_order(polf) + 1
+    a = Interval(inf(I))
+    b = Interval(sup(I))
+    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    # Error is monotonic
+    denom_lo = (a-x0)^_order
+    Δlo = (f(a) - polf(a-x0))(symIbox)
+    # Δlo = f(a) - bound_taylor1(polf, a-x0)
+    Δlo = Δlo / denom_lo
+    denom_hi = (b-x0)^_order
+    Δhi = (f(b) - polf(b-x0))(symIbox)
+    # Δhi = f(b) - bound_taylor1(polf, b-x0)
+    Δhi = Δhi / denom_hi
+    return hull(Δlo, Δhi)
+end
 @inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{false}, f::Function,
         polf::Taylor1, polfI::Taylor1, x0, I::Interval)
     _order = get_order(polf) + 1
