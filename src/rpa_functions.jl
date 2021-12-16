@@ -23,8 +23,8 @@ for TM in tupleTMs
         function _rpa(::Type{$TM}, f::Function, x0::Interval{T}, I::Interval{T},
                 _order::Integer) where {T}
 
-            polf  = f( x0+Taylor1(Interval{T}, _order) )
-            polfI = f( I+Taylor1(Interval{T}, _order+1+($TM==RTaylorModel1) ) )
+            polf  = f( Taylor1([x0,one(x0)], _order) )
+            polfI = f( Taylor1([I,one(I)], _order+1+($TM==RTaylorModel1) ) )
             Δ = bound_remainder($TM, f, polf, polfI, x0, I)
             return $TM(polf, Δ, x0, I)
         end
@@ -32,10 +32,9 @@ for TM in tupleTMs
         function _rpa(::Type{$TM}, f::Function, x0::TaylorN{T}, I::Interval{T},
                       _order::Integer) where {T}
 
-            N = get_numvars()
-            x0I = x0(IntervalBox(0..0, Val(N))...)
             polf = f(Taylor1([x0, one(x0)], _order))
-            polfI = f(Taylor1([I, one(I)], _order+1))
+            polfI = f( Taylor1([I,one(I)], _order+1+($TM==RTaylorModel1)))
+            x0I = Interval(constant_term(x0))
             Δ = bound_remainder($TM, f, polf, polfI, x0I, I)
             return $TM(polf, Δ, x0I, I)
         end
@@ -43,8 +42,8 @@ for TM in tupleTMs
         function _rpa(::Type{$TM}, f::Function, x0::T, I::Interval{T},
                 _order::Integer) where {T}
 
-            polf  = f( x0+Taylor1(T, _order) )
-            polfI = f( I+Taylor1(Interval{T}, _order+1+($TM==RTaylorModel1)) )
+            polf  = f( Taylor1([x0,one(x0)], _order) )
+            polfI = f( Taylor1([I,one(I)], _order+1+($TM==RTaylorModel1)) )
             x0I = Interval(x0)
             Δ = bound_remainder($TM, f, polf, polfI, x0I, I)
             return $TM(polf, Δ, x0I, I)

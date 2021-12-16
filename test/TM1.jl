@@ -616,6 +616,7 @@ end
         b = a * tv
         @test b == RTaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
         @test remainder(b/tv) ⊆ Interval(-2.75, 4.75)
+        @test constant_term(b) == 1..1
         @test linear_polynomial(b) == 2*x1*Taylor1(5)
         @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
         b = a * a.pol[0]
@@ -635,7 +636,7 @@ end
         @test a^2 == RTaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == RTaylorModel1(x1^3, 5, x1, ii1)
 
-        # Tests involving TM1s with different orders
+        # Tests involving RTM1s with different orders
         a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
         b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
         aa, bb = TaylorModels.fixorder(a, b)
@@ -812,6 +813,51 @@ end
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
+
+        # Tests for rpa of TaylorN
+        orderT = 5
+        orderQ = 5
+        dom = 0 .. 1
+        x00 = mid(dom)
+        q0 = [0.5]
+        symIbox = IntervalBox(-1 .. 1, 1)
+        δq0 = IntervalBox(-0.2 .. 0.2, 1)
+        qaux = normalize_taylor(TaylorN(1, order=orderQ) + q0[1], δq0, true)
+        xT = Taylor1([qaux, 1], orderT)
+        tm = RTaylorModel1(deepcopy(xT), 0 .. 0, x00, dom)
+
+        f(x) = sin(x)
+        ff(x) = cos(x)
+        g(x) = exp(x)
+        gg(x) = x^5
+        h(x) = log(x)
+        hh(x) = x^3 / x^5
+
+        fT = f(tm)
+        ffT = ff(tm)
+        gT = g(tm)
+        ggT = gg(tm)
+        hT = h(tm)
+        hhT = hh(tm)
+
+        for ind = 1:_num_tests
+            xξ = rand(domain(fT))
+            q0ξ = (q0 .+ rand(δq0))[1]
+            t = Taylor1(orderT) + q0ξ
+            ft = f(t)
+            fft = ff(t)
+            gt = g(t)
+            ggt = gg(t)
+            ht = h(t)
+            hht = hh(t)
+
+            @test ft(xξ - q0ξ) ⊆ fT(xξ - fT.x0)(symIbox)
+            @test fft(xξ - q0ξ) ⊆ ffT(xξ - ffT.x0)(symIbox)
+            @test gt(xξ - q0ξ) ⊆ gT(xξ - gT.x0)(symIbox)
+            @test ggt(xξ - q0ξ) ⊆ ggT(xξ - ggT.x0)(symIbox)
+            @test ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
+            @test hht(xξ - q0ξ) ⊆ hhT(xξ - hhT.x0)(symIbox)
+        end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8

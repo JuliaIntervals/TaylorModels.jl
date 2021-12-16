@@ -70,7 +70,7 @@ for TM in tupleTMs
             # Remainder of the product
             if $TM == TaylorModel1
 
-                # Remaing terms of the product as reduced Taylor1 (factored polynomial)
+                # Remaining terms of the product as reduced Taylor1 (factored polynomial)
                 rnegl = Taylor1(zero(res[0]), rnegl_order)
                 for k in order+1:rnegl_order
                     @inbounds for i = 0:k
@@ -84,7 +84,7 @@ for TM in tupleTMs
                 Δ = remainder_product(a, b, aux, Δnegl)
             else
 
-                # Remaing terms of the product as reduced Taylor1 (factored polynomial)
+                # Remaining terms of the product as reduced Taylor1 (factored polynomial)
                 rnegl = Taylor1(zero(res[0]), rnegl_order-order)
                 for k in order+1:rnegl_order
                     @inbounds for i = 0:k

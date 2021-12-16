@@ -11,13 +11,10 @@ it is considered as the zero interval.
 function integrate(a::TaylorModel1{T,S}, c0::T) where {T,S}
     integ_pol = integrate(a.pol, c0)
     δ = a.dom-a.x0
-
-    # Remainder bound after integrating.
     Δ = bound_integration(a, δ)
-
     return TaylorModel1( integ_pol, Δ, a.x0, a.dom )
 end
-function integrate(a::TaylorModel1{T, S}, c0, cc0) where {T <: TaylorN, S}
+function integrate(a::TaylorModel1{T,S}, c0, cc0) where {T<:TaylorN, S}
     integ_pol = integrate(a.pol, c0)
     δ = a.dom - a.x0
     Δ = bound_integration(a, δ, cc0)
@@ -25,19 +22,22 @@ function integrate(a::TaylorModel1{T, S}, c0, cc0) where {T <: TaylorN, S}
 end
 
 integrate(a::TaylorModel1{T,S}) where {T,S} = integrate(a, zero(T))
-integrate(a::TaylorModel1{T, S}, δI) where {T <: TaylorN, S} = integrate(a, zero(T), δI)
+integrate(a::TaylorModel1{T,S}, δI) where {T<:TaylorN,S} = integrate(a, zero(T), δI)
 
 function integrate(a::RTaylorModel1{T,S}, c0::T) where {T,S}
-    order = get_order(a)
     integ_pol = integrate(a.pol, c0)
-
-    # Remainder bound after integrating...
-    Δ = (a.dom-a.x0) * remainder(a)
-    Δ = Δ/(order+2) + a.pol[order]/(order+1)
-
+    δ = a.dom - a.x0
+    Δ = bound_integration(a, δ)
+    return RTaylorModel1( integ_pol, Δ, a.x0, a.dom )
+end
+function integrate(a::RTaylorModel1{T,S}, c0, cc0) where {T<:TaylorN,S}
+    integ_pol = integrate(a.pol, c0)
+    δ = a.dom - a.x0
+    Δ = bound_integration(a, δ, cc0)
     return RTaylorModel1( integ_pol, Δ, a.x0, a.dom )
 end
 integrate(a::RTaylorModel1{T,S}) where {T,S} = integrate(a, zero(T))
+integrate(a::RTaylorModel1{T,S}, δI) where {T<:TaylorN,S} = integrate(a, zero(T), δI)
 
 function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}) where {N,T,S}
@@ -81,13 +81,13 @@ This is tighter that the one used by Berz+Makino, which corresponds to
 ``Δ = aux * remainder(a) +  a.pol[order] * aux^(order+1)``.
 
 """
-function bound_integration(a::TaylorModel1{T,S}, δ) where {T,S}
+@inline function bound_integration(a::TaylorModel1{T,S}, δ) where {T,S}
     order = get_order(a)
     aux = δ^order / (order+1)
     Δ = δ * (remainder(a) + getcoeff(polynomial(a), order) * aux)
     return Δ
 end
-function bound_integration(a::TaylorModel1{T, S}, δ, δI) where {T <: TaylorN, S}
+@inline function bound_integration(a::TaylorModel1{T, S}, δ, δI) where {T<:TaylorN,S}
     order = get_order(a)
     aux = δ^order / (order+1)
     Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
@@ -104,6 +104,31 @@ function bound_integration(fT::TaylorModelN, s::TaylorN, which)
     Δ = s(fT.dom - fT.x0) + fT.rem * (fT.dom[which] - fT.x0[which])
     return Δ
 end
+
+
+"""
+    bound_integration(xTM1::TaylorModel1{Interval{S},S}, δt::Interval{S})
+    bound_integration(xTM1::Vector{TaylorModel1{Interval{S},S}}, δt::Interval{S})
+
+Remainder bound for the integration of a series, given by
+``δ * remainder(a) +  a.pol[order] * δ^(order+1) / (order+1)``.
+This is tighter that the one used by Berz+Makino, which corresponds to
+``Δ = aux * remainder(a) +  a.pol[order] * aux^(order+1)``.
+
+"""
+@inline function bound_integration(a::RTaylorModel1{T,S}, δ) where {T,S}
+    order = get_order(a)
+    Δ = δ * remainder(a)
+    Δ = Δ/(order+2) + getcoeff(polynomial(a), order)/(order+1)
+    return Δ
+end
+@inline function bound_integration(a::RTaylorModel1{T,S}, δ, δI) where {T<:TaylorN,S}
+    order = get_order(a)
+    Δ = δ * remainder(a)
+    Δ = Δ/(order+2) + getcoeff(polynomial(a), order)(δI)/(order+1)
+    return Δ
+end
+
 
 function picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
         xTM1TMN::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
