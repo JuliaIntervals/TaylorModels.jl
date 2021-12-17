@@ -154,29 +154,47 @@ end
         ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
         q0 = [0.5]
         δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
-        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ),
-                                δq0, true)
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
         symIbox = IntervalBox(-1 .. 1, Val(1))
         t = Taylor1([qaux, 1], orderT)
         dom = 0 .. 1
         x00 = mid(dom)
-        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
 
         f(x) = x + x^2
         g(x) = x
+        h(x) = x^2*(1+x)
 
-        fT = f(tm)
-        gT = g(tm)
+        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test isentire(remainder(fgTM1))
 
+        fgTM1 = f(tm) * g(tm)
+        hh = h(tm)
+        @test fgTM1 == hh
         for ind = 1:_num_tests
-            fgTM1 = fT / gT
-            xξ = rand(domain(fgTM1))
-            q0ξ = (q0 .+ rand(δq0))[1]
-            t = Taylor1(orderT) + q0ξ
-            fgT1 = f(t) / g(t)
-            @test fgT1(xξ - q0ξ) ∈ fgTM1(dom-x00)(symIbox)
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = t(xξ)(qξ)
+            @test h(tt) ⊆ fgTM1(dom-x00)(symIbox)
         end
 
+        t = Taylor1([1, qaux], orderT)
+        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test !isentire(remainder(fgTM1))
+        for ind = 1:_num_tests
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = 1+t(xξ)(qξ)
+            @test tt ⊆ fgTM1(dom-x00)(symIbox)
+        end
+
+        # Testing integration
+        @test integrate(tm, symIbox) == TaylorModel1(integrate(t), 0..0, x00, dom)
+        @test integrate(f(tm), symIbox) == TaylorModel1(integrate(f(t)), 0..0, x00, dom)
+        t = Taylor1([qaux,1], orderT)
+        tm = TaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
+        @test integrate(tm, symIbox) == TaylorModel1(integrate(t), remainder(tm)*(domain(tm)-expansion_point(tm)), x00, dom)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -670,28 +688,47 @@ end
         ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
         q0 = [0.5]
         δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
-        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ),
-                                δq0, true)
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
         symIbox = IntervalBox(-1 .. 1, Val(1))
         t = Taylor1([qaux, 1], orderT)
         dom = -0.5 .. 0.5
         x00 = mid(dom)
-        tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
 
         f(x) = x + x^2
         g(x) = x
+        h(x) = x^2*(1+x)
 
-        fT = f(tm)
-        gT = g(tm)
+        tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test isentire(remainder(fgTM1))
 
+        fgTM1 = f(tm) * g(tm)
+        hh = h(tm)
+        @test fgTM1 == hh
         for ind = 1:_num_tests
-            fgTM1 = fT * gT
-            xξ = rand(domain(fgTM1))
-            q0ξ = (q0 .+ rand(δq0))[1]
-            t = Taylor1(orderT) + q0ξ
-            fgT1 = f(t) * g(t)
-            @test fgT1(xξ - q0ξ) ∈ fgTM1(dom-x00)(symIbox)
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = tm(xξ)(qξ)
+            @test h(tt) ⊆ fgTM1(dom-x00)(symIbox)
         end
+
+        t = Taylor1([1, qaux], orderT)
+        tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test !isentire(remainder(fgTM1))
+        for ind = 1:_num_tests
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = 1+t(xξ)(qξ)
+            @test tt ⊆ fgTM1(dom-x00)(symIbox)
+        end
+
+        # Testing integration
+        @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), 0..0, x00, dom)
+        @test integrate(f(tm), symIbox) == RTaylorModel1(integrate(f(t)), 0..0, x00, dom)
+        t = Taylor1([qaux,1], orderT)
+        tm = RTaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
+        @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
     end
 
     @testset "RPAs, functions and remainders" begin
