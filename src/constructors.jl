@@ -53,6 +53,8 @@ for TM in tupleTMs
         @inline polynomial(tm::$TM) = tm.pol
         @inline domain(tm::$TM) = tm.dom
         @inline expansion_point(tm::$TM) = tm.x0
+        # Centered domain
+        @inline centered_dom(tm::$TM) = domain(tm) - expansion_point(tm)
     end
 end
 
@@ -147,6 +149,8 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
 @inline get_numvars(::TaylorModelN{N,T,S}) where {N,T,S} = N
+# Centered domain
+@inline centered_dom(tm::TaylorModelN) = domain(tm) .- expansion_point(tm)
 
 """
     TMSol{N,T,V1,V2,M}
@@ -158,7 +162,7 @@ Structure containing the solution of a validated integration.
 
     `fp   :: AbstractVector{IntervalBox{N,T}}`  IntervalBox vector representing the flowpipe
 
-    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents 
+    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents
     the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
 """
 struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
@@ -167,7 +171,7 @@ struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}
     fp   :: V2
     xTM  :: M
 
-    function TMSol(time::V1, fp::V2, xTM::M) where 
+    function TMSol(time::V1, fp::V2, xTM::M) where
             {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{IntervalBox{N,T}},
             M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
         @assert length(time) == length(fp) == size(xTM,2) && N == size(xTM,1)

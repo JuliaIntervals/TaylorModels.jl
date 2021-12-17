@@ -73,6 +73,8 @@ end
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
         @test nonlinear_polynomial(tv) == zero(Taylor1(Interval{Float64},5))
+        @test centered_dom(tv) == ii0
+        @test centered_dom(TaylorModel1(5, 0.7, ii1)) == ii1-0.7
 
         # Tests related to fixorder
         a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
@@ -142,6 +144,9 @@ end
 
         @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 1..1, -1..1)
         @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 0..0, -2..2)
+        f(x) = x + x^2
+        tm = TaylorModel1(5, x0, ii0)
+        @test_throws ArgumentError f(tm)/tm
     end
 
     @testset "TM1's with TaylorN coefficients" begin
@@ -151,29 +156,47 @@ end
         ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
         q0 = [0.5]
         δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
-        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ),
-                                δq0, true)
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
         symIbox = IntervalBox(-1 .. 1, Val(1))
         t = Taylor1([qaux, 1], orderT)
         dom = 0 .. 1
         x00 = mid(dom)
-        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
 
         f(x) = x + x^2
         g(x) = x
+        h(x) = x^2*(1+x)
 
-        fT = f(tm)
-        gT = g(tm)
+        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test isentire(remainder(fgTM1))
 
+        fgTM1 = f(tm) * g(tm)
+        hh = h(tm)
+        @test fgTM1 == hh
         for ind = 1:_num_tests
-            fgTM1 = fT * gT
-            xξ = rand(domain(fgTM1))
-            q0ξ = (q0 .+ rand(δq0))[1]
-            t = Taylor1(orderT) + q0ξ
-            fgT1 = f(t) * g(t)
-            @test fgT1(xξ - q0ξ) ∈ fgTM1(xξ-fgTM1.x0)(symIbox)
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = t(xξ)(qξ)
+            @test h(tt) ⊆ fgTM1(dom-x00)(symIbox)
         end
-        
+
+        t = Taylor1([1, qaux], orderT)
+        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test !isentire(remainder(fgTM1))
+        for ind = 1:_num_tests
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = 1+t(xξ)(qξ)
+            @test tt ⊆ fgTM1(dom-x00)(symIbox)
+        end
+
+        # Testing integration
+        @test integrate(tm, symIbox) == TaylorModel1(integrate(t), 0..0, x00, dom)
+        @test integrate(f(tm), symIbox) == TaylorModel1(integrate(f(t)), 0..0, x00, dom)
+        t = Taylor1([qaux,1], orderT)
+        tm = TaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
+        @test integrate(tm, symIbox) == TaylorModel1(integrate(t), remainder(tm)*(domain(tm)-expansion_point(tm)), x00, dom)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -302,7 +325,7 @@ end
         qaux = normalize_taylor(TaylorN(1, order=orderQ) + q0[1], δq0, true)
         xT = Taylor1([qaux, 1], orderT)
         tm = TaylorModel1(deepcopy(xT), 0 .. 0, x00, dom)
-        
+
         f(x) = sin(x)
         ff(x) = cos(x)
         g(x) = exp(x)
@@ -460,12 +483,12 @@ end
             "Interval(2.718281828459045, 2.7182818284590455) t + " *
             "Interval(1.3591409142295225, 1.3591409142295228) t² + " *
             "Interval(-0.05020487208677604, 0.06448109909211741)"
-end
+    end
 
     @testset "Tests for bounders" begin
         @testset "Tests for linear dominated bounder" begin
             order = 3
-            
+
             f = x -> 1 + x^5 - x^4
             D = 0.9375 .. 1
             x0 = mid(D)
@@ -486,7 +509,7 @@ end
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
-            
+
             f = x -> x^2 * sin(x)
             D = -1.875 .. -1.25
             x0 = mid(D)
@@ -497,7 +520,7 @@ end
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
-            
+
             D = 1.25 .. 1.875
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
@@ -511,7 +534,7 @@ end
 
         @testset "Tests for quadratic fast bounder" begin
             order = 3
-            
+
             f = x -> 1 + x^5 - x^4
             D = 0.75 .. 0.8125
             x0 = mid(D)
@@ -585,6 +608,8 @@ end
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
         @test nonlinear_polynomial(tv) == zero(Taylor1(Interval{Float64},5))
+        @test centered_dom(tv) == ii0
+        @test centered_dom(RTaylorModel1(5, 0.7, ii1)) == ii1-0.7
 
         # Tests related to fixorder
         a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
@@ -613,6 +638,7 @@ end
         b = a * tv
         @test b == RTaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
         @test remainder(b/tv) ⊆ Interval(-2.75, 4.75)
+        @test constant_term(b) == 1..1
         @test linear_polynomial(b) == 2*x1*Taylor1(5)
         @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
         b = a * a.pol[0]
@@ -632,7 +658,7 @@ end
         @test a^2 == RTaylorModel1(x1^2, 5, x1, ii1)
         @test a^3 == RTaylorModel1(x1^3, 5, x1, ii1)
 
-        # Tests involving TM1s with different orders
+        # Tests involving RTM1s with different orders
         a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
         b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
         aa, bb = TaylorModels.fixorder(a, b)
@@ -654,6 +680,59 @@ end
 
         @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 1..1, -1..1)
         @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 0..0, -2..2)
+        f(x) = x + x^2
+        tm = RTaylorModel1(5, 0.0, -0.5 .. 0.5)
+        @test f(tm)/tm == 1+tm
+    end
+
+    @testset "RTM1's with TaylorN coefficients" begin
+        # Tests for RTM1's with TaylorN coefficients
+        orderT = 4
+        orderQ = 5
+        ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
+        q0 = [0.5]
+        δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
+        symIbox = IntervalBox(-1 .. 1, Val(1))
+        t = Taylor1([qaux, 1], orderT)
+        dom = -0.5 .. 0.5
+        x00 = mid(dom)
+
+        f(x) = x + x^2
+        g(x) = x
+        h(x) = x^2*(1+x)
+
+        tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test isentire(remainder(fgTM1))
+
+        fgTM1 = f(tm) * g(tm)
+        hh = h(tm)
+        @test fgTM1 == hh
+        for ind = 1:_num_tests
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = tm(xξ)(qξ)
+            @test h(tt) ⊆ fgTM1(dom-x00)(symIbox)
+        end
+
+        t = Taylor1([1, qaux], orderT)
+        tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
+        fgTM1 = f(tm) / g(tm)
+        @test !isentire(remainder(fgTM1))
+        for ind = 1:_num_tests
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = 1+t(xξ)(qξ)
+            @test tt ⊆ fgTM1(dom-x00)(symIbox)
+        end
+
+        # Testing integration
+        @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), 0..0, x00, dom)
+        @test integrate(f(tm), symIbox) == RTaylorModel1(integrate(f(t)), 0..0, x00, dom)
+        t = Taylor1([qaux,1], orderT)
+        tm = RTaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
+        @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -775,6 +854,51 @@ end
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
+
+        # Tests for rpa of TaylorN
+        orderT = 5
+        orderQ = 5
+        dom = 0 .. 1
+        x00 = mid(dom)
+        q0 = [0.5]
+        symIbox = IntervalBox(-1 .. 1, 1)
+        δq0 = IntervalBox(-0.2 .. 0.2, 1)
+        qaux = normalize_taylor(TaylorN(1, order=orderQ) + q0[1], δq0, true)
+        xT = Taylor1([qaux, 1], orderT)
+        tm = RTaylorModel1(deepcopy(xT), 0 .. 0, x00, dom)
+
+        f(x) = sin(x)
+        ff(x) = cos(x)
+        g(x) = exp(x)
+        gg(x) = x^5
+        h(x) = log(x)
+        hh(x) = x^3 / x^5
+
+        fT = f(tm)
+        ffT = ff(tm)
+        gT = g(tm)
+        ggT = gg(tm)
+        hT = h(tm)
+        hhT = hh(tm)
+
+        for ind = 1:_num_tests
+            xξ = rand(domain(fT))
+            q0ξ = (q0 .+ rand(δq0))[1]
+            t = Taylor1(orderT) + q0ξ
+            ft = f(t)
+            fft = ff(t)
+            gt = g(t)
+            ggt = gg(t)
+            ht = h(t)
+            hht = hh(t)
+
+            @test ft(xξ - q0ξ) ⊆ fT(xξ - fT.x0)(symIbox)
+            @test fft(xξ - q0ξ) ⊆ ffT(xξ - ffT.x0)(symIbox)
+            @test gt(xξ - q0ξ) ⊆ gT(xξ - gT.x0)(symIbox)
+            @test ggt(xξ - q0ξ) ⊆ ggT(xξ - ggT.x0)(symIbox)
+            @test ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
+            @test hht(xξ - q0ξ) ⊆ hhT(xξ - hhT.x0)(symIbox)
+        end
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8

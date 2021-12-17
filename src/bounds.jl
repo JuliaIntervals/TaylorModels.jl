@@ -18,43 +18,16 @@ function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI
 
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
-    if (sup(fTIend) < 0 || inf(fTIend) > 0)
-        # Absolute remainder is monotonic
-        a = Interval(inf(I))
-        b = Interval(sup(I))
-        Δlo = f(a) - polf(a-x0)
-        # Δlo = f(a) - bound_taylor1(polf, a-x0)
-        Δhi = f(b) - polf(b-x0)
-        # Δhi = f(b) - bound_taylor1(polf, b-x0)
-        Δx0 = f(x0) - polf[0]
-        Δ = hull(Δlo, Δx0, Δhi)
-    else
-        # Lagrange bound
-        Δ = fTIend * (I-x0)^_order
-    end
-    return Δ
+    bb = sup(fTIend) < 0 || inf(fTIend) > 0
+    return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
 end
 function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
     # The domain of the TaylorN part is assumed to be
     # the normalized symmetric box
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
-    if (sup(fTIend) < 0 || inf(fTIend) > 0)
-        # Absolute remainder is monotonic
-        a = Interval(inf(I))
-        b = Interval(sup(I))
-        symIbox = IntervalBox(-1 .. 1, get_numvars())
-        Δlo = (f(a) - polf(a-x0))(symIbox)
-        # Δlo = f(a) - bound_taylor1(polf, a-x0)
-        Δhi = (f(b) - polf(b-x0))(symIbox)
-        # Δhi = f(b) - bound_taylor1(polf, b-x0)
-        Δx0 = (f(x0) - polf[0])(symIbox)
-        Δ = hull(Δlo, Δx0, Δhi)
-    else
-        # Lagrange bound
-        Δ = fTIend * (I-x0)^_order
-    end
-    return Δ
+    bb = sup(fTIend) < 0 || inf(fTIend) > 0
+    return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
 end
 
 
@@ -77,22 +50,98 @@ function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polf
     fTIend = polfI[_order+1]
     a = Interval(inf(I))
     b = Interval(sup(I))
-    if (sup(fTIend) < 0 || inf(fTIend) > 0) && isempty(a ∩ x0) && isempty(b ∩ x0)
-        # Error is monotonic
-        denom_lo = (a-x0)^_order
-        Δlo = f(a) - polf(a-x0)
-        # Δlo = f(a) - bound_taylor1(polf, a-x0)
-        Δlo = Δlo / denom_lo
-        denom_hi = (b-x0)^_order
-        Δhi = f(b) - polf(b-x0)
-        # Δhi = f(b) - bound_taylor1(polf, b-x0)
-        Δhi = Δhi / denom_hi
-        Δ = hull(Δlo, Δhi)
-    else
-        # Lagrange coefficient
-        Δ = polfI[_order]
-    end
-    return Δ
+    bb = (sup(fTIend) < 0 || inf(fTIend) > 0) && isempty(a ∩ x0) && isempty(b ∩ x0)
+    return _monot_bound_remainder(RTaylorModel1, Val(bb), f, polf, polfI, x0, I)
+end
+
+
+"""
+    _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+
+Computes the remainder exploiting monotonicity; see Prop 2.2.1 in Mioara Joldes' PhD thesis (pp 52).
+"""
+@inline function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function,
+        polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+    # Absolute remainder is monotonic
+    a = Interval(inf(I))
+    b = Interval(sup(I))
+    Δlo = f(a) - polf(a-x0)
+    # Δlo = f(a) - bound_taylor1(polf, a-x0)
+    Δhi = f(b) - polf(b-x0)
+    # Δhi = f(b) - bound_taylor1(polf, b-x0)
+    Δx0 = f(x0) - polf[0]
+    return hull(Δlo, Δx0, Δhi)
+end
+@inline function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function,
+        polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
+    # Absolute remainder is monotonic
+    a = Interval(inf(I))
+    b = Interval(sup(I))
+    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    Δlo = (f(a) - polf(a-x0))(symIbox)
+    # Δlo = f(a) - bound_taylor1(polf, a-x0)
+    Δhi = (f(b) - polf(b-x0))(symIbox)
+    # Δhi = f(b) - bound_taylor1(polf, b-x0)
+    Δx0 = (f(x0) - polf[0])(symIbox)
+    return hull(Δlo, Δx0, Δhi)
+end
+"""
+    _monot_bound_remainder(::Type{TaylorModel1}, ::Val{false}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+
+Computes the remainder using Lagrange bound
+"""
+@inline function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{false}, f::Function,
+        polf, polfI, x0, I)
+    _order = get_order(polf) + 1
+    fTIend = polfI[_order]
+    # Lagrange bound
+    return fTIend * (I-x0)^_order
+end
+
+"""
+    _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+
+Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes' PhD thesis (pp 67).
+"""
+@inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
+        polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+
+    _order = get_order(polf) + 1
+    a = Interval(inf(I))
+    b = Interval(sup(I))
+    # Error is monotonic
+    denom_lo = (a-x0)^_order
+    Δlo = f(a) - polf(a-x0)
+    # Δlo = f(a) - bound_taylor1(polf, a-x0)
+    Δlo = Δlo / denom_lo
+    denom_hi = (b-x0)^_order
+    Δhi = f(b) - polf(b-x0)
+    # Δhi = f(b) - bound_taylor1(polf, b-x0)
+    Δhi = Δhi / denom_hi
+    return hull(Δlo, Δhi)
+end
+@inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
+        polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
+
+    _order = get_order(polf) + 1
+    a = Interval(inf(I))
+    b = Interval(sup(I))
+    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    # Error is monotonic
+    denom_lo = (a-x0)^_order
+    Δlo = (f(a) - polf(a-x0))(symIbox)
+    # Δlo = f(a) - bound_taylor1(polf, a-x0)
+    Δlo = Δlo / denom_lo
+    denom_hi = (b-x0)^_order
+    Δhi = (f(b) - polf(b-x0))(symIbox)
+    # Δhi = f(b) - bound_taylor1(polf, b-x0)
+    Δhi = Δhi / denom_hi
+    return hull(Δlo, Δhi)
+end
+@inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{false}, f::Function,
+        polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+    _order = get_order(polf) + 1
+    return polfI[_order]
 end
 
 

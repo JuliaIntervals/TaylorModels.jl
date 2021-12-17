@@ -61,7 +61,7 @@ for TM in tupleTMs
             a_order = get_order(a)
             b_order = get_order(b)
             rnegl_order = a_order + b_order
-            aux = a.dom - a.x0
+            aux = centered_dom(a)
 
             # Returned polynomial
             res = a.pol * b.pol
@@ -70,7 +70,7 @@ for TM in tupleTMs
             # Remainder of the product
             if $TM == TaylorModel1
 
-                # Remaing terms of the product as reduced Taylor1 (factored polynomial)
+                # Remaining terms of the product as reduced Taylor1 (factored polynomial)
                 rnegl = Taylor1(zero(res[0]), rnegl_order)
                 for k in order+1:rnegl_order
                     @inbounds for i = 0:k
@@ -84,7 +84,7 @@ for TM in tupleTMs
                 Δ = remainder_product(a, b, aux, Δnegl)
             else
 
-                # Remaing terms of the product as reduced Taylor1 (factored polynomial)
+                # Remaining terms of the product as reduced Taylor1 (factored polynomial)
                 rnegl = Taylor1(zero(res[0]), rnegl_order-order)
                 for k in order+1:rnegl_order
                     @inbounds for i = 0:k
@@ -122,6 +122,7 @@ for TM in tupleTMs
 end
 
 # Remainder of the product
+# TaylorModel1
 function remainder_product(a, b, aux, Δnegl)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
@@ -135,12 +136,6 @@ function remainder_product(a::TaylorModel1{TaylorN{T}, S},
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
     auxQ = IntervalBox(-1 .. 1, Val(N))
-    Δ = remainder_product(a, b, auxT, auxQ, Δnegl)
-    return Δ
-end
-function remainder_product(a::TaylorModel1{TaylorN{T}, S},
-                           b::TaylorModel1{TaylorN{T}, S},
-                           auxT, auxQ, Δnegl) where {T, S}
     Δa = a.pol(auxT)(auxQ)
     Δb = b.pol(auxT)(auxQ)
     Δ = Δnegl(auxQ) + Δb * a.rem + Δa * b.rem + a.rem * b.rem
@@ -153,17 +148,32 @@ function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
 
     # Evaluate at the TMN centered domain
-    auxN = a[0].dom - a[0].x0
+    auxN = centered_dom(a[0])
     ΔN = Δ(auxN)
     return ΔN
 end
-function remainder_product(a::RTaylorModel1, b::RTaylorModel1, aux, Δnegl, order)
+# RTaylorModel1
+function remainder_product(a, b, aux, Δnegl, order)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
     V = aux^(order+1)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
     return Δ
 end
+function remainder_product(a::RTaylorModel1{TaylorN{T},S},
+                           b::RTaylorModel1{TaylorN{T},S},
+                           aux, Δnegl, order) where {T, S}
+    N = get_numvars()
+    # An N-dimensional symmetrical IntervalBox is assumed
+    # to bound the TaylorN part
+    auxQ = symmetric_box(N, T)
+    Δa = a.pol(aux)(auxQ)
+    Δb = b.pol(aux)(auxQ)
+    V = aux^(order+1)
+    Δ = Δnegl(auxQ) + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
+    return Δ
+end
+
 
 # Division
 function /(a::TaylorModel1, b::TaylorModel1)
@@ -207,7 +217,7 @@ function truncate_taylormodel(a::RTaylorModel1, m::Integer)
 
     apol = Taylor1(copy(a.pol.coeffs[1:m+1]))
     bpol = Taylor1(copy(a.pol.coeffs))
-    aux = a.dom - a.x0
+    aux = centered_dom(a)
     Δnegl = bound_truncation(RTaylorModel1, bpol, aux, m)
     Δ = Δnegl + a.rem * (aux)^(order-m)
     return RTaylorModel1( apol, Δ, a.x0, a.dom )
@@ -253,7 +263,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     b_order = get_order(b)
     rnegl_order = a_order + b_order
     @assert rnegl_order ≤ get_order()
-    aux = a.dom - a.x0
+    aux = centered_dom(a)
 
     # Returned polynomial
     res = a.pol * b.pol
