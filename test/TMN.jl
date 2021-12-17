@@ -74,6 +74,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test linear_polynomial(xm^2) == zero(xT)
         @test nonlinear_polynomial(xm) == zero(xT)
         @test nonlinear_polynomial(xm^2) == xT^2
+        @test centered_dom(xm) == centered_dom(ym) == ib0 .- b0
     end
 
     @testset "Arithmetic operations" begin
@@ -110,8 +111,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test remainder(ym / (1-xm)) == Interval(-0.25, 0.25)
 
         @test remainder(xm^2) == remainder(ym^2)
-        @test (xm.dom[1]-xm.x0[1])^3 == remainder(xm^3)
-        @test (ym.dom[2]-ym.x0[2])^4 ⊆ remainder(ym^4)
+        @test (centered_dom(xm)[1])^3 == remainder(xm^3)
+        @test (centered_dom(ym)[2])^4 ⊆ remainder(ym^4)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -259,7 +260,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         b0 = (0.5 .. 0.5) × (0.5 .. 0.5)
         xm = TaylorModelN(1, _order, b0, ib0)
         ym = TaylorModelN(2, _order, b0, ib0)
-        
+
         f = (x, y) -> cos(x)
         ∫fdx = (x, y) -> sin(x)
         ∫fdy = (x, y) -> cos(x) * y
@@ -323,7 +324,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
-        
+
         f = (x, y) -> exp(-0.5 * (x^2 + y^2)) * x
         ∫fdx = (x, y) -> -exp(-0.5 * (x^2 + y^2))
         fT = f(xm, ym)
@@ -387,15 +388,15 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             "Interval(2.0, 2.0) y + Interval(1.0, 1.0) x² + Interval(2.0, 2.0) x y + " *
             "Interval(1.0, 1.0) y² + Interval(0.0, 0.0)"
     end
-    
+
     @testset "Tests for bounders" begin
-        beale(x, y) = (1.5 - x * (1 - y))^2 + (2.25 - x * (1 - y^2))^2 + 
+        beale(x, y) = (1.5 - x * (1 - y))^2 + (2.25 - x * (1 - y^2))^2 +
                           (2.625 - x * (1 - y^3))^2
         rosenbrock(x, y) = 100 * (y - x^2)^2 + (1 - x)^2
         mccormick(x, y) = sin(x + y) + (x - y)^2 - 1.5x + 2.5y + 1
         beale_min = rosenbrock_min = 0.
         mccormick_min = -1.9133
-            
+
         @testset "Tests for linear dominated bounder" begin
             ib0 = IntervalBox(2.875 .. 3.0625, 0.5 .. 0.625) # A box near global minimum
             c = mid(ib0)
@@ -418,7 +419,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             fT = beale(xm, ym)
             @test bound_ldb ⊆ bound_naive_tm
             @test beale_min ∈ bound_ldb
-            
+
             ib0 = IntervalBox(2.875 .. 3.0625, 0.375 .. 0.5)
             c = mid(ib0)
             b0 = Interval(c[1]) × Interval(c[2])
@@ -462,7 +463,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             bound_naive_tm = fT(fT.dom - fT.x0)
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
-            
+
             ib0 = IntervalBox(-0.647059 .. -0.588235, -1.58824 .. -1.52941)
             c = mid(ib0)
             b0 = Interval(c[1]) × Interval(c[2])
@@ -507,7 +508,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
             @test rosenbrock_min ∈ bound_qfb
-            
+
             ib0 = IntervalBox((-0.54719 - δ) .. (-0.54719 + δ),
                               (-1.54719 - δ) .. (-1.54719 + δ))
             c = mid(ib0)

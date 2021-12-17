@@ -61,7 +61,7 @@ for TM in tupleTMs
             a_order = get_order(a)
             b_order = get_order(b)
             rnegl_order = a_order + b_order
-            aux = a.dom - a.x0
+            aux = centered_dom(a)
 
             # Returned polynomial
             res = a.pol * b.pol
@@ -148,7 +148,7 @@ function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem
 
     # Evaluate at the TMN centered domain
-    auxN = a[0].dom - a[0].x0
+    auxN = centered_dom(a[0])
     ΔN = Δ(auxN)
     return ΔN
 end
@@ -217,7 +217,7 @@ function truncate_taylormodel(a::RTaylorModel1, m::Integer)
 
     apol = Taylor1(copy(a.pol.coeffs[1:m+1]))
     bpol = Taylor1(copy(a.pol.coeffs))
-    aux = a.dom - a.x0
+    aux = centered_dom(a)
     Δnegl = bound_truncation(RTaylorModel1, bpol, aux, m)
     Δ = Δnegl + a.rem * (aux)^(order-m)
     return RTaylorModel1( apol, Δ, a.x0, a.dom )
@@ -263,7 +263,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     b_order = get_order(b)
     rnegl_order = a_order + b_order
     @assert rnegl_order ≤ get_order()
-    aux = a.dom - a.x0
+    aux = centered_dom(a)
 
     # Returned polynomial
     res = a.pol * b.pol

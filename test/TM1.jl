@@ -73,6 +73,8 @@ end
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
         @test nonlinear_polynomial(tv) == zero(Taylor1(Interval{Float64},5))
+        @test centered_dom(tv) == ii0
+        @test centered_dom(TaylorModel1(5, 0.7, ii1)) == ii1-0.7
 
         # Tests related to fixorder
         a = TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
@@ -606,6 +608,8 @@ end
         @test constant_term(tv) == interval(0.0)
         @test linear_polynomial(tv) == Taylor1(Interval{Float64},5)
         @test nonlinear_polynomial(tv) == zero(Taylor1(Interval{Float64},5))
+        @test centered_dom(tv) == ii0
+        @test centered_dom(RTaylorModel1(5, 0.7, ii1)) == ii1-0.7
 
         # Tests related to fixorder
         a = RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)

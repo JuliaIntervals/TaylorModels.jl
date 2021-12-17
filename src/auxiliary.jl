@@ -55,7 +55,7 @@ for TM in tupleTMs
             apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
             # Bound for the neglected part of the polynomial
-            dom = a.dom - a.x0
+            dom = centered_dom(a)
             Δa = bound_truncation($TM, apol0, dom, order) + remainder(a)
             Δb = bound_truncation($TM, bpol0, dom, order) + remainder(b)
 
@@ -86,7 +86,7 @@ function fixorder(a::TaylorModelN, b::TaylorModelN)
     apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
     # Bound for the neglected part of the polynomial
-    dom = a.dom - a.x0
+    dom = centered_dom(a)
     Δa = bound_truncation(TaylorModelN, apol0, dom, order) + remainder(a)
     Δb = bound_truncation(TaylorModelN, bpol0, dom, order) + remainder(b)
 
