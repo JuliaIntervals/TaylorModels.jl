@@ -65,7 +65,7 @@ Checks if `Δ .⊂ Δx` is satisfied. If ``Δ ⊆ Δx` is satisfied, it returns
 `true` if all cases where `==` holds corresponds to the zero `Interval`.
 """
 function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where{T}
-    (Δ ⊂ Δx || Δ == Δx == zero_interval(T)) && return true
+    (Δ ⊂ Δx || Δ == Δx == zero(Δ)) && return true
     return false
 end
 function iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T}
@@ -88,7 +88,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
 
     # Extend `x` and `dx` to have interval coefficients
-    zI = zero_interval(T)
+    zI = zero(δt)
     @. begin
         xxI = x + Δx
         dxxI = dx + zI
@@ -150,7 +150,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     orderQ = get_order(a)
     δ = symmetric_box(N, T)
     aux = diam(Δ)/(2N)
-    rem = zero_interval(T)
+    rem = zero(Δ)
 
     # Linear shift
     lin_shift = mid(Δ) + sum((aux*TaylorN(i, order=orderQ) for i in 1:N))
@@ -184,7 +184,7 @@ function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,T,T}},
     postverify = true
     x0 = xTMN[1].x0
     B = domain(xTMN[1])
-    zI = zero_interval(T)#zero(B[1])
+    zI = zero(Interval{T})
     @inbounds for i in eachindex(xTMN)
         pol = polynomial(xTMN[i])
         ppol = fp_rpa(TaylorModelN(pol(X), zI, x0, B ))
@@ -214,8 +214,8 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # Original domain of TaylorModelN should be the symmetric normalized box
     B = symmetric_box(N, T)
     @assert all(domain.(xTMN) .== (B,))
-    zI = zero_interval(T)
-    x0 = zero_box(N, T)
+    zI = zero(Interval{T})
+    x0 = zero(B)
     @assert all(expansion_point.(xTMN) .== (x0,))
 
     # Vector of independent TaylorN variables
@@ -435,8 +435,8 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, dx, xTMN, xI, dxI,
     δq0 = X0 .- q0
 
     # normalized domain
-    zI = zero_interval(T)
-    zB = zero_box(N, T)
+    zI = zero(Interval{T})
+    zB = zero(X0)
     S = symmetric_box(N, T)
 
     qaux = normalize_taylor.(q0 .+ TaylorN.(1:N, order=orderQ), (δq0,), true)
@@ -457,8 +457,8 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, dx, xTMN, rem, xTM
     @assert N == get_numvars()
     q0 = mid.(X0)
     δq0 = X0 .- q0
-    zI = zero_interval(T)
-    zB = zero_box(N, T)
+    zI = zero(Interval{T})
+    zB = zero(X0)
     S = symmetric_box(N, T)
 
     qaux = normalize_taylor.(q0 .+ TaylorN.(1:N, order=orderQ), (δq0,), true)
@@ -481,8 +481,8 @@ of taylor models `X0` is normalized to the domain `[-1, 1]^n` in space.
 function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, dx, xTMN, xI, dxI, rem, xTM1v) where {T}
     # nomalized domain
     N = get_numvars()
-    zI = zero_interval(T)
-    zB = zero_box(N, T)
+    zI = zero(Interval{T})
+    zB = zero(IntervalBox{N,T})
     S = symmetric_box(N, T)
 
     qaux = constant_term.(polynomial.(X0))
@@ -508,8 +508,8 @@ end
 function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, dx, xTMN, rem, xTM1v) where {T}
     # nomalized domain
     N = get_numvars()
-    zI = zero_interval(T)
-    zB = zero_box(N, T)
+    zI = zero(Interval{T})
+    zB = zero(IntervalBox{N,T})
     S = symmetric_box(N, T)
 
     qaux = constant_term.(polynomial.(X0))
@@ -541,8 +541,8 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
 
     # Some variables
     zt = zero(t0)
-    zI = zero_interval(T)
-    zB = zero_box(N, T)
+    zI = zero(Interval{T})
+    zB = zero(IntervalBox{N,T})
     S  = symmetric_box(N, T)
     t  = t0 + Taylor1(orderT)
     tI = t0 + Taylor1(orderT+1)
@@ -686,7 +686,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                         ε=1e-10, δ=1e-6, validatesteps=20, extrasteps=50)
     #
     T = IntervalArithmetic.numtype(box[1])
-    zI = zero_interval(T)
+    zI = zero(Interval{T})
     domT = sign_tstep * Interval{T}(zI.lo, sign_tstep*δt)
     orderT = get_order(t)
     @. begin
@@ -795,8 +795,8 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     dof = N
 
     zt = zero(t0)
-    zI = zero_interval(T)
-    zB = zero_box(N, T)
+    zI = zero(Interval{T})
+    zB = zero(IntervalBox{N,T})
     S = symmetric_box(N, T)
     t = t0 + Taylor1(orderT)
 
