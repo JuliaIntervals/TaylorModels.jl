@@ -188,7 +188,7 @@ function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) w
     x0 = expansion_point(fT)
     pol = polynomial(fT)
     Pm = deepcopy(pol)
-    bound = zero_interval(S)
+    bound = zero(x0)
     hi = sup(pol(dom - x0))
 
     n_iter = 0
@@ -241,7 +241,7 @@ function linear_dominated_bounder(fT::TaylorModelN{N,T,S}; ϵ=1e-5, max_iter=5) 
     x0 = expansion_point(fT)
     pol = polynomial(fT)
     Pm = deepcopy(pol)
-    bound = zero_interval(S)
+    bound = zero(Interval{S})
     pol_hi = sup(pol(dom - x0))
 
     n_iter = 0

@@ -101,10 +101,6 @@ function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::IntervalBox,
     return res(aux)
 end
 
-# auxiliary constructors for special intervals and boxes
-@inline zero_interval(T) = zero(Interval{T})
-@inline zero_box(N, T) = IntervalBox(zero_interval(T), Val(N))
-
 
 # TMSol utilities
 @inline firstindex(a::TMSol) = firstindex(a.time)
