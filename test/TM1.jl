@@ -418,7 +418,7 @@ end
         tma = acos(tv)
         tmb = cos(tma)
         @test tmb == cos(acos(tv))
-        @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-16
+        @test sup(norm(tmb.pol - tv.pol, Inf)) < 5.0e-16
 
         tma = tan(tv)
         tmb = atan(tma)
@@ -959,7 +959,7 @@ end
         tma = acos(tv)
         tmb = cos(tma)
         @test tmb == cos(acos(tv))
-        @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-16
+        @test sup(norm(tmb.pol - tv.pol, Inf)) < 5.0e-16
 
         tma = tan(tv)
         tmb = atan(tma)

@@ -230,7 +230,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         tma = acos(ym)
         tmb = cos(tma)
         @test tmb == cos(acos(ym))
-        @test sup(norm(tmb.pol - ym.pol, Inf)) < 1.0e-16
+        @test sup(norm(tmb.pol - ym.pol, Inf)) < 5.0e-16
 
         tma = tan(xm)
         tmb = atan(tma)
