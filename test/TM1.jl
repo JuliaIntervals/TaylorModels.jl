@@ -197,6 +197,28 @@ end
         t = Taylor1([qaux,1], orderT)
         tm = TaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
         @test integrate(tm, symIbox) == TaylorModel1(integrate(t), remainder(tm)*(domain(tm)-expansion_point(tm)), x00, dom)
+
+        # Changing order of a TM1 with TaylorN coeffs
+        t = Taylor1([qaux, 1], orderT)
+        tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)   # order 4
+        t8 = Taylor1([qaux, 1], 2*orderT)
+        tm8 = TaylorModel1(deepcopy(t8), 0 .. 0, x00, dom)
+        tm4, _ = TaylorSeries.fixorder(tm8, tm)
+        @test get_order(tm4) == get_order(tm)
+        @test polynomial(tm4) == polynomial(tm)
+        #
+        exp_tm = exp(tm)
+        exp_tm8 = exp(tm8)
+        exp_tm4, _ = TaylorSeries.fixorder(exp_tm8, tm)
+        @test get_order(exp_tm4) == get_order(exp_tm)
+        @test polynomial(exp_tm4) == polynomial(exp_tm)
+        for ind = 1:_num_tests
+            xξ = rand(dom)-x00
+            qξ = rand(symIbox)
+            tt = t(xξ)(qξ)
+            @test exp(tt) ⊆ exp_tm4(dom-x00)(symIbox)
+            @test exp(tt) ⊆ exp_tm(dom-x00)(symIbox)
+        end
     end
 
     @testset "RPAs, functions and remainders" begin
