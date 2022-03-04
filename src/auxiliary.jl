@@ -77,6 +77,17 @@ for TM in tupleTMs
     end
 end
 
+function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Interval,
+        order::Int) where {T}
+    order ≥ get_order(a) && return zero(aux)
+    # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
+    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    res = Taylor1(evaluate.(a.coeffs, Ref(symIbox)))
+    res[0:order] .= zero(res[0])
+    return res(aux)
+end
+
+
 function fixorder(a::TaylorModelN, b::TaylorModelN)
     @assert tmdata(a) == tmdata(b)
     a.pol.order == b.pol.order && return a, b
