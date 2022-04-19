@@ -78,7 +78,7 @@ end
 
 (tm::TaylorModelN{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
 
-function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
+function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
@@ -87,7 +87,7 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::Array{R,1}) where {N,T,S,R}
     return tm.pol(a) + Δ
 end
 
-(tm::TaylorModelN{N,T,S})(a::Array{R,1}) where {N,T,S,R} = evaluate(tm, a)
+(tm::TaylorModelN{N,T,S})(a::AbstractVector{R}) where {N,T,S,R} = evaluate(tm, a)
 
 evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
     IntervalBox( [ tm[i](a) for i in eachindex(tm) ] )
