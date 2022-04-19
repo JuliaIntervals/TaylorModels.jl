@@ -30,7 +30,7 @@ function test_integ(fexact, t0, qTM, q0, δq0)
     # Box computed from the exact solution must be within q
     bb = all(fexact(t0+δtI, q0 .+ q0ξB) .⊆ q)
     # Display details if bb is false
-    bb || @show(t0, domt, remainder.(qTM), 
+    bb || @show(t0, domt, remainder.(qTM),
             δt, δtI, q0ξ, q0ξB, q,
             fexact(t0+δtI, q0 .+ q0ξB))
     return bb
@@ -76,6 +76,7 @@ end
                 @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
             end
 
+            # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
             solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
                 adaptive=false)
             qvf, qTMf = getfield.((solf,), 2:3)
@@ -117,6 +118,13 @@ end
                 n = rand(2:end_idx)
                 @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
             end
+
+            # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
+            solf = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+                adaptive=false)
+            qvf, qTMf = getfield.((solf,), 2:3)
+            @test length(qvf) == length(qv)
+            @test qTM == qTMf
 
             # initializaton with a Taylor model
             X0tm = get_xTM(sol,1)

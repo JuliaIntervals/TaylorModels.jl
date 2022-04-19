@@ -324,20 +324,19 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         t0::T, tmax::T, sign_tstep::Int,
         xTMN::Vector{TaylorModelN{N,T,T}}, xv::Vector{IntervalBox{N,T}},
         rem::Vector{Interval{T}}, zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
-        nsteps::Int, orderT::Int, abstol::T, params, parse_eqs::Bool,
+        nsteps::Int, orderT::Int, abstol::T, params,
+        tmpTaylor, arrTaylor, tmpTaylorI, arrTaylorI, parse_eqs::Bool,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::Function=(t, x)->true) where {N,T}
 
     # One step integration (non-validated)
-    # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, t, x, dx, xaux, params)
-    # δt = TaylorIntegration.stepsize(x, abstol)
-    δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
+    δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params,
+                                        tmpTaylor, arrTaylor, parse_eqs)
     f!(dx, x, params, t)  # Update `dx[:][orderT]`
 
-    # One step integration for the initial box
-    # TaylorIntegration.__jetcoeffs!(Val(parse_eqs), f!, tI, xI, dxI, xauxI, params)
-    # δtI = TaylorIntegration.stepsize(xI, abstol)
-    δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI, abstol, params, parse_eqs)
+    # One step integration for the *initial box*
+    δtI = TaylorIntegration.taylorstep!(f!, tI, xI, dxI, xauxI, abstol, params,
+                                        tmpTaylorI, arrTaylorI, parse_eqs)
     f!(dxI, xI, params, tI)  # Update `dxI[:][orderT+1]`
 
     # Step size
@@ -574,7 +573,11 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     @inbounds xv[1] = evaluate(xTMN, S)
 
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
-    parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
+    parse_eqsI, tmpTaylorI, arrTaylorI = TaylorIntegration._determine_parsing!(
+        parse_eqs, f!, tI, xI, dxI, params)
+    parse_eqs, tmpTaylor, arrTaylor = TaylorIntegration._determine_parsing!(
+        parse_eqs, f!, t, x, dx, params)
+        @assert parse_eqs == parse_eqsI
 
     local _success # if true, the validation step succeeded
     red_abstol = abstol
@@ -587,6 +590,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
         (_success, δt, red_abstol) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
                                 t0, tmax, sign_tstep, xTMN, xv, rem, zB, S,
                                 nsteps, orderT, red_abstol, params,
+                                tmpTaylor, arrTaylor, tmpTaylorI, arrTaylorI,
                                 parse_eqs, adaptive, minabstol,
                                 absorb, check_property)
         δtI = sign_tstep * Interval(zt, sign_tstep*δt)
@@ -598,7 +602,7 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
         @inbounds t[0] = t0
         @inbounds tI[0] = t0
         @. begin
-            xTM1v[:, nsteps] = TaylorModel1(x, rem, zI, δtI)  # deepcopy?
+            xTM1v[:, nsteps] = TaylorModel1(deepcopy(x), rem, zI, δtI) # deepcopy is needed!
             x = Taylor1(evaluate(x, δt), orderT)
             # dx = Taylor1(zero(constant_term(x)), orderT)
             xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
@@ -829,11 +833,13 @@ function validated_integ2(f!, X0, t0::T, tf::T, orderQ::Int, orderT::Int,
     @inbounds tv[1] = t0
     @inbounds xv[1] = evaluate(xTMN, S)
 
-    parse_eqs = TaylorIntegration._determine_parsing!(parse_eqs, f!, t, x, dx, params)
+    parse_eqs, tmpTaylor, arrTaylor = TaylorIntegration._determine_parsing!(parse_eqs,
+        f!, t, x, dx, params)
     red_abstol = abstol
 
     while t0 * sign_tstep < tf * sign_tstep
-        δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params, parse_eqs)
+        δt = TaylorIntegration.taylorstep!(f!, t, x, dx, xaux, abstol, params,
+            tmpTaylor, arrTaylor, parse_eqs)
         f!(dx, x, params, t)
 
         δt = min(δt, sign_tstep*(tf-t0))
