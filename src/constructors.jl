@@ -2,6 +2,7 @@
 
 const tupleTMs = (:TaylorModel1, :RTaylorModel1)
 const NumberNotSeries = TaylorSeries.NumberNotSeries
+const TI = TaylorIntegration
 
 #=
 Structs `TaylorModel1` and `RTaylorModel1` are essentially identical, except

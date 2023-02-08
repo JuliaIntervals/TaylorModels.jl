@@ -77,8 +77,7 @@ end
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
-            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
-                adaptive=false)
+            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, parse_eqs=false)
             qvf, qTMf = getfield.((solf,), 2:3)
 
             @test length(qvf) == length(qv)
@@ -121,7 +120,7 @@ end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
             solf = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
-                adaptive=false)
+                parse_eqs=false)
             qvf, qTMf = getfield.((solf,), 2:3)
             @test length(qvf) == length(qv)
             @test qTM == qTMf
