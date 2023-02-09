@@ -362,7 +362,7 @@ function quadratic_fast_bounder(fT::TaylorModel1)
 
     cent_dom = dom - x00
     x0 = -P[1] / (2 * P[2])
-    x = Taylor1(P.order)
+    x = Taylor1(get_order(P))
     Qx0 = (x - x0) * P[2] * (x - x0)
     bound_qfb = (P - Qx0)(cent_dom)
     hi = sup(P(cent_dom))

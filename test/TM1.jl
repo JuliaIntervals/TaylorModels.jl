@@ -12,7 +12,7 @@ setformat(:full)
 
 function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
     x0 = expansion_point(tma)
-    xfp = diam(tma.dom)*(rand()-0.5) + mid(x0)
+    xfp = diam(domain(tma))*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
     range = tma((xfp .. xfp)-x0)
     bb = ftest(xbf) ∈ range
@@ -93,19 +93,21 @@ end
         Δ = interval(-0.25, 0.25)
         a = TaylorModel1(x1+Taylor1(5), Δ, x1, ii1)
         tv = TaylorModel1(5, x1, ii1)
-        @test zero(a) == TaylorModel1(zero(a.pol), 0..0, x1, ii1)
-        @test one(a) == TaylorModel1(one(a.pol), 0..0, x1, ii1)
+        a_pol = polynomial(a)
+        tv_pol = polynomial(tv)
+        @test zero(a) == TaylorModel1(zero(a_pol), 0..0, x1, ii1)
+        @test one(a) == TaylorModel1(one(a_pol), 0..0, x1, ii1)
         @test a+x1 == TaylorModel1(2*x1+Taylor1(5), Δ, x1, ii1)
         @test a+a == TaylorModel1(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
         @test a-x1 == TaylorModel1(zero(x1)+Taylor1(5), Δ, x1, ii1)
-        @test a-a == TaylorModel1(zero(a.pol), 2*Δ, x1, ii1)
+        @test a-a == TaylorModel1(zero(a_pol), 2*Δ, x1, ii1)
         b = a * tv
-        @test b == TaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
+        @test b == TaylorModel1(a_pol*tv_pol, remainder(a)*tv_pol(ii1-x1), x1, ii1)
         @test remainder(b/tv) ⊆ Interval(-0.78125, 0.84375)
         @test constant_term(b) == 1..1
         @test linear_polynomial(b) == 2*x1*Taylor1(5)
         @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
-        b = a * a.pol[0]
+        b = a * a_pol[0]
         @test b == a
         @test constant_term(a) == x1
         @test linear_polynomial(a) == Taylor1(5)
@@ -142,8 +144,8 @@ end
         @test a == TaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
         @test b == TaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
 
-        @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 1..1, -1..1)
-        @test_throws AssertionError a+TaylorModel1(a.pol, a.rem, 0..0, -2..2)
+        @test_throws AssertionError a+TaylorModel1(a.pol, remainder(a), 1..1, -1..1)
+        @test_throws AssertionError a+TaylorModel1(a.pol, remainder(a), 0..0, -2..2)
         f(x) = x + x^2
         tm = TaylorModel1(5, x0, ii0)
         @test_throws ArgumentError f(tm)/tm
@@ -400,50 +402,52 @@ end
 
     @testset "Composition of functions and their inverses" begin
         tv = TaylorModel1(2, x0, ii0)
+        tv_pol = polynomial(tv)
 
         tma = exp(tv)
         tmb = log(tma)
         @test tmb == log(exp(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = sin(tv)
         tmb = asin(tma)
         @test tmb == asin(sin(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = asin(tv)
         tmb = sin(tma)
         @test tmb == sin(asin(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = acos(tv)
         tmb = cos(tma)
         @test tmb == cos(acos(tv))
-        @test sup(norm(tmb.pol - tv.pol, Inf)) < 5.0e-16
+        @test sup(norm(tmb.pol - tv_pol, Inf)) < 5.0e-16
 
         tma = tan(tv)
         tmb = atan(tma)
         @test tmb == atan(tan(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = atan(tv)
         tmb = tan(tma)
         @test tmb == tan(atan(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
 
         ####
         tv = TaylorModel1(2, x1, ii1)
+        tv_pol = polynomial(tv)
 
         tma = log(tv)
         tmb = exp(tma)
         @test tmb == exp(log(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = cos(tv)
         tmb = acos(tma)
         @test tmb == acos(cos(tv))
-        @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-15
+        @test sup(norm(tmb.pol - tv_pol, Inf)) < 1.0e-15
     end
 
     @testset "Tests for integrate" begin
@@ -453,7 +457,7 @@ end
         integ_res = integrate(exp(tm), 1..1)
         exact_res = exp(tm)
         @test exact_res.pol == integ_res.pol
-        @test exact_res.rem ⊆ integ_res.rem
+        @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
             @test check_containment(exp, integ_res)
         end
@@ -461,7 +465,7 @@ end
         integ_res = integrate(cos(tm))
         exact_res = sin(tm)
         @test exact_res.pol == integ_res.pol
-        @test exact_res.rem ⊆ integ_res.rem
+        @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
             @test check_containment(sin, integ_res)
         end
@@ -469,7 +473,7 @@ end
         integ_res = integrate(-sin(tm), 1..1)
         exact_res = cos(tm)
         @test exact_res.pol == integ_res.pol
-        @test exact_res.rem ⊆ integ_res.rem
+        @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
             @test check_containment(cos, integ_res)
         end
@@ -477,7 +481,7 @@ end
         integ_res = integrate(1/(1+tm^2))
         exact_res = atan(tm)
         @test exact_res.pol == integ_res.pol
-        # @test exact_res.rem ⊆ integ_res.rem
+        # @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
         end
@@ -518,7 +522,7 @@ end
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
             bound_interval = f(D)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
@@ -528,7 +532,7 @@ end
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
             bound_interval = f(D)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
@@ -539,7 +543,7 @@ end
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
             bound_interval = f(D)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
@@ -549,7 +553,7 @@ end
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
             bound_interval = f(D)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test diam(bound_ldb) <= diam(bound_interval)
             @test bound_ldb ⊆ bound_naive_tm
@@ -563,7 +567,7 @@ end
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
@@ -574,7 +578,7 @@ end
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
@@ -585,7 +589,7 @@ end
             x0 = mid(D)
             tm = TaylorModel1(order, x0, D)
             fT = f(tm)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm

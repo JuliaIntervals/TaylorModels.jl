@@ -3,7 +3,7 @@
 # getindex, fistindex, lastindex
 for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
     @eval begin
-        copy(f::$TM) = $TM(copy(f.pol), f.rem, f.x0, f.dom)
+        copy(f::$TM) = $TM(copy(f.pol), remainder(f), expansion_point(f), domain(f))
         @inline firstindex(a::$TM) = 0
         @inline lastindex(a::$TM) = get_order(a)
 
@@ -35,12 +35,12 @@ for TM in tupleTMs
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
         setindex!(a::$TM{T,S}, x::Array{T,1}, c::Colon) where {T<:Number, S} = a[c] .= x
 
-        iscontained(a, tm::$TM) = a ∈ domain(tm)-tm.x0
-        iscontained(a::Interval, tm::$TM) = a ⊆ domain(tm)-tm.x0
+        iscontained(a, tm::$TM) = a ∈ centered_dom(tm)
+        iscontained(a::Interval, tm::$TM) = a ⊆ centered_dom(tm)
     end
 end
-iscontained(a, tm::TaylorModelN) = a ∈ domain(tm)-tm.x0
-iscontained(a::IntervalBox, tm::TaylorModelN) = a ⊆ domain(tm)-tm.x0
+iscontained(a, tm::TaylorModelN) = a ∈ centered_dom(tm)
+iscontained(a::IntervalBox, tm::TaylorModelN) = a ⊆ centered_dom(tm)
 
 
 # fixorder and bound_truncation
@@ -48,9 +48,9 @@ for TM in tupleTMs
     @eval begin
         function fixorder(a::$TM, b::$TM)
             @assert tmdata(a) == tmdata(b)
-            a.pol.order == b.pol.order && return a, b
+            get_order(a) == get_order(b) && return a, b
 
-            order = min(a.pol.order, b.pol.order)
+            order = min(get_order(a), get_order(b))
             apol0, bpol0 = polynomial.((a, b))
             apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
@@ -59,7 +59,8 @@ for TM in tupleTMs
             Δa = bound_truncation($TM, apol0, dom, order) + remainder(a)
             Δb = bound_truncation($TM, bpol0, dom, order) + remainder(b)
 
-            return $TM(apol, Δa, a.x0, a.dom), $TM(bpol, Δb, b.x0, b.dom)
+            return $TM(apol, Δa, expansion_point(a), domain(a)),
+                $TM(bpol, Δb, expansion_point(b), domain(b))
         end
 
         function bound_truncation(::Type{$TM}, a::Taylor1, aux::Interval,
@@ -90,9 +91,9 @@ end
 
 function fixorder(a::TaylorModelN, b::TaylorModelN)
     @assert tmdata(a) == tmdata(b)
-    a.pol.order == b.pol.order && return a, b
+    get_order(a) == get_order(b) && return a, b
 
-    order = min(a.pol.order, b.pol.order)
+    order = min(get_order(a), get_order(b))
     apol0, bpol0 = polynomial.((a, b))
     apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
@@ -101,7 +102,8 @@ function fixorder(a::TaylorModelN, b::TaylorModelN)
     Δa = bound_truncation(TaylorModelN, apol0, dom, order) + remainder(a)
     Δb = bound_truncation(TaylorModelN, bpol0, dom, order) + remainder(b)
 
-    return TaylorModelN(apol, Δa, a.x0, a.dom), TaylorModelN(bpol, Δb, b.x0, b.dom)
+    return TaylorModelN(apol, Δa, expansion_point(a), domain(a)),
+        TaylorModelN(bpol, Δb, expansion_point(b), domain(b))
 end
 
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::IntervalBox,

@@ -10,9 +10,9 @@ for TM in tupleTMs
         _order = get_order(tm)
 
         if $(TM) == TaylorModel1
-            Δ = tm.rem
+            Δ = remainder(tm)
         else
-            Δ = tm.rem * a^(_order + 1)
+            Δ = remainder(tm) * a^(_order + 1)
         end
 
         return tm.pol(a) + Δ
@@ -51,7 +51,8 @@ function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
-    tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order, tmf.x0, tmf.dom)
+    tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order,
+        expansion_point(tmf), domain(tmf))
     @inbounds for k = _order:-1:0
         tmres = tmres * tmf
         tmres = tmres + tmg.pol[k]
@@ -71,7 +72,7 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
-    Δ = tm.rem
+    Δ = remainder(tm)
 
     return tm.pol(a) + Δ
 end
@@ -82,7 +83,7 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
-    Δ = tm.rem
+    Δ = remainder(tm)
 
     return tm.pol(a) + Δ
 end
@@ -95,8 +96,8 @@ evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
 
 function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N, T<:Number, S<:Number}
     @inbounds suma = a[end]*one(dx)
-    @inbounds for k in a.order-1:-1:0
+    @inbounds for k in get_order(a)-1:-1:0
         suma = suma*dx + a[k]
     end
-    suma
+    return suma
 end

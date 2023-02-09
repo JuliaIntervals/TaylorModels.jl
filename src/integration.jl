@@ -4,13 +4,13 @@ for TM in tupleTMs
     @eval begin
         function integrate(a::$(TM){T,S}) where {T,S}
             integ_pol = integrate(a.pol)
-            Δ = bound_integration(a, a.dom - a.x0)
-            return $(TM)( integ_pol, Δ, a.x0, a.dom )
+            Δ = bound_integration(a, centered_dom(a))
+            return $(TM)( integ_pol, Δ, expansion_point(a), domain(a) )
         end
         function integrate(a::$(TM){TaylorN{T},S}, cc0) where {T,S}
             integ_pol = integrate(a.pol)
-            Δ = bound_integration(a, a.dom - a.x0, cc0)
-            return $(TM)(integ_pol, Δ, a.x0, a.dom)
+            Δ = bound_integration(a, centered_dom(a), cc0)
+            return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
         end
         integrate(a::$(TM){T,S}, c0) where {T,S} = c0 + integrate(a)
         integrate(a::$(TM){TaylorN{T},S}, c0, δI) where {T,S} = c0 + integrate(a, δI)
@@ -45,22 +45,22 @@ end
 function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}) where {N,T,S}
     integ_pol = integrate(a.pol, c0)
-    δ = a.dom-a.x0
+    δ = centered_dom(a)
 
     # Remainder bound after integrating
     Δ = bound_integration(a, δ)
-    ΔN = Δ(a[0].dom - a[0].x0)
+    ΔN = Δ(centered_dom(a[0]))
 
-    return TaylorModel1( integ_pol, ΔN, a.x0, a.dom )
+    return TaylorModel1( integ_pol, ΔN, expansion_point(a), domain(a) )
 end
 
 function integrate(fT::TaylorModelN, which=1)
     p̂ = integrate(fT.pol, which)
-    order = fT.pol.order
+    order = get_order(fT)
     r = TaylorN(p̂.coeffs[1:order+1])
     s = TaylorN(p̂.coeffs[order+2:end])
     Δ = bound_integration(fT, s, which)
-    return TaylorModelN(r, Δ, fT.x0, fT.dom)
+    return TaylorModelN(r, Δ, expansion_point(fT), domain(fT))
 end
 function integrate(fT::TaylorModelN, s::Symbol)
     which = TaylorSeries.lookupvar(s)
@@ -76,7 +76,7 @@ end
     return IntervalBox(Δ)
 end
 @inline function bound_integration(fT::TaylorModelN, s::TaylorN, which)
-    Δ = s(fT.dom - fT.x0) + fT.rem * (fT.dom[which] - fT.x0[which])
+    Δ = s(centered_dom(fT)) + remainder(fT) * centered_dom(fT)[which]
     return Δ
 end
 

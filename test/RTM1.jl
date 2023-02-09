@@ -77,20 +77,22 @@ end
         Δ = interval(-0.25, 0.25)
         a = RTaylorModel1(x1+Taylor1(5), Δ, x1, ii1)
         tv = RTaylorModel1(5, x1, ii1)
+        a_pol = polynomial(a)
+        tv_pol = polynomial(tv)
 
-        @test zero(a) == RTaylorModel1(zero(a.pol), 0..0, x1, ii1)
-        @test one(a) == RTaylorModel1(one(a.pol), 0..0, x1, ii1)
+        @test zero(a) == RTaylorModel1(zero(a_pol), 0..0, x1, ii1)
+        @test one(a) == RTaylorModel1(one(a_pol), 0..0, x1, ii1)
         @test a+x1 == RTaylorModel1(2*x1+Taylor1(5), Δ, x1, ii1)
         @test a+a == RTaylorModel1(2*(x1+Taylor1(5)), 2*Δ, x1, ii1)
         @test a-x1 == RTaylorModel1(zero(x1)+Taylor1(5), Δ, x1, ii1)
-        @test a-a == RTaylorModel1(zero(a.pol), 2*Δ, x1, ii1)
+        @test a-a == RTaylorModel1(zero(a_pol), 2*Δ, x1, ii1)
         b = a * tv
-        @test b == RTaylorModel1(a.pol*tv.pol, a.rem*tv.pol(ii1-x1), x1, ii1)
+        @test b == RTaylorModel1(a_pol*tv_pol, remainder(a)*tv_pol(ii1-x1), x1, ii1)
         @test remainder(b/tv) ⊆ Interval(-2.75, 4.75)
         @test constant_term(b) == 1..1
         @test linear_polynomial(b) == 2*x1*Taylor1(5)
         @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
-        b = a * a.pol[0]
+        b = a * a_pol[0]
         @test b == a
         @test constant_term(a) == x1
         @test linear_polynomial(a) == Taylor1(5)
@@ -127,8 +129,8 @@ end
         @test a == RTaylorModel1(Taylor1([1.0, 1]), 0..1, 0..0, -1 .. 1)
         @test b == RTaylorModel1(Taylor1([1.0, 1, 0, 1]), 0..1, 0..0, -1 .. 1)
 
-        @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 1..1, -1..1)
-        @test_throws AssertionError a+RTaylorModel1(a.pol, a.rem, 0..0, -2..2)
+        @test_throws AssertionError a+RTaylorModel1(a.pol, remainder(a), 1..1, -1..1)
+        @test_throws AssertionError a+RTaylorModel1(a.pol, remainder(a), 0..0, -2..2)
         f(x) = x + x^2
         tm = RTaylorModel1(5, 0.0, -0.5 .. 0.5)
         @test f(tm)/tm == 1+tm
@@ -368,50 +370,52 @@ end
 
     @testset "Composition of functions and their inverses" begin
         tv = RTaylorModel1(2, x0, ii0)
+        tv_pol = polynomial(tv)
 
         tma = exp(tv)
         tmb = log(tma)
         @test tmb == log(exp(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = sin(tv)
         tmb = asin(tma)
         @test tmb == asin(sin(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = asin(tv)
         tmb = sin(tma)
         @test tmb == sin(asin(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = acos(tv)
         tmb = cos(tma)
         @test tmb == cos(acos(tv))
-        @test sup(norm(tmb.pol - tv.pol, Inf)) < 5.0e-16
+        @test sup(norm(tmb.pol - tv_pol, Inf)) < 5.0e-16
 
         tma = tan(tv)
         tmb = atan(tma)
         @test tmb == atan(tan(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = atan(tv)
         tmb = tan(tma)
         @test tmb == tan(atan(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
 
         ####
         tv = RTaylorModel1(2, x1, ii1)
+        tv_pol = polynomial(tv)
 
         tma = log(tv)
         tmb = exp(tma)
         @test tmb == exp(log(tv))
-        @test tmb.pol == tv.pol
+        @test tmb.pol == tv_pol
 
         tma = cos(tv)
         tmb = acos(tma)
         @test tmb == acos(cos(tv))
-        @test sup(norm(tmb.pol - tv.pol, Inf)) < 1.0e-15
+        @test sup(norm(tmb.pol - tv_pol, Inf)) < 1.0e-15
     end
 
     @testset "Tests for integrate" begin
@@ -421,7 +425,7 @@ end
         integ_res = integrate(exp(tm), 1..1)
         exact_res = exp(tm)
         @test exact_res.pol == integ_res.pol
-        @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        @test remainder(exact_res)*(ii0-x0)^(order+1) ⊆ remainder(integ_res)*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(exp, integ_res)
         end
@@ -429,7 +433,7 @@ end
         integ_res = integrate(cos(tm))
         exact_res = sin(tm)
         @test exact_res.pol == integ_res.pol
-        @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        @test remainder(exact_res)*(ii0-x0)^(order+1) ⊆ remainder(integ_res)*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(sin, integ_res)
         end
@@ -437,7 +441,7 @@ end
         integ_res = integrate(-sin(tm), 1..1)
         exact_res = cos(tm)
         @test exact_res.pol == integ_res.pol
-        @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        @test remainder(exact_res)*(ii0-x0)^(order+1) ⊆ remainder(integ_res)*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(cos, integ_res)
         end
@@ -445,7 +449,7 @@ end
         integ_res = integrate(1/(1+tm^2))
         exact_res = atan(tm)
         @test exact_res.pol == integ_res.pol
-        # @test exact_res.rem*(ii0-x0)^(order+1) ⊆ integ_res.rem*(ii0-x0)^(order+1)
+        # @test remainder(exact_res)*(ii0-x0)^(order+1) ⊆ remainder(integ_res)*(ii0-x0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
         end

@@ -34,7 +34,8 @@ for TM in tupleTMs
             x0, dom::Interval{S}) where {T,S} = $(TM){T,S}(pol, rem, interval(x0), dom)
 
         # Constructor just chainging the remainder
-        $(TM)(u::$(TM){T,S}, Δ::Interval{S}) where {T,S} = $(TM){T,S}(u.pol, Δ, u.x0, u.dom)
+        $(TM)(u::$(TM){T,S}, Δ::Interval{S}) where {T,S} =
+            $(TM){T,S}(u.pol, Δ, expansion_point(u), domain(u))
 
         # Short-cut for independent variable
         $(TM)(ord::Integer, x0, dom::Interval{T}) where {T} =
@@ -53,6 +54,7 @@ for TM in tupleTMs
         @inline remainder(tm::$TM) = tm.rem
         @inline polynomial(tm::$TM) = tm.pol
         @inline domain(tm::$TM) = tm.dom
+        # @inline domain(tm::$TM{TaylorN}) = tm.dom
         @inline expansion_point(tm::$TM) = tm.x0
         # Centered domain
         @inline centered_dom(tm::$TM) = domain(tm) - expansion_point(tm)
@@ -131,7 +133,7 @@ TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::IntervalBox{N,S},
 
 # Constructor for just changing the remainder
 TaylorModelN(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
-    TaylorModelN{N,T,S}(u.pol, Δ, u.x0, u.dom)
+    TaylorModelN{N,T,S}(u.pol, Δ, expansion_point(u), domain(u))
 
 # Short-cut for independent variable
 TaylorModelN(nv::Integer, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) where {N,T} =
@@ -144,7 +146,7 @@ TaylorModelN(a::T, ord::Integer, x0::IntervalBox{N,T}, dom::IntervalBox{N,T}) wh
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
 
 # Functions to retrieve the order and remainder
-@inline get_order(tm::TaylorModelN) = tm.pol.order
+@inline get_order(tm::TaylorModelN) = get_order(tm.pol)
 @inline remainder(tm::TaylorModelN) = tm.rem
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom

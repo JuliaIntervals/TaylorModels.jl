@@ -26,7 +26,7 @@ function test_integ(fexact, t0, qTM, q0, δq0)
     q0ξ = interval_rand(δq0)
     q0ξB = IntervalBox([(q0ξ[i] .. q0ξ[i]) ∩ δq0[i] for i in eachindex(q0ξ)])
     # Box computed to overapproximate the solution at time δt
-    q = evaluate.(evaluate.(qTM, δtI), (normalized_box,))
+    q = evaluate.(evaluate.(qTM, δtI), Ref(normalized_box))
     # Box computed from the exact solution must be within q
     bb = all(fexact(t0+δtI, q0 .+ q0ξB) .⊆ q)
     # Display details if bb is false

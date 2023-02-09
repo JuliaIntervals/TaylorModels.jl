@@ -15,7 +15,7 @@ end
 
 function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
     x0 = expansion_point(tma)
-    xfp = get_random_point(tma.dom)
+    xfp = get_random_point(domain(tma))
     xbf = [big(xfp[i]) for i=1:N]
     ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
     range = evaluate(tma, ib-x0)
@@ -82,11 +82,12 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xm = TaylorModelN(xT, zi, b1, ib1)
         ym = TaylorModelN(yT, zi, b1, ib1)
         a = TaylorModelN( b1[1]+xT, Δ, b1, ib1)
-        @test zero(a) == TaylorModelN(zero(a.pol), 0..0, b1, ib1)
-        @test one(a) == TaylorModelN(one(a.pol), 0..0, b1, ib1)
+        a_pol = polynomial(a)
+        @test zero(a) == TaylorModelN(zero(a_pol), 0..0, b1, ib1)
+        @test one(a) == TaylorModelN(one(a_pol), 0..0, b1, ib1)
         @test a + a == TaylorModelN(2*(b1[1]+ xT), 2*Δ, b1, ib1)
         @test -a == TaylorModelN( -(b1[1]+xT), -Δ, b1, ib1)
-        @test a - a == TaylorModelN(zero(a.pol), 2*Δ, b1, ib1)
+        @test a - a == TaylorModelN(zero(a_pol), 2*Δ, b1, ib1)
         @test b1[2] + ym == TaylorModelN(b1[2] + yT, zi, b1, ib1)
         @test a - b1[1] == TaylorModelN(zero(b1[1])+xT, Δ, b1, ib1)
         @test constant_term(a) == b1[1]
@@ -101,7 +102,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         b = ym * TaylorModelN(xT^2, zi, b1, ib1)
         @test b == TaylorModelN( zero(xT), (ib1[1]-b1[1])^2*(ib1[2]-b1[2]), b1, ib1 )
         b = b1[2] * a
-        @test b == TaylorModelN( b1[2]*a.pol, Δ*b1[2], b1, ib1 )
+        @test b == TaylorModelN( b1[2]*a_pol, Δ*b1[2], b1, ib1 )
         @test b / b1[2] == a
         @test_throws AssertionError TaylorModelN(TaylorN(1, order=_order_max), zi, b1, ib1) *
             TaylorModelN(TaylorN(2, order=_order_max), zi, b1, ib1)
@@ -211,36 +212,38 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
     @testset "Composition of functions and their inverses" begin
         xm = TaylorModelN(xT, zi, b1, ib1)
         ym = TaylorModelN(yT, zi, b1, ib1)
+        xm_pol = polynomial(xm)
+        ym_pol = polynomial(ym)
 
         tma = exp(ym)
         tmb = log(tma)
         @test tmb == log(exp(ym))
-        @test tmb.pol == ym.pol
+        @test tmb.pol == ym_pol
 
         tma = sin(xm)
         tmb = asin(tma)
         @test tmb == asin(sin(xm))
-        @test tmb.pol == xm.pol
+        @test tmb.pol == xm_pol
 
         tma = asin(xm)
         tmb = sin(tma)
         @test tmb == sin(asin(xm))
-        @test tmb.pol == xm.pol
+        @test tmb.pol == xm_pol
 
         tma = acos(ym)
         tmb = cos(tma)
         @test tmb == cos(acos(ym))
-        @test sup(norm(tmb.pol - ym.pol, Inf)) < 5.0e-16
+        @test sup(norm(tmb.pol - ym_pol, Inf)) < 5.0e-16
 
         tma = tan(xm)
         tmb = atan(tma)
         @test tmb == atan(tan(xm))
-        @test tmb.pol == xm.pol
+        @test tmb.pol == xm_pol
 
         tma = atan(xm)
         tmb = tan(tma)
         @test tmb == tan(atan(xm))
-        @test tmb.pol == xm.pol
+        @test tmb.pol == xm_pol
 
 
         ####
@@ -404,7 +407,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = beale(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
             @test beale_min ∈ bound_ldb
@@ -426,7 +429,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = beale(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
             @test beale_min ∈ bound_ldb
@@ -438,7 +441,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
             ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
             fT = beale(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
             @test beale_min ∈ bound_ldb
@@ -449,7 +452,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = rosenbrock(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
 
@@ -460,7 +463,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
             ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
             fT = rosenbrock(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
 
@@ -470,7 +473,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = mccormick(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
 
@@ -481,7 +484,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(xT, 0 .. 0, b0, ib0)
             ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
             fT = mccormick(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
         end
@@ -493,7 +496,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = beale(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
             @test beale_min ∈ bound_qfb
@@ -504,7 +507,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = rosenbrock(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
             @test rosenbrock_min ∈ bound_qfb
@@ -516,7 +519,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = mccormick(xm, ym)
-            bound_naive_tm = fT(fT.dom - fT.x0)
+            bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
             @test mccormick_min ∈ bound_qfb
