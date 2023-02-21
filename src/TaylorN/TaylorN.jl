@@ -6,7 +6,7 @@ degree(f::TaylorN) = f.order
 setindex!(f::TaylorN, x, i) = f.coeffs[i+1] = x
 
 doc"""
-A `Taylor1Model` represents a polynomial approximation to a function $f(t)$ of a single variable.
+A `TaylorNModel` represents a polynomial approximation to a function $f(t)$ of `N` independent variables.
 
 The fields are:
 - `n`: degree of the polynomial
@@ -14,6 +14,7 @@ The fields are:
 - `I`: IntervalBox over which the Taylor model is defined / valid
 - `p`: the polynomial, of type `TaylorSeries.TaylorN`
 - `Δ`: the interval bound
+- `order_bounds`: order bounds
 """
 struct TaylorNModel{N,T,S}
     n::Int      # degree
