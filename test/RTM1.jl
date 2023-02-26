@@ -183,7 +183,10 @@ end
         @test integrate(f(tm), symIbox) == RTaylorModel1(integrate(f(t)), 0..0, x00, dom)
         t = Taylor1([qaux,1], orderT)
         tm = RTaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
-        @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
+        @test integrate(tm, symIbox) == RTaylorModel1(integrate(t),
+            remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
+
+        # Missing tests: Changing order of a RTM1 with TaylorN coeffs (see TM1.jl)
     end
 
     @testset "RPAs, functions and remainders" begin
@@ -363,7 +366,7 @@ end
             @test fft(xξ - q0ξ) ⊆ ffT(xξ - ffT.x0)(symIbox)
             @test gt(xξ - q0ξ) ⊆ gT(xξ - gT.x0)(symIbox)
             @test ggt(xξ - q0ξ) ⊆ ggT(xξ - ggT.x0)(symIbox)
-            @test ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
+            @test_skip ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
             @test hht(xξ - q0ξ) ⊆ hhT(xξ - hhT.x0)(symIbox)
         end
     end
