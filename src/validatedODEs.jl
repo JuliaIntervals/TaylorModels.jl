@@ -98,7 +98,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     f!(dxxI, xxI, params, t)
 
     # Picard iteration, considering only the bound of `f` and the last coeff of f
-    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), (δI,) ) )
+    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), Ref(δI) ) )
     Δ = Δ0 + Δdx * δt
     return Δ
 end
@@ -174,7 +174,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
         end
     end
 
-    return TaylorModelN(bpol, rem, a.x0, a.dom)
+    return TaylorModelN(bpol, rem, expansion_point(a), domain(a))
 end
 
 
@@ -182,7 +182,7 @@ end
 function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,T,T}},
         X::Vector{TaylorN{T}}) where {N,T}
     postverify = true
-    x0 = xTMN[1].x0
+    x0 = expansion_point(xTMN[1])
     B = domain(xTMN[1])
     zI = zero(Interval{T})
     @inbounds for i in eachindex(xTMN)
@@ -259,7 +259,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     s = zero(q)
     @. q = 1.0 + r̃ + s
     jaq_q1 = jacmatrix_g * (q .- 1.0)
-    eq16 = all(mag.(evaluate.(jaq_q1, (q .* B,))) .≤ s)
+    eq16 = all(mag.(evaluate.(jaq_q1, Ref(q .* B))) .≤ s)
     if eq16
         postverify = scalepostverify_sw!(xTMN, q .* X)
         postverify && return q
@@ -267,7 +267,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     s .= eps.(q)
     @. q = 1.0 + r̃ + s
     jaq_q1 = jacmatrix_g * (q .- 1.0)
-    eq16 = all(mag.(evaluate.(jaq_q1, (q .* B,))) .≤ s)
+    eq16 = all(mag.(evaluate.(jaq_q1, Ref(q .* B))) .≤ s)
     if eq16
         postverify = scalepostverify_sw!(xTMN, q .* X)
         postverify && return q
@@ -291,7 +291,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
         q_1 .= q .- 1.0
         q_old .= q
         mul!(jaq_q1, jacmatrix_g, q_1)
-        eq16 = all(evaluate.(jaq_q1, (qB,)) .≤ s)
+        eq16 = all(evaluate.(jaq_q1, Ref(qB)) .≤ s)
         eq16 && break
         @inbounds for i in eachindex(xTMN)
             s[i] = mag( jaq_q1[i](qB) )
@@ -835,7 +835,7 @@ Computes the picard (integral) operator for the initial condition `x0`.
 function _picard(dx, x0, box)
     ∫f = integrate(dx, 0., box)
     pol = ∫f.pol + x0.pol
-    Δk = ∫f.rem
+    Δk = remainder(∫f)
     return pol, Δk
 end
 

@@ -56,7 +56,8 @@ function _rpa(::Type{TaylorModel1}, f::Function, x0::TaylorModelN, I::Interval,
     polf  = f( Taylor1([x0, one(x0)], _order) )
     polfI = f( Taylor1([I, one(I)], _order+1) )
     Δ = bound_remainder(TaylorModel1, f, polf, polfI, I, I)
-    return TaylorModel1(polf, Δ, x0(x0.x0), I)
+    # Is x0(expansion_point(x0)) correct?
+    return TaylorModel1(polf, Δ, x0(expansion_point(x0)), I)
 end
 
 
@@ -77,18 +78,18 @@ for TM in tupleTMs
             _order = get_order(tmf)
 
             # # Avoid overestimations:
-            # if tmf == TaylorModel1(_order, tmf.x0, tmf.dom)
+            # if tmf == TaylorModel1(_order, expansion_point(tmf), domain(tmf))
             #     # ... if `tmf` is the independent variable
-            #     return _rpaar(g, tmf.x0, tmf.dom, _order)
-            # elseif tmf == TaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.dom)
+            #     return _rpaar(g, expansion_point(tmf), domain(tmf), _order)
+            # elseif tmf == TaylorModel1(constant_term(tmf.pol), _order, expansion_point(tmf), domain(tmf))
             #     # ... in case `tmf` is a simple constant polynomial
-            #     range_g = bound_taylor1(g(tmf.pol), tmf.dom-tmf.x0) + remainder(tmf)
-            #     return TaylorModel1(range_g, _order, tmf.x0, tmf.dom)
+            #     range_g = bound_taylor1(g(tmf.pol), centered_dom(tmf)) + remainder(tmf)
+            #     return TaylorModel1(range_g, _order, expansion_point(tmf), domain(tmf))
             # end
             f_pol = polynomial(tmf)
             f_pol0 = constant_term(f_pol)
             Δf = remainder(tmf)
-            x0 = tmf.x0
+            x0 = expansion_point(tmf)
             I = domain(tmf)
 
             # Range of tmf including remainder (Δf)
@@ -114,7 +115,7 @@ for TM in tupleTMs
             if $TM == TaylorModel1
                 Δ = remainder(tmres) + remainder(tmg)
             else
-                tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, x0, I)
+                tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), remainder(tm1), x0, I)
                 for i = 1:_order
                     tmn = tmn * tmf
                 end
@@ -131,7 +132,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorN{T}}) where {T}
     f_pol = polynomial(tmf)
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
-    x0 = tmf.x0
+    x0 = expansion_point(tmf)
     I = domain(tmf)
     range_tmf = f_pol(I-x0) + Δf # TaylorN{Interval{...}}
     N = get_numvars()
@@ -149,7 +150,7 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T}}) where {T}
     f_pol = polynomial(tmf)
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
-    x0 = tmf.x0
+    x0 = expansion_point(tmf)
     I = domain(tmf)
     range_tmf = f_pol(I-x0) + Δf # TaylorN{Interval{...}}
     N = get_numvars()
@@ -158,7 +159,7 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T}}) where {T}
     tmg = _rpa(RTaylorModel1, g, f_pol0, interval_range_tmf, _order)
     tm1 = tmf - f_pol0
     tmres = tmg(tm1)
-    tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), tm1.rem, x0, I)
+    tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), remainder(tm1), x0, I)
     for i = 1:_order
         tmn = tmn * tmf
     end
@@ -170,19 +171,19 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<
     _order = get_order(tmf)
 
     # # Avoid overestimations:
-    # if tmf == TaylorModel1(_order, tmf.x0, tmf.dom)
+    # if tmf == TaylorModel1(_order, expansion_point(tmf), domain(tmf))
     #     # ... if `tmf` is the independent variable
-    #     return _rpaar(g, tmf.x0, tmf.dom, _order)
-    # elseif tmf == TaylorModel1(constant_term(tmf.pol), _order, tmf.x0, tmf.dom)
+    #     return _rpaar(g, expansion_point(tmf), domain(tmf), _order)
+    # elseif tmf == TaylorModel1(constant_term(tmf.pol), _order, expansion_point(tmf), domain(tmf))
     #     # ... in case `tmf` is a simple constant polynomial
-    #     range_g = bound_taylor1(g(tmf.pol), tmf.dom-tmf.x0) + remainder(tmf)
-    #     return TaylorModel1(range_g, _order, tmf.x0, tmf.dom)
+    #     range_g = bound_taylor1(g(tmf.pol), centered_dom(tmf)) + remainder(tmf)
+    #     return TaylorModel1(range_g, _order, expansion_point(tmf), domain(tmf))
     # end
 
     f_pol = polynomial(tmf)
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
-    x0 = tmf.x0
+    x0 = expansion_point(tmf)
     I = domain(tmf)
 
     # Range of tmf including remainder (Δf)
@@ -206,19 +207,19 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     _order = get_order(tmf)
 
     # # Avoid overestimations
-    # if tmf == TaylorModelN(constant_term(tmf.pol), _order, tmf.x0, tmf.dom)
+    # if tmf == TaylorModelN(constant_term(tmf.pol), _order, expansion_point(tmf), domain(tmf))
     #     # ... in case `tmf` is a simple constant polynomial
-    #     range_g = (g(tmf.pol))(tmf.dom-tmf.x0) + remainder(tmf)
-    #     return TaylorModelN(range_g, _order, tmf.x0, tmf.dom)
+    #     range_g = (g(tmf.pol))(centered_dom(tmf)) + remainder(tmf)
+    #     return TaylorModelN(range_g, _order, expansion_point(tmf), domain(tmf))
     # else
     #     v = get_variables(T, _order)
-    #     any( tmf.pol .== v ) && _rpaar(g, tmf.x0, tmf.dom, _order)
+    #     any( tmf.pol .== v ) && _rpaar(g, expansion_point(tmf), domain(tmf), _order)
     # end
 
-    f_pol = tmf.pol
+    f_pol = polynomial(tmf)
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
-    x0 = tmf.x0
+    x0 = expansion_point(tmf)
     I = domain(tmf)
 
     # Range of tmf including remainder (Δf)
@@ -256,7 +257,7 @@ for TM in tupleTMs
         function fp_rpa(tm::$TM{Interval{T},T}) where {T}
             fT = polynomial(tm)
             Δ = remainder(tm)
-            x0 = tm.x0
+            x0 = expansion_point(tm)
             I = domain(tm)
             order = get_order(tm)
             # ξ0 = mid(x0, α_mid)
@@ -279,7 +280,7 @@ fp_rpa(tm::TaylorModelN{N, T, T}) where {N, T} = tm
 function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     fT = polynomial(tm)
     Δ = remainder(tm)
-    x0 = tm.x0
+    x0 = expansion_point(tm)
     I = domain(tm)
     order = get_order(tm)
 

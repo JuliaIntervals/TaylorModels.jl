@@ -6,32 +6,32 @@ using RecipesBase
     ffp = fp_rpa(f)
     fT = polynomial(ffp)
     Δ = remainder(ffp)
-    ξ0 = ffp.x0
+    ξ0 = expansion_point(ffp)
 
     seriesalpha --> 0.3
     seriestype := :shape
 
-    xs = range(f.dom.lo, stop=f.dom.hi, length=100)
+    xs = range(inf(domain(f)), stop=sup(domain(f)), length=100)
     evals = fT.(xs .- ξ0) .+ Δ
 
     # make polygon:
     xs = [xs; reverse(xs); xs[1]]
     ys = [inf.(evals); reverse(sup.(evals)); inf(evals[1])]
 
-    xs, ys
+    return (xs, ys)
 end
 
 @recipe function g(f::RTaylorModel1)
     ffp = fp_rpa(f)
     fT = polynomial(ffp)
     Δ = remainder(ffp)
-    ξ0 = ffp.x0
+    ξ0 = expansion_point(ffp)
     order = get_order(f)+1
 
     seriesalpha --> 0.5
     seriestype := :shape
 
-    xs = range(f.dom.lo, stop=f.dom.hi, length=100)
+    xs = range(inf(domain(f)), stop=sup(domain(f)), length=100)
     evals = fT.(xs .- ξ0)
 
     corrs = (xs .- ξ0) .^ order
@@ -42,7 +42,7 @@ end
     xs = [xs; reverse(xs); xs[1]]
     ys = [evalslo; reverse(evalshi); evalslo[1]]
 
-    xs, ys
+    return (xs, ys)
 end
 
 @recipe function g(sol::TMSol; vars=(0,1), timediv=1)
@@ -76,9 +76,9 @@ end
 
 For `var=0`, this function divides the time domain of each entry of `sol` in
 `timediv` parts (`timediv==1` is the initial domain), and returns the time
-intervals where the solution holds. This is useful for plotting or finding 
+intervals where the solution holds. This is useful for plotting or finding
 specific events.
-For `var ≥ 1`, this function evaluates the flowpipes at the split domain 
+For `var ≥ 1`, this function evaluates the flowpipes at the split domain
 intervals, which is useful to decrease the overapproximations associated
 to the whole time domain.
 """
@@ -111,7 +111,7 @@ function _mince_in_time(sol::TMSol, ::Val{true}, timediv::Int=1)
 end
 
 # Mince other var (var > 0)
-function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int, 
+function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int,
         timediv::Int=1) where {T}
     N = get_numvars(sol)
     @assert 1 ≤ var ≤ N
@@ -134,5 +134,5 @@ function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int,
         i0 = i1 + 1
     end
 
-    return vv    
+    return vv
 end
