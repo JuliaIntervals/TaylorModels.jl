@@ -19,7 +19,7 @@ IntervalArithmetic = "^0.20"
 IntervalRootFinding = "0.5"
 RecipesBase = "1"
 Reexport = "1"
-TaylorIntegration = "0.11"
+TaylorIntegration = "0.11, 0.14"
 TaylorSeries = "0.13, 0.14"
 julia = "1"
 
