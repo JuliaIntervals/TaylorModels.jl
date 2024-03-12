@@ -809,14 +809,11 @@ function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int, absto
     parse_eqs,  rv  = TI._determine_parsing!( parse_eqs, f!, t, x, dx, params)
     @assert parse_eqs == parse_eqsI
 
-    # Re-initialize the Taylor1 expansions
-    t = t0 + Taylor1( T, orderT )
-    tI = t0 + Taylor1(T, orderT+1)
-    initialize!(X0, orderQ, orderT, x, xI)
-    f!(dx, x, params, t)
-    f!(dxI, xI, params, tI)
-
     if parse_eqs
+        # Re-initialize the Taylor1 expansions
+        t  = t0 + Taylor1(T, orderT )
+        tI = t0 + Taylor1(T, orderT+1)
+        initialize!(X0, orderQ, orderT, x, xI)
         return _validated_integ!(f!, t0, tmax, orderT, x, dx, rv, xI, dxI, rvI,
             abstol, params, maxsteps, adaptive, minabstol, absorb, check_property)
     else
@@ -1257,12 +1254,10 @@ function validated_integ2(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int,
     # Determine if specialized jetcoeffs! method exists (built by @taylorize)
     parse_eqs, rv = TI._determine_parsing!(parse_eqs, f!, t, x, dx, params)
 
-    # Re-initialize the Taylor1 expansions
-    t = t0 + Taylor1( T, orderT )
-    initialize!(X0, orderQ, orderT, x)
-    f!(dx, x, params, t)
-
     if parse_eqs
+        # Re-initialize the Taylor1 expansions
+        t = t0 + Taylor1( T, orderT )
+        initialize!(X0, orderQ, orderT, x)
         return _validated_integ2!(f!, t0, tmax, orderT, x, dx, rv,
             abstol, params, maxsteps, adaptive, minabstol, absorb,
             validatesteps, ε, δ, absorb_steps)
