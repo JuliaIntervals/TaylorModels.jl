@@ -9,7 +9,6 @@ const α_mid = TaylorModels.α_mid
 
 setformat(:full)
 
-
 function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
     x0 = expansion_point(tma)
     xfp = diam(domain(tma))*(rand()-0.5) + mid(x0)
@@ -145,7 +144,7 @@ end
         δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
         qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
         symIbox = IntervalBox(-1 .. 1, Val(1))
-        t = Taylor1([qaux, 1], orderT)
+        t = Taylor1([qaux, one(qaux)], orderT)
         dom = -0.5 .. 0.5
         x00 = mid(dom)
 
@@ -167,7 +166,7 @@ end
             @test h(tt) ⊆ fgTM1(dom-x00)(symIbox)
         end
 
-        t = Taylor1([1, qaux], orderT)
+        t = Taylor1([one(qaux), qaux], orderT)
         tm = RTaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
         fgTM1 = f(tm) / g(tm)
         @test !isentire(remainder(fgTM1))
@@ -181,7 +180,7 @@ end
         # Testing integration
         @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), 0..0, x00, dom)
         @test integrate(f(tm), symIbox) == RTaylorModel1(integrate(f(t)), 0..0, x00, dom)
-        t = Taylor1([qaux,1], orderT)
+        t = Taylor1([qaux, one(qaux)], orderT)
         tm = RTaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
         @test integrate(tm, symIbox) == RTaylorModel1(integrate(t),
             remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
@@ -334,14 +333,14 @@ end
         symIbox = IntervalBox(-1 .. 1, 1)
         δq0 = IntervalBox(-0.2 .. 0.2, 1)
         qaux = normalize_taylor(TaylorN(1, order=orderQ) + q0[1], δq0, true)
-        xT = Taylor1([qaux, 1], orderT)
+        xT = Taylor1([qaux, one(qaux)], orderT)
         tm = RTaylorModel1(deepcopy(xT), 0 .. 0, x00, dom)
 
         f(x) = sin(x)
         ff(x) = cos(x)
         g(x) = exp(x)
         gg(x) = x^5
-        h(x) = log(x)
+        h(x) = log(1.0+x)
         hh(x) = x^3 / x^5
 
         fT = f(tm)
@@ -366,7 +365,7 @@ end
             @test fft(xξ - q0ξ) ⊆ ffT(xξ - ffT.x0)(symIbox)
             @test gt(xξ - q0ξ) ⊆ gT(xξ - gT.x0)(symIbox)
             @test ggt(xξ - q0ξ) ⊆ ggT(xξ - ggT.x0)(symIbox)
-            @test_skip ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
+            @test ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
             @test hht(xξ - q0ξ) ⊆ hhT(xξ - hhT.x0)(symIbox)
         end
     end

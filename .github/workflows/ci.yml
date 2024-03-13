@@ -28,13 +28,13 @@ jobs:
         #     julia-arch: x86
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
-      - uses: actions/cache@v1
+      - uses: actions/cache@v3
         env:
           cache-name: cache-artifacts
         with:
@@ -45,9 +45,9 @@ jobs:
             ${{ runner.os }}-test-
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
-        continue-on-error: ${{ matrix.julia-version == 'nightly' }}
+        # continue-on-error: ${{ matrix.julia-version == 'nightly' }}
       - uses: julia-actions/julia-runtest@v1
-        continue-on-error: ${{ matrix.julia-version == 'nightly' }}
+        # continue-on-error: ${{ matrix.julia-version == 'nightly' }}
       - uses: julia-actions/julia-processcoverage@v1
       - uses: coverallsapp/github-action@master
         with:
