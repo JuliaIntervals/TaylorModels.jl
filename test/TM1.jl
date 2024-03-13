@@ -1,7 +1,7 @@
 # Tests using TaylorModel1
 
 using TaylorModels
-using LinearAlgebra: norm
+# using LinearAlgebra: norm
 using Test
 
 const _num_tests = 1000
@@ -370,7 +370,7 @@ end
         ff(x) = cos(x)
         g(x) = exp(x)
         gg(x) = x^5
-        h(x) = log(x)
+        h(x) = log(1.0+x)
         hh(x) = x^3 / x^5
 
         fT = f(tm)
@@ -395,7 +395,7 @@ end
             @test fft(xξ - q0ξ) ⊆ ffT(xξ - ffT.x0)(symIbox)
             @test gt(xξ - q0ξ) ⊆ gT(xξ - gT.x0)(symIbox)
             @test ggt(xξ - q0ξ) ⊆ ggT(xξ - ggT.x0)(symIbox)
-            @test_skip ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
+            @test ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
             @test hht(xξ - q0ξ) ⊆ hhT(xξ - hhT.x0)(symIbox)
         end
     end
