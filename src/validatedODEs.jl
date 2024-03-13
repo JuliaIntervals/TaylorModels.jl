@@ -517,8 +517,8 @@ function validated_step!(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
 end
 
 """
-    initialize!(X0::IntervalBox, orderQ, orderT, x, dx, xI, dxI)
-    initialize!(X0::IntervalBox, orderQ, orderT, x, dx)
+    initialize!(X0::IntervalBox, orderQ, orderT, x, xI)
+    initialize!(X0::IntervalBox, orderQ, orderT, x)
 
 Initialize the internal integration variables and normalize the given interval
 box to the domain `[-1, 1]^n`.
@@ -554,8 +554,8 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x) where {N,T}
 end
 
 """
-    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx, xI, dxI)
-    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, dx)
+    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, xI)
+    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x)
 
 Initialize the auxiliary integration variables assuming that the given vector
 of taylor models `X0` is normalized to the domain `[-1, 1]^n` in space.
