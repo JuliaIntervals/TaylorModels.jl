@@ -9,8 +9,8 @@ function promote(a::TaylorModelN{N,T,S}, b::R) where {N, T<:Real, S<:Real, R<:Re
     return (TaylorModelN(apol, a_rem, expansion_point(a), domain(a)),
         TaylorModelN(bb, zero(a_rem), expansion_point(a), domain(a)))
 end
-promote(b::R, a::TaylorModelN{N,T,S}) where {N, T<:Real, S<:Real, R<:Real} =
-    reverse(promote(a,b))
+# promote(b::R, a::TaylorModelN{N,T,S}) where {N, T<:Real, S<:Real, R<:Real} =
+#     reverse(promote(a,b))
 
 #
 function promote(a::TaylorModelN{N,T,S}, b::TaylorN{R}) where {N, T, S, R}
@@ -19,7 +19,7 @@ function promote(a::TaylorModelN{N,T,S}, b::TaylorN{R}) where {N, T, S, R}
     bb = TaylorModelN(convert(TaylorN{RR},b), 0..0, expansion_point(a), domain(a))
     return (aa, bb)
 end
-promote(b::TaylorN{R}, a::TaylorModelN{N,T,S}) where {N, T, S, R} = reverse( promote(a, b) )
+# promote(b::TaylorN{R}, a::TaylorModelN{N,T,S}) where {N, T, S, R} = reverse( promote(a, b) )
 
 function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::Taylor1{Interval{T}}) where
         {N, T<:Real, S<:Real}
@@ -32,8 +32,8 @@ function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::Taylor1{Interval{
     end
     return (a, Taylor1(bTN))
 end
-promote(b::Taylor1{Interval{T}}, a::Taylor1{TaylorModelN{N,Interval{T},S}}) where
-    {N, T<:Real, S<:Real} = reverse( promote(a, b) )
+# promote(b::Taylor1{Interval{T}}, a::Taylor1{TaylorModelN{N,Interval{T},S}}) where
+#     {N, T<:Real, S<:Real} = reverse( promote(a, b) )
 
 function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::T) where
         {N, T<:Real, S<:Real}
@@ -47,8 +47,8 @@ function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::T) where
     end
     return (a, Taylor1(bTN))
 end
-promote(b::T, a::Taylor1{TaylorModelN{N,Interval{T},S}}) where
-        {N, T<:Real, S<:Real} = reverse( promote(a, b) )
+# promote(b::T, a::Taylor1{TaylorModelN{N,Interval{T},S}}) where
+#         {N, T<:Real, S<:Real} = reverse( promote(a, b) )
 
 function promote(a::Taylor1{TaylorModelN{N,T,S}}, b::R) where
         {N, T<:Real, S<:Real, R<:Real}
@@ -66,14 +66,9 @@ function promote(a::Taylor1{TaylorModelN{N,T,S}}, b::R) where
     bTN[1] += b
     return (Taylor1(aTN), Taylor1(bTN))
 end
-promote(b::R, a::Taylor1{TaylorModelN{N,T,S}}) where
-        {N, T<:Real, S<:Real, R<:Real} = reverse( promote(a, b) )
+# promote(b::R, a::Taylor1{TaylorModelN{N,T,S}}) where
+#         {N, T<:Real, S<:Real, R<:Real} = reverse( promote(a, b) )
 
-# function promote(a::Taylor1{TaylorModelN{N,T,S}}, b::Taylor1{S}) where {N,T<:Real,S<:Real}
-#     (a, Taylor1(TaylorModelN(interval(b), get_order(a), expansion_point(a), domain(a)), b.order))
-# end
-# promote(b::Taylor1{Interval{T}}, a::Taylor1{TaylorModelN{N,Interval{T},S}}) where
-#     {N, T<:Real, S<:Real} = promote(a, b)
 
 for TM in tupleTMs
     @eval promote(a::$TM{T,S}, b::T) where {T,S} =
@@ -82,15 +77,15 @@ for TM in tupleTMs
     #
     @eval promote(a::$TM{T,S}, b::S) where {T,S} =
         (a, $TM(Taylor1([convert(T, b)], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
-    @eval promote(b::S, a::$TM{T,S}) where {T,S} = reverse( promote(a,b) )
+    # @eval promote(b::S, a::$TM{T,S}) where {T,S} = reverse( promote(a,b) )
     #
     @eval promote(a::$TM{T,S}, b::R) where {T,S,R} = promote(a, convert(S, b))
-    @eval promote(b::R, a::$TM{T,S}) where {T,S,R} = reverse( promote(a,b) )
+    # @eval promote(b::R, a::$TM{T,S}) where {T,S,R} = reverse( promote(a,b) )
     #
     @eval function promote(a::$TM{TaylorModelN{N,T,S},S}, b::T) where {N,T,S}
         a_pol0 = a.pol[0]
         tmN = TaylorModelN(b, get_order(a_pol0), expansion_point(a_pol0), domain(a_pol0))
         return (a, $TM(Taylor1([tmN], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
     end
-    @eval promote(b::T, a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} = reverse( promote(a,b) )
+    # @eval promote(b::T, a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} = reverse( promote(a,b) )
 end
