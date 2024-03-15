@@ -71,15 +71,15 @@ end
 
 
 for TM in tupleTMs
-    @eval promote(a::$TM{T,S}, b::T) where {T,S} =
+    @eval promote(a::$TM{T,S}, b::T) where {T,S<:Real} =
         (a, $(TM)(Taylor1([b], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
-    @eval promote(b::T, a::$TM{T,S}) where {T,S} = reverse( promote(a,b) )
+    @eval promote(b::T, a::$TM{T,S}) where {T,S<:Real} = reverse( promote(a,b) )
     #
     @eval promote(a::$TM{T,S}, b::S) where {T,S} =
         (a, $TM(Taylor1([convert(T, b)], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
     # @eval promote(b::S, a::$TM{T,S}) where {T,S} = reverse( promote(a,b) )
     #
-    @eval promote(a::$TM{T,S}, b::R) where {T,S,R} = promote(a, convert(S, b))
+    # @eval promote(a::$TM{T,S}, b::R) where {T,S<:Real,R} = promote(a, convert(S, b))
     # @eval promote(b::R, a::$TM{T,S}) where {T,S,R} = reverse( promote(a,b) )
     #
     @eval function promote(a::$TM{TaylorModelN{N,T,S},S}, b::T) where {N,T,S}

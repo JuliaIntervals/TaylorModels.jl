@@ -33,4 +33,3 @@ end
     Aqua.test_persistent_tasks(TaylorModels)
 end
 
-nothing
