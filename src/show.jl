@@ -1,16 +1,17 @@
 # show.jl
 
-function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
-    print(io,
-    """Taylor model of degree $(get_order(f)):
-    - x0:  $(expansion_point(f))
-    -  I:  $(domain(f))
-    -  p:  $(polynomial(f))
-    -  Δ:  $(remainder(f))
-    """
-    )
-end
-showfull(x) = showfull(stdout::IO, x)
+# Is the following really needed?
+# function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
+#     print(io,
+#     """Taylor model of degree $(get_order(f)):
+#     - x0:  $(expansion_point(f))
+#     -  I:  $(domain(f))
+#     -  p:  $(polynomial(f))
+#     -  Δ:  $(remainder(f))
+#     """
+#     )
+# end
+# showfull(x) = showfull(stdout::IO, x)
 
 function show(io::IO, a::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
     if TaylorSeries._show_default[end]

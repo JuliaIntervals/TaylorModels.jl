@@ -24,8 +24,6 @@ import TaylorSeries: integrate, get_order, evaluate, pretty_print,
     constant_term, linear_polynomial, nonlinear_polynomial,
     fixorder, get_numvars
 
-import IntervalArithmetic: showfull
-
 import LinearAlgebra: norm
 
 export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
