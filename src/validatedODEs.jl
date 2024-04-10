@@ -664,11 +664,11 @@ function _validated_integ!(f!, t0::T, tmax::T, orderT::Int,
             red_abstol = min(abstol, 10*red_abstol)
         end
 
-        # If the integration step is unsuccessfull, break with a warning; note that the
-        # last integration step (which was not successfull) is returned
+        # If the integration step is unsuccessful, break with a warning; note that the
+        # last integration step (which was not successful) is returned
         if !_success
             @warn("""
-            Exiting due to unsuccessfull step
+            Exiting due to unsuccessful step
             """, _success, t0)
             break
         end
@@ -757,11 +757,11 @@ function _validated_integ!(f!, t0::T, tmax::T, orderT::Int,
             red_abstol = min(abstol, 10*red_abstol)
         end
 
-        # If the integration step is unsuccessfull, break with a warning; note that the
-        # last integration step (which was not successfull) is returned
+        # If the integration step is unsuccessful, break with a warning; note that the
+        # last integration step (which was not successful) is returned
         if !_success
             @warn("""
-            Exiting due to unsuccessfull step
+            Exiting due to unsuccessful step
             """, _success, t0)
             break
         end
@@ -1082,11 +1082,11 @@ function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx, rv,
             red_abstol = min(abstol, 10*red_abstol)
         end
 
-        # If the integration step is unsuccessfull, break with a warning; note that the
-        # last integration step (which was not successfull) is returned
+        # If the integration step is unsuccessful, break with a warning; note that the
+        # last integration step (which was not successful) is returned
         if !_success
             @warn("""
-            Exiting due to unsuccessfull step
+            Exiting due to unsuccessful step
             """, _success, t0)
             break
         end
@@ -1211,11 +1211,11 @@ function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx,
             red_abstol = min(abstol, 10*red_abstol)
         end
 
-        # If the integration step is unsuccessfull, break with a warning; note that the
-        # last integration step (which was not successfull) is returned
+        # If the integration step is unsuccessful, break with a warning; note that the
+        # last integration step (which was not successful) is returned
         if !_success
             @warn("""
-            Exiting due to unsuccessfull step
+            Exiting due to unsuccessful step
             """, _success, t0)
             break
         end
