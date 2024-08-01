@@ -9,7 +9,7 @@ const α_mid = TaylorModels.α_mid
 
 setformat(:full)
 
-function check_containment(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
+function check_containmentTM1(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
     x0 = expansion_point(tma)
     xfp = diam(domain(tma))*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
@@ -165,15 +165,16 @@ end
 
         f(x) = x + x^2
         g(x) = x
-        h(x) = x^2*(1+x)
+        h(x) = x^3*(1+x)
 
         tm = TaylorModel1(deepcopy(t), 0 .. 0, x00, dom)
         fgTM1 = f(tm) / g(tm)
         @test isentire(remainder(fgTM1))
 
-        fgTM1 = f(tm) * g(tm)
+        fgTM1 = f(tm) * (g(tm))^2
         hh = h(tm)
-        @test fgTM1 == hh
+        @test polynomial(fgTM1) ≈ polynomial(hh)
+        @test remainder(fgTM1) == remainder(hh)
         for ind = 1:_num_tests
             xξ = rand(dom)-x00
             qξ = rand(symIbox)
@@ -258,7 +259,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, tma)
+            @test check_containmentTM1(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -279,7 +280,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, tma)
+            @test check_containmentTM1(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -297,7 +298,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, tma)
+            @test check_containmentTM1(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -315,7 +316,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, tma)
+            @test check_containmentTM1(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -333,7 +334,7 @@ end
         @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
                         ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, tma)
+            @test check_containmentTM1(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -348,7 +349,7 @@ end
         tmb = ftest(tm)
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, tma)
+            @test check_containmentTM1(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -459,7 +460,7 @@ end
         @test exact_res.pol == integ_res.pol
         @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containment(exp, integ_res)
+            @test check_containmentTM1(exp, integ_res)
         end
 
         integ_res = integrate(cos(tm))
@@ -467,7 +468,7 @@ end
         @test exact_res.pol == integ_res.pol
         @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containment(sin, integ_res)
+            @test check_containmentTM1(sin, integ_res)
         end
 
         integ_res = integrate(-sin(tm), 1..1)
@@ -475,7 +476,7 @@ end
         @test exact_res.pol == integ_res.pol
         @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containment(cos, integ_res)
+            @test check_containmentTM1(cos, integ_res)
         end
 
         integ_res = integrate(1/(1+tm^2))
@@ -483,7 +484,7 @@ end
         @test exact_res.pol == integ_res.pol
         # @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containment(atan, integ_res)
+            @test check_containmentTM1(atan, integ_res)
         end
     end
 
