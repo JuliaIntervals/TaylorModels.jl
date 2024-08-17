@@ -15,20 +15,19 @@ Joldes PhD thesis (pp 52).
 
 """
 function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
-
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
     bb = sup(fTIend) < 0 || inf(fTIend) > 0
     return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
 end
-function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
-    # The domain of the TaylorN part is assumed to be
-    # the normalized symmetric box
-    _order = get_order(polf) + 1
-    fTIend = polfI[_order]
-    bb = sup(fTIend) < 0 || inf(fTIend) > 0
-    return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
-end
+# function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
+#     # The domain of the TaylorN part is assumed to be
+#     # the normalized symmetric box
+#     _order = get_order(polf) + 1
+#     fTIend = polfI[_order]
+#     bb = sup(fTIend) < 0 || inf(fTIend) > 0
+#     return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
+# end
 
 
 """
@@ -45,7 +44,6 @@ remainder. This corresponds to Prop 2.3.7 in Mioara Joldes' PhD thesis (pp 67).
 
 """
 function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
-
     _order = get_order(polf) + 1
     fTIend = polfI[_order+1]
     a = Interval(inf(I))
@@ -85,6 +83,7 @@ end
     Δx0 = (f(x0) - polf[0])(symIbox)
     return hull(Δlo, Δx0, Δhi)
 end
+
 """
     _monot_bound_remainder(::Type{TaylorModel1}, ::Val{false}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
 
@@ -105,7 +104,6 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
 """
 @inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1, polfI::Taylor1, x0, I::Interval)
-
     _order = get_order(polf) + 1
     a = Interval(inf(I))
     b = Interval(sup(I))
@@ -122,7 +120,6 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
 end
 @inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
-
     _order = get_order(polf) + 1
     a = Interval(inf(I))
     b = Interval(sup(I))
@@ -157,7 +154,6 @@ tighter bound.
 
 """
 function bound_taylor1(fT::Taylor1, I::Interval)
-
     # Check if the fT is monotonous (the derivative has a given sign)
     fTd  = TaylorSeries.derivative(fT)
     range_deriv = fTd(I)
@@ -189,7 +185,6 @@ a definite sign.
 
 """
 function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
-    #
     I_lo = inf(I)
     I_hi = sup(I)
     if inf(fTd(I)) ≥ 0
@@ -201,7 +196,6 @@ function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T
 end
 function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
         I::Interval{S}) where {T,S}
-    #
     I_lo = inf(I)
     I_hi = sup(I)
     if inf(fTd(I)) ≥ 0

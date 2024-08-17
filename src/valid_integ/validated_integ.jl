@@ -154,12 +154,6 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
         xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
     end
 
-    # # parse_eqs == false
-    #     # Internals: jet transport integration
-    #     xaux  = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    #     # Internals: Taylor1{Interval{T}} integration
-    #     xauxI = Array{Taylor1{Interval{T}}}(undef, dof)
-
     # Direction of the integration
     sign_tstep = copysign(1, tmax-t0)
 
@@ -177,18 +171,6 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
                     orderT, red_abstol, params,
                     adaptive, minabstol, absorb, check_property)
         δtI = sign_tstep * Interval(zt, sign_tstep*δt)
-    # # parse_eqs == false
-    #         (_success, δt, red_abstol) = validated_step!(f!, t, x, dx, xaux, tI, xI, dxI, xauxI,
-    #                     t0, tmax, sign_tstep, xTMN, rem, zB, S,
-    #                     orderT, red_abstol, params,
-    #                     adaptive, minabstol, absorb, check_property)
-    #         δtI = sign_tstep * Interval(zt, sign_tstep*δt)
-    # # parse_eqs == true
-    #         (_success, δt, red_abstol) = validated_step!(f!, t, x, dx, rv, tI, xI, dxI, rvI,
-    #                     t0, tmax, sign_tstep, xTMN, rem, zB, S,
-    #                     orderT, red_abstol, params,
-    #                     adaptive, minabstol, absorb, check_property)
-    #         δtI = sign_tstep * Interval(zt, sign_tstep*δt)
 
         # New initial conditions and time, and output vectors
         nsteps += 1
