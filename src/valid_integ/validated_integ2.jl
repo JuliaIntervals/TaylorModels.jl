@@ -31,18 +31,6 @@ function validated_integ2(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int,
     return _validated_integ2!(f!, t0, tmax, orderT, x, dx, rv,
         abstol, params, parse_eqs, maxsteps, adaptive, minabstol, absorb,
         validatesteps, ε, δ, absorb_steps)
-    # if parse_eqs
-    #     # Re-initialize the Taylor1 expansions
-    #     t = t0 + Taylor1( T, orderT )
-    #     initialize!(X0, orderQ, orderT, x)
-    #     return _validated_integ2!(f!, t0, tmax, orderT, x, dx, rv,
-    #         abstol, params, maxsteps, adaptive, minabstol, absorb,
-    #         validatesteps, ε, δ, absorb_steps)
-    # else
-    #     return _validated_integ2!(f!, t0, tmax, orderT, x, dx,
-    #         abstol, params, maxsteps, adaptive, minabstol, absorb,
-    #         validatesteps, ε, δ, absorb_steps)
-    # end
 end
 
 function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx, rv,
