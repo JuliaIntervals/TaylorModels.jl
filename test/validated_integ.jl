@@ -276,12 +276,18 @@ end
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
         sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-            # Somehow, remainder becomes unbounded for parse_eqs=true
             parse_eqs=false,
-            maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false)
+            maxsteps=3, adaptive=true, minabstol=1e-50, absorb=false);
         tTM, qv, qTM = getfield.((sol1,), 1:3)
         @test domain(sol1,1) == 0..0
         @test all(isfinite.(remainder.(qTM)))
+        sol2 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+            parse_eqs=true,
+            maxsteps=3, adaptive=true, minabstol=1e-50, absorb=false);
+        tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
+        @test domain(sol2,1) == 0..0
+        @test all(isfinite.(remainder.(qTM2)))
+        @test all(sol1 .== sol2)
 
         Random.seed!(1)
         end_idx = lastindex(tTM)
