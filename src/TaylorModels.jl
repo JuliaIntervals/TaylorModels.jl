@@ -43,7 +43,8 @@ include("rpa_functions.jl")
 include("arithmetic.jl")
 include("integration.jl")
 include("show.jl")
-include("validatedODEs.jl")
+include("valid_integ/validated_integ.jl")
+include("valid_integ/validated_integ2.jl")
 include("recipe.jl")
 
 

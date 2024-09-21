@@ -13,7 +13,7 @@ function get_random_point(ib0::IntervalBox{N, T}) where {N, T}
     return diam.(ib0) .* (rand(N) .- 0.5) .+ xmid
 end
 
-function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
+function check_containmentTMN(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
     x0 = expansion_point(tma)
     xfp = get_random_point(domain(tma))
     xbf = [big(xfp[i]) for i=1:N]
@@ -139,7 +139,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, xx, tma)
+            @test check_containmentTMN(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
         @test_throws AssertionError tmb(ib1.+Interval(1))
@@ -158,7 +158,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, xx, tma)
+            @test check_containmentTMN(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
         @test_throws AssertionError tmb(ib1.+Interval(1))
@@ -173,7 +173,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, xx, tma)
+            @test check_containmentTMN(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
         @test_throws AssertionError tmb(ib1.+Interval(1))
@@ -188,7 +188,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, xx, tma)
+            @test check_containmentTMN(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
         @test_throws AssertionError tmb(ib1.+Interval(1))
@@ -203,7 +203,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
         #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containment(ftest, xx, tma)
+            @test check_containmentTMN(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
         @test_throws AssertionError tmb(ib1.+Interval(1))
