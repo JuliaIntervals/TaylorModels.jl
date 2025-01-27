@@ -38,6 +38,8 @@ jobs:
         # exclude:
         #   - os: macOS-latest
         #     julia-arch: x86
+        julia-threads:
+          - '1'
 
     steps:
       - uses: actions/checkout@v4
