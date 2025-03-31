@@ -3,7 +3,7 @@
 using RecipesBase
 
 @recipe function g(f::TaylorModel1)
-    ffp = fp_rpa(f)
+    ffp = f#fp_rpa(f)
     fT = polynomial(ffp)
     Δ = remainder(ffp)
     ξ0 = expansion_point(ffp)
@@ -22,7 +22,7 @@ using RecipesBase
 end
 
 @recipe function g(f::RTaylorModel1)
-    ffp = fp_rpa(f)
+    ffp = f#fp_rpa(f)
     fT = polynomial(ffp)
     Δ = remainder(ffp)
     ξ0 = expansion_point(ffp)
@@ -36,8 +36,8 @@ end
 
     corrs = (xs .- ξ0) .^ order
     Δrel = Δ .* corrs
-    evalslo = inf.(evals + Δrel)
-    evalshi = sup.(evals + Δrel)
+    evalslo = inf.(evals .+ Δrel)
+    evalshi = sup.(evals .+ Δrel)
 
     xs = [xs; reverse(xs); xs[1]]
     ys = [evalslo; reverse(evalshi); evalslo[1]]

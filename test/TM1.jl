@@ -1,15 +1,16 @@
 # Tests using TaylorModel1
 
 using TaylorModels
-# using LinearAlgebra: norm
-using Test
+
+using Test, Random
+
 
 const _num_tests = 1000
 const α_mid = TaylorModels.α_mid
 
 setformat(:full)
 
-function check_containmentTM1(ftest, tma::T) where {T<:Union{TaylorModel1, RTaylorModel1}}
+function check_containment(ftest, tma::TaylorModel1)
     x0 = expansion_point(tma)
     xfp = diam(domain(tma))*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
@@ -259,7 +260,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containmentTM1(ftest, tma)
+            @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -280,7 +281,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containmentTM1(ftest, tma)
+            @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -298,7 +299,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containmentTM1(ftest, tma)
+            @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -316,7 +317,7 @@ end
         @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
                         ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containmentTM1(ftest, tma)
+            @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -334,7 +335,7 @@ end
         @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
                         ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containmentTM1(ftest, tma)
+            @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -349,7 +350,7 @@ end
         tmb = ftest(tm)
         @test remainder(tmb) ⊆ remainder(tma)
         for ind = 1:_num_tests
-            @test check_containmentTM1(ftest, tma)
+            @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(ii.hi+1.0)
         @test_throws AssertionError tmb(ii+Interval(1))
@@ -359,45 +360,50 @@ end
         orderT = 5
         orderQ = 5
         dom = 0 .. 1
-        x00 = mid(dom)
-        q0 = [0.5]
+        t00 = mid(dom)
         symIbox = IntervalBox(-1 .. 1, 1)
-        δq0 = IntervalBox(-0.2 .. 0.2, 1)
-        qaux = normalize_taylor(TaylorN(1, order=orderQ) + q0[1], δq0, true)
+        δq0 = IntervalBox(-0.25 .. 0.25, 1)
+        qaux = normalize_taylor(TaylorN(1, order=orderQ) + t00, δq0, true)
         xT = Taylor1([qaux, one(qaux)], orderT)
-        tm = TaylorModel1(deepcopy(xT), 0 .. 0, x00, dom)
+        tm = TaylorModel1(deepcopy(xT), 0 .. 0, t00, dom)
 
-        f(x) = sin(x)
-        ff(x) = cos(x)
-        g(x) = exp(x)
-        gg(x) = x^5
-        h(x) = log(1.0+x)
-        hh(x) = x^3 / x^5
+        s(x) = sin(x)
+        c(x) = cos(x)
+        ee(x) = exp(x)
+        p5(x) = x^5
+        lone(x) = log(1.0+x)
+        pol(x) = x^3 / x^5
 
-        fT = f(tm)
-        ffT = ff(tm)
-        gT = g(tm)
-        ggT = gg(tm)
-        hT = h(tm)
-        hhT = hh(tm)
+        sT = s(tm)
+        cT = c(tm)
+        eeT = ee(tm)
+        p5T = p5(tm)
+        loneT = lone(tm)
+        polT = pol(tm)
 
         for ind = 1:_num_tests
-            xξ = rand(domain(fT))
-            q0ξ = (q0 .+ rand(δq0))[1]
-            t = Taylor1(orderT) + q0ξ
-            ft = f(t)
-            fft = ff(t)
-            gt = g(t)
-            ggt = gg(t)
-            ht = h(t)
-            hht = hh(t)
+            xξ = rand(dom)
+            q0ξ = t00 + rand(δq0)[1]
+            t = Taylor1(2*orderT) + q0ξ
+            st = s(t)
+            ct = c(t)
+            eet = ee(t)
+            p5t = p5(t)
+            lonet = lone(t)
+            polt = pol(t)
 
-            @test ft(xξ - q0ξ) ⊆ fT(xξ - fT.x0)(symIbox)
-            @test fft(xξ - q0ξ) ⊆ ffT(xξ - ffT.x0)(symIbox)
-            @test gt(xξ - q0ξ) ⊆ gT(xξ - gT.x0)(symIbox)
-            @test ggt(xξ - q0ξ) ⊆ ggT(xξ - ggT.x0)(symIbox)
-            @test ht(xξ - q0ξ) ⊆ hT(xξ - hT.x0)(symIbox)
-            @test hht(xξ - q0ξ) ⊆ hhT(xξ - hhT.x0)(symIbox)
+            @test s(xξ) ⊆ sT(xξ - t00)(symIbox)
+            @test st(xξ - q0ξ) ⊆ sT(xξ - t00)(symIbox)
+            @test c(xξ) ⊆ cT(xξ - t00)(symIbox)
+            @test ct(xξ - q0ξ) ⊆ cT(xξ - t00)(symIbox)
+            @test ee(xξ) ⊆ eeT(xξ - t00)(symIbox)
+            @test eet(xξ - q0ξ) ⊆ eeT(xξ - t00)(symIbox)
+            @test p5(xξ) ⊆ p5T(xξ - t00)(symIbox)
+            @test p5t(xξ - q0ξ) ⊆ p5T(xξ - t00)(symIbox)
+            @test lone(xξ) ⊆ loneT(xξ - t00)(symIbox)
+            @test lonet(xξ - q0ξ) ⊆ loneT(xξ - t00)(symIbox)
+            @test p5(xξ) ⊆ p5T(xξ - t00)(symIbox)
+            @test p5t(xξ - q0ξ) ⊆ p5T(xξ - t00)(symIbox)
         end
     end
 
@@ -460,7 +466,7 @@ end
         @test exact_res.pol == integ_res.pol
         @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containmentTM1(exp, integ_res)
+            @test check_containment(exp, integ_res)
         end
 
         integ_res = integrate(cos(tm))
@@ -468,7 +474,7 @@ end
         @test exact_res.pol == integ_res.pol
         @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containmentTM1(sin, integ_res)
+            @test check_containment(sin, integ_res)
         end
 
         integ_res = integrate(-sin(tm), 1..1)
@@ -476,7 +482,7 @@ end
         @test exact_res.pol == integ_res.pol
         @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containmentTM1(cos, integ_res)
+            @test check_containment(cos, integ_res)
         end
 
         integ_res = integrate(1/(1+tm^2))
@@ -484,7 +490,7 @@ end
         @test exact_res.pol == integ_res.pol
         # @test remainder(exact_res) ⊆ remainder(integ_res)
         for ind = 1:_num_tests
-            @test check_containmentTM1(atan, integ_res)
+            @test check_containment(atan, integ_res)
         end
     end
 
