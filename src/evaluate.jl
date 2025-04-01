@@ -22,6 +22,15 @@ for TM in tupleTMs
 
     @eval evaluate(tm::Vector{$TM{T,S}}, a) where {T,S} = evaluate.(tm, a)
 
+    # Evaluate the $TM{TaylorN} by assuming the TaylorN vars are properly symmetrized,
+    # and thus `a` is contained in the corresponding [-1,1] box; this is not checked.
+    @eval evaluate(tm::$TM{TaylorN{T},S}, a::IntervalBox) where {T<:NumberNotSeries,S} =
+        evaluate(tm, Vector(a.v))
+    @eval function evaluate(tm::$TM{TaylorN{T},S}, a::AbstractVector{R}) where {T<:NumberNotSeries,S,R}
+        @assert length(a) == get_numvars()
+        pol = tm.pol(a)
+        return $TM(pol, tm.rem, one(pol[0])*tm.x0, tm.dom)
+    end
 
     # _evaluate corresponds to composition: substitute tmf into tmg
     # It **does not** include the remainder

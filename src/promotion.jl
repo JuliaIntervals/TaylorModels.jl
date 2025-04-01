@@ -3,7 +3,6 @@
 
 # # Promotion
 function promote(a::TaylorModelN{N,T,S}, b::R) where {N, T<:Real, S<:Real, R<:Real}
-    orderTMN = get_order(a[0])
     apol, bb = promote(a.pol, b)
     a_rem = remainder(a)
     return (TaylorModelN(apol, a_rem, expansion_point(a), domain(a)),

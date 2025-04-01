@@ -16,6 +16,7 @@ interval_rand(X::IntervalBox) = interval_rand.(X)
 
 # Function to check, against an exact solution of the ODE, the computed
 # validted solution
+# test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
 function test_integ(fexact, t0, qTM, q0, δq0)
     normalized_box = symmetric_box(length(q0), Float64)
     # Time domain
@@ -68,6 +69,7 @@ end
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
             @test domain(sol,1) == 0..0
+            @test all(isfinite.(remainder.(qTM)))
 
             end_idx = lastindex(sol)
             Random.seed!(1)
@@ -110,6 +112,7 @@ end
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
             @test domain(sol,1) == 0..0
+            @test all(isfinite.(remainder.(qTM)))
 
             Random.seed!(1)
             end_idx = lastindex(sol)
@@ -146,6 +149,7 @@ end
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
             @test domain(sol,1) == 0..0
+            @test all(isfinite.(remainder.(qTM)))
 
             Random.seed!(1)
             end_idx = lastindex(sol)
@@ -181,6 +185,7 @@ end
             @test firstindex(sol) == 1
             @test sol[2] == get_xTM(sol,2)
             @test domain(sol,1) == 0..0
+            @test all(isfinite.(remainder.(qTM)))
 
             Random.seed!(1)
             end_idx = lastindex(sol)
@@ -214,6 +219,7 @@ end
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == length(qTM[1, :]) == length(tTM)
             @test domain(sol,1) == 0..0
+            @test all(isfinite.(remainder.(qTM)))
 
             Random.seed!(1)
             end_idx = lastindex(tTM)
@@ -242,6 +248,7 @@ end
             @test domain(sol,1) == 0..0
 
             @test length(qv) == length(qTM[1, :]) == length(tTM)
+            @test all(isfinite.(remainder.(qTM)))
 
             Random.seed!(1)
             end_idx = lastindex(tTM)
@@ -250,6 +257,59 @@ end
                 @test test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
             end
         end
+    end
+
+    @testset "x_cube!" begin
+        @taylorize x_cube!(dx, x, p, t) = (dx[1] = - x[1]^3;)
+
+        exactsol(t, x) = x[1] / sqrt(1 + 2*x[1]^2*t)
+
+        tini, tend = 0.0, 3.0
+        normalized_box = symmetric_box(1, Float64)
+        abstol = 1e-20
+        orderQ = 3
+        orderT = 20
+        params = nothing
+        q0 = [0.5]
+        δq0 = 0.4 * normalized_box
+        X0 = IntervalBox(q0 .+ δq0)
+        ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
+
+        sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+            parse_eqs=false,
+            maxsteps=3, adaptive=true, minabstol=1e-50, absorb=false);
+        tTM, qv, qTM = getfield.((sol1,), 1:3)
+        @test domain(sol1,1) == 0..0
+        @test all(isfinite.(remainder.(qTM)))
+        sol2 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+            parse_eqs=true,
+            maxsteps=3, adaptive=true, minabstol=1e-50, absorb=false);
+        tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
+        @test domain(sol2,1) == 0..0
+        @test all(isfinite.(remainder.(qTM2)))
+        @test all(sol1 .== sol2)
+
+        Random.seed!(1)
+        end_idx = lastindex(tTM)
+        for it = 1:_num_tests
+            n = rand(1:end_idx)
+            @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
+        end
+
+        sol2 = validated_integ2(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+            maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
+            validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
+        tTM, qv, qTM = getfield.((sol2,), 1:3)
+        @test domain(sol2,1) == 0..0
+        @test all(isfinite.(remainder.(qTM)))
+
+        Random.seed!(1)
+        end_idx = lastindex(tTM)
+        for it = 1:_num_tests
+            n = rand(1:end_idx)
+            @test test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+        end
+
     end
 
     @testset "Pendulum with constant torque" begin
@@ -279,10 +339,14 @@ end
 
         sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
         @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
+        qTM = getfield(sol, 3)
+        @test all(isfinite.(remainder.(qTM)))
 
         sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
         @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
+        qTM = getfield(sol, 3)
+        @test all(isfinite.(remainder.(qTM)))
 
         # Initial conditions 2
         q0 = [1.1, 0.1, 0.0]
@@ -292,9 +356,13 @@ end
 
         sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
         @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
+        qTM = getfield(sol, 3)
+        @test all(isfinite.(remainder.(qTM)))
 
         sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
             validatesteps=32);
         @test all(ene0 .⊆ ene_pendulum.(flowpipe(sol)))
+        qTM = getfield(sol, 3)
+        @test all(isfinite.(remainder.(qTM)))
     end
 end

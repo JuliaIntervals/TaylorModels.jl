@@ -1,8 +1,8 @@
 # Tests using TaylorModel1 and RTaylorModel1
 
 using TaylorModels
-using LinearAlgebra: norm
-using Test
+
+using Test, Random
 
 const _num_tests = 1000
 
