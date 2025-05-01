@@ -1,7 +1,7 @@
 module TaylorModels
 
 using Reexport
-@reexport using TaylorSeries, IntervalArithmetic
+@reexport using TaylorSeries, IntervalArithmetic, IntervalArithmetic.Symbols
 @reexport using TaylorIntegration
 
 using IntervalRootFinding
@@ -34,13 +34,15 @@ export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
 
 export linear_dominated_bounder, quadratic_fast_bounder
 
+setdisplay(:full)
+
 include("constructors.jl")
 include("auxiliary.jl")
 include("promotion.jl")
 include("bounds.jl")
 include("evaluate.jl")
-include("rpa_functions.jl")
 include("arithmetic.jl")
+include("rpa_functions.jl")
 include("integration.jl")
 include("show.jl")
 include("valid_integ/validated_integ.jl")
