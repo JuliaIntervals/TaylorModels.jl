@@ -1,7 +1,8 @@
 # bounds.jl
 
 """
-   bound_remainder(::Type{TaylorModel1}f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
+    bound_remainder(::Type{TaylorModel1}f::Function, polf::Taylor1, polfI::Taylor1,
+        x0::Interval, I::Interval)
 
 Bound the absolute remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
@@ -14,13 +15,15 @@ to compute the Lagrange remainder. This corresponds to Prop 2.2.1 in Mioara
 Joldes PhD thesis (pp 52).
 
 """
-function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1,
+        polfI::Taylor1, x0, I::Interval)
     _order = get_order(polf) + 1
     fTIend = polfI[_order]
     bb = sup(fTIend) < 0 || inf(fTIend) > 0
     return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
 end
-# function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
+# function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}},
+#         polfI::Taylor1, x0, I::Interval) where {T}
 #     # The domain of the TaylorN part is assumed to be
 #     # the normalized symmetric box
 #     _order = get_order(polf) + 1
@@ -31,7 +34,8 @@ end
 
 
 """
-   bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0::Interval, I::Interval)
+    bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1,
+        x0::Interval, I::Interval)
 
 Bound the relative remainder of the polynomial approximation of `f` given
 by the Taylor polynomial `polf` around `x0` on the interval `I`. It requires
@@ -43,26 +47,31 @@ which is exploited; otherwise, the last coefficients bounds the relative
 remainder. This corresponds to Prop 2.3.7 in Mioara Joldes' PhD thesis (pp 67).
 
 """
-function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+function bound_remainder(::Type{RTaylorModel1}, f::Function, polf::Taylor1,
+        polfI::Taylor1, x0, I::Interval)
     _order = get_order(polf) + 1
     fTIend = polfI[_order+1]
-    a = Interval(inf(I))
-    b = Interval(sup(I))
-    bb = (sup(fTIend) < 0 || inf(fTIend) > 0) && isempty(a ∩ x0) && isempty(b ∩ x0)
+    a = interval(inf(I))
+    b = interval(sup(I))
+    bb = (sup(fTIend) < 0 || inf(fTIend) > 0) &&
+        isempty_interval(intersect_interval(a, x0)) &&
+        isempty_interval(intersect_interval(b, x0))
     return _monot_bound_remainder(RTaylorModel1, Val(bb), f, polf, polfI, x0, I)
 end
 
 
 """
-    _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function, polf::Taylor1, polfI::Taylor1, x0, I::Interval)
+    _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function,
+        polf::Taylor1, polfI::Taylor1, x0, I::Interval)
 
-Computes the remainder exploiting monotonicity; see Prop 2.2.1 in Mioara Joldes' PhD thesis (pp 52).
+Computes the remainder exploiting monotonicity; see Prop 2.2.1 in Mioara Joldes'
+PhD thesis (pp 52).
 """
 @inline function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1, polfI::Taylor1, x0, I::Interval)
     # Absolute remainder is monotonic
-    a = Interval(inf(I))
-    b = Interval(sup(I))
+    a = interval(inf(I))
+    b = interval(sup(I))
     Δlo = f(a) - polf(a-x0)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δhi = f(b) - polf(b-x0)
@@ -73,9 +82,9 @@ end
 @inline function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
     # Absolute remainder is monotonic
-    a = Interval(inf(I))
-    b = Interval(sup(I))
-    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    a = interval(inf(I))
+    b = interval(sup(I))
+    symIbox = symmetric_box(numtype(I))
     Δlo = (f(a) - polf(a-x0))(symIbox)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δhi = (f(b) - polf(b-x0))(symIbox)
@@ -105,8 +114,8 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
 @inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1, polfI::Taylor1, x0, I::Interval)
     _order = get_order(polf) + 1
-    a = Interval(inf(I))
-    b = Interval(sup(I))
+    a = interval(inf(I))
+    b = interval(sup(I))
     # Error is monotonic
     denom_lo = (a-x0)^_order
     Δlo = f(a) - polf(a-x0)
@@ -121,9 +130,9 @@ end
 @inline function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1{TaylorN{T}}, polfI::Taylor1, x0, I::Interval) where {T}
     _order = get_order(polf) + 1
-    a = Interval(inf(I))
-    b = Interval(sup(I))
-    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    a = interval(inf(I))
+    b = interval(sup(I))
+    symIbox = symmetric_box(numtype(I))
     # Error is monotonic
     denom_lo = (a-x0)^_order
     Δlo = (f(a) - polf(a-x0))(symIbox)
@@ -162,12 +171,13 @@ function bound_taylor1(fT::Taylor1, I::Interval)
     # Compute roots of the derivative using the second derivative
     # Fix some sort of relative tolerance for Newton root search
     fTd2 = TaylorSeries.derivative(fTd)
+    # TODO: Needs update!!
     rootsder = roots(x->fTd(x), x->fTd2(x), I, Newton, 1.0e-5*mag(I))
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
     num_roots == 0 && return fT(I)
-    rangepoly = hull( fT(Interval(inf(I))), fT(Interval(sup(I))) )
+    rangepoly = hull( fT(interval(inf(I))), fT(interval(sup(I))) )
     @inbounds for ind in 1:num_roots
         rangepoly = hull(rangepoly, fT(rootsder[ind].interval))
     end
@@ -188,9 +198,9 @@ function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T
     I_lo = inf(I)
     I_hi = sup(I)
     if inf(fTd(I)) ≥ 0
-        return Interval(fT(I_lo), fT(I_hi))
+        return interval(fT(I_lo), fT(I_hi))
     elseif sup(fTd(I)) ≤ 0
-        return Interval(fT(I_hi), fT(I_lo))
+        return interval(fT(I_hi), fT(I_lo))
     end
     return fT(I)
 end
@@ -214,7 +224,7 @@ in the interval `I`, considering whether its derivative `ftd` has
 a definite sign.
 
 """
-bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval) = bound_taylor1(polynomial(fT), I)
+bound_taylor1(fT::TaylorModel1, I::Interval=domain(fT)) = bound_taylor1(polynomial(fT), I)
 
 """
     linear_dominated_bounder(fT::TaylorModel1, ϵ=1e-3::Float64, max_iter=5::Int)
@@ -258,15 +268,15 @@ function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) w
         elseif Li > 0
             new_hi = min(dom_lo + (d / abs(Li)), dom_hi)
             x0 = dom
-            dom = Interval(dom_lo, new_hi)
+            dom = interval(dom_lo, new_hi)
         else
             new_lo = max(dom_hi - (d / abs(Li)), dom_lo)
             x0 = dom
-            dom = Interval(new_lo, dom_hi)
+            dom = interval(new_lo, dom_hi)
         end
     end
 
-    return Interval(inf(bound), hi) + remainder(fT)
+    return interval(inf(bound), hi) + remainder(fT)
 end
 
 """
@@ -278,7 +288,7 @@ the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter
 The returned bound corresponds to the improved polynomial bound with the remainder
 of the `TaylorModelN` included.
 """
-function linear_dominated_bounder(fT::TaylorModelN{N,T,S}; ϵ=1e-5, max_iter=5) where {N, T, S}
+function linear_dominated_bounder(fT::TaylorModelN{T,S}; ϵ=1e-5, max_iter=5) where {T, S}
     d = one(T)
     dom = domain(fT)
     x0 = expansion_point(fT)
@@ -317,18 +327,18 @@ function linear_dominated_bounder(fT::TaylorModelN{N,T,S}; ϵ=1e-5, max_iter=5) 
                 domi = box
             elseif Li < 0
                 lo = max(box_hi - (d / abs(Li)), box_lo)
-                domi = Interval(lo, box_hi)
+                domi = interval(lo, box_hi)
             else
                 hi = min(box_lo + (d / abs(Li)), box_hi)
-                domi = Interval(box_lo, hi)
+                domi = interval(box_lo, hi)
             end
             new_boxes[idx] = domi
         end
         x0 = dom
-        dom = IntervalBox(new_boxes...)
+        dom = Vector(new_boxes...)
     end
 
-    return Interval(inf(bound), pol_hi) + remainder(fT)
+    return interval(inf(bound), pol_hi) + remainder(fT)
 end
 
 """
@@ -360,9 +370,9 @@ function quadratic_fast_bounder(fT::TaylorModel1)
     Qx0 = (x - x0) * P[2] * (x - x0)
     bound_qfb = (P - Qx0)(cent_dom)
     hi = sup(P(cent_dom))
-    bound_qfb = Interval(inf(bound_qfb), hi) + remainder(fT)
+    bound_qfb = interval(inf(bound_qfb), hi) + remainder(fT)
 
-    return bound_qfb ∩ bound_tm
+    return intersect_interval(bound_qfb, bound_tm)
 end
 
 """
@@ -396,7 +406,7 @@ function quadratic_fast_bounder(fT::TaylorModelN)
         bound_qfb = (P - Qxn)(dom - x0)
         hi = sup(P(dom - x0))
         bound_qfb = interval(inf(bound_qfb), hi) + remainder(fT)
-        bound = bound_qfb ∩ bound_tm
+        bound = intersect_interval(bound_qfb, bound_tm)
         return bound
     end
 

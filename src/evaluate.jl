@@ -24,9 +24,10 @@ for TM in tupleTMs
 
     # Evaluate the $TM{TaylorN} by assuming the TaylorN vars are properly symmetrized,
     # and thus `a` is contained in the corresponding [-1,1] box; this is not checked.
-    @eval evaluate(tm::$TM{TaylorN{T},S}, a::IntervalBox) where {T<:NumberNotSeries,S} =
-        evaluate(tm, Vector(a.v))
-    @eval function evaluate(tm::$TM{TaylorN{T},S}, a::AbstractVector{R}) where {T<:NumberNotSeries,S,R}
+    @eval evaluate(tm::$TM{TaylorN{T},S}, a::Vector{Interval{S}}) where
+        {T<:NumberNotSeries,S} = evaluate(tm, Vector(a.v))
+    @eval function evaluate(tm::$TM{TaylorN{T},S}, a::AbstractVector{R}) where
+            {T<:NumberNotSeries,S,R}
         @assert length(a) == get_numvars()
         pol = tm.pol(a)
         return $TM(pol, tm.rem, one(pol[0])*tm.x0, tm.dom)
@@ -56,7 +57,7 @@ end
 
 
 # Substitute a TaylorModelN into a TM1; it **does not** include the remainder
-function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
+function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{T,S}) where{T,S}
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
@@ -77,7 +78,7 @@ end
 
 # Evaluates the TMN on an interval, or array with proper dimension;
 # the computation includes the remainder
-function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
+function evaluate(tm::TaylorModelN{T,S}, a::Vector{Interval{S}}) where {T,S}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
@@ -86,9 +87,9 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
     return tm.pol(a) + Δ
 end
 
-(tm::TaylorModelN{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
+(tm::TaylorModelN{T,S})(a::Vector{Interval{S}}) where {T,S} = evaluate(tm, a)
 
-function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
+function evaluate(tm::TaylorModelN{T,S}, a::AbstractVector{R}) where {T,S,R}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
@@ -97,13 +98,13 @@ function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
     return tm.pol(a) + Δ
 end
 
-(tm::TaylorModelN{N,T,S})(a::AbstractVector{R}) where {N,T,S,R} = evaluate(tm, a)
+(tm::TaylorModelN{T,S})(a::AbstractVector{R}) where {T,S,R} = evaluate(tm, a)
 
-evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
-    IntervalBox( [ tm[i](a) for i in eachindex(tm) ] )
+evaluate(tm::Vector{TaylorModelN{T,S}}, a::Vector{Interval{S}}) where {T,S} =
+    Interval.( tm[i](a) for i in eachindex(tm) )
 
 
-function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N, T<:Real, S<:Real}
+function evaluate(a::Taylor1{TaylorModelN{T,S}}, dx::T) where {T<:Real, S<:Real}
     @inbounds suma = a[end]*one(dx)
     @inbounds for k in get_order(a)-1:-1:0
         suma = suma*dx + a[k]

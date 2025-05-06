@@ -3,6 +3,8 @@
 # getindex, fistindex, lastindex
 for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
     @eval begin
+        tmdata(f::$TM) = (expansion_point(f), domain(f))
+
         copy(f::$TM) = $TM(copy(f.pol), remainder(f), expansion_point(f), domain(f))
         @inline firstindex(a::$TM) = 0
         @inline lastindex(a::$TM) = get_order(a)
@@ -43,15 +45,15 @@ iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
 iscontained(a::Vector{Interval{S}}, tm::TaylorModelN) where {S} =
     all(issubset_interval.(a, centered_dom(tm)))
 
-symmetric_box(T::Type{S}) where {S<:IntervalArithmetic.NumTypes} = [interval(-one(T), one(T)) for _ = 1:get_numvars()]
-symmetric_box(T,N) = [interval(-one(T), one(T)) for _ = 1:get_numvars()]
-
+symmetric_box(T::Type{S}, nvars::Int=get_numvars()) where {S<:IA.NumTypes} =
+    [interval(-one(T), one(T)) for _ = 1:nvars]
+symmetric_box(::Type{Interval{T}}) where {T<:IA.NumTypes} = symmetric_box(T)
 
 # fixorder and bound_truncation
 for TM in tupleTMs
     @eval begin
         function fixorder(a::$TM, b::$TM)
-            @assert tmdata(a) == tmdata(b)
+            @assert all(isequal_interval.(tmdata(a), tmdata(b)))
             get_order(a) == get_order(b) && return a, b
 
             order = min(get_order(a), get_order(b))
@@ -94,7 +96,7 @@ end
 
 
 function fixorder(a::TaylorModelN, b::TaylorModelN)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     get_order(a) == get_order(b) && return a, b
 
     order = min(get_order(a), get_order(b))

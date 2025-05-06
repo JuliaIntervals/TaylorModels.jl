@@ -30,7 +30,7 @@ export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
 
 export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
     rpa, fp_rpa, bound_remainder, centered_dom,
-    validated_integ, validated_integ2
+    validated_integ, validated_integ2, symmetric_box
 
 export linear_dominated_bounder, quadratic_fast_bounder
 
