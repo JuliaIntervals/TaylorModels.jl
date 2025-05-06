@@ -3,8 +3,6 @@
 # Addition, substraction and other functions
 for TM in tupleTMs
     @eval begin
-        tmdata(f::$TM) = (expansion_point(f), domain(f))
-
         zero(a::$TM) = $TM(zero(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
         one(a::$TM) = $TM(one(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
 
@@ -13,7 +11,8 @@ for TM in tupleTMs
         findfirst(a::$TM) = findfirst(a.pol)
 
         ==(a::$TM, b::$TM) =
-            a.pol == b.pol && remainder(a) == remainder(b) && tmdata(a) == tmdata(b)
+            a.pol == b.pol &&  isequal_interval(remainder(a), remainder(b)) &&
+                all(isequal_interval.(tmdata(a), tmdata(b)))
                 # expansion_point(a) == expansion_point(b) && domain(a) == domain(b)
 
 
@@ -64,7 +63,7 @@ for TM in tupleTMs
 
         # Multiplication
         function *(a::$TM, b::$TM)
-            @assert tmdata(a) == tmdata(b)
+            @assert all(isequal_interval.(tmdata(a), tmdata(b)))
             a_order = get_order(a)
             b_order = get_order(b)
             rnegl_order = a_order + b_order
@@ -143,10 +142,10 @@ end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            b::TaylorModel1{TaylorN{T}, S},
                            auxT, Δnegl) where {T, S}
-    N = get_numvars()
+    # N = get_numvars()
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = IntervalBox(-1 .. 1, Val(N))
+    auxQ = symmetric_box(S)#IntervalBox(-1 .. 1, Val(N))
     Δa = a.pol(auxT)(auxQ)
     Δb = b.pol(auxT)(auxQ)
     a_rem = remainder(a)
@@ -154,8 +153,8 @@ function remainder_product(a::TaylorModel1{TaylorN{T}, S},
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem
     return Δ
 end
-function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
-        b::TaylorModel1{TaylorModelN{N,T,S},S}, aux, Δnegl) where {N,T,S}
+function remainder_product(a::TaylorModel1{TaylorModelN{T,S},S},
+        b::TaylorModel1{TaylorModelN{T,S},S}, aux, Δnegl) where {T,S}
     Δa = a.pol(aux)
     Δb = b.pol(aux)
     a_rem = remainder(a)
@@ -179,10 +178,10 @@ function remainder_product(a, b, aux, Δnegl, order)
 end
 function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{TaylorN{T},S},
                             aux, Δnegl, order) where {T, S}
-    N = get_numvars()
+    # N = get_numvars()
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(N, T)
+    auxQ = symmetric_box(T)
     Δa = a.pol(aux)(auxQ)
     Δb = b.pol(aux)(auxQ)
     V = aux^(order+1)
@@ -195,12 +194,12 @@ end
 
 # Division
 function /(a::TaylorModel1, b::TaylorModel1)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     return basediv(a, b)
 end
 
 function /(a::RTaylorModel1, b::RTaylorModel1)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
 
     # DetermineRootOrderUpperBound seems equivalent (optimized?) to `findfirst`
     bk = findfirst(b)
@@ -246,7 +245,6 @@ end
 
 
 # Same as above, for TaylorModelN
-tmdata(f::TaylorModelN) = (expansion_point(f), domain(f))
 zero(a::TaylorModelN) = TaylorModelN(zero(a.pol), zero(remainder(a)),
     expansion_point(a), domain(a))
 one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
@@ -257,7 +255,7 @@ one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
 findfirst(a::TaylorModelN) = findfirst(a.pol)
 
 ==(a::TaylorModelN, b::TaylorModelN) =
-    a.pol == b.pol && remainder(a) == remainder(b) && tmdata(a) == tmdata(b)
+    a.pol == b.pol && remainder(a) == remainder(b) && all(isequal_interval.(tmdata(a), tmdata(b)))
         # expansion_point(a) == expansion_point(b) && domain(a) == domain(b)
 
 
@@ -284,7 +282,7 @@ end
 
 # Multiplication
 function *(a::TaylorModelN, b::TaylorModelN)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     a_order = get_order(a)
     b_order = get_order(b)
     rnegl_order = a_order + b_order
@@ -341,13 +339,13 @@ end
 
 
 # Power
-function ^(a::TaylorModelN{N,T,S}, r::Number) where {N,T,S}
+function ^(a::TaylorModelN{T,S}, r::Number) where {T,S}
     r == 0 && return one(a)
     r == 1 && return a
     r == 2 && return a*a
     return rpa(x->x^r, a)
 end
-function ^(a::TaylorModelN{N,T,S}, n::Integer) where {N,T,S}
+function ^(a::TaylorModelN{T,S}, n::Integer) where {T,S}
     n == 0 && return one(a)
     n == 1 && return a
     n == 2 && return a*a
