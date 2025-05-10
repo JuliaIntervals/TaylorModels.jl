@@ -142,10 +142,9 @@ end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            b::TaylorModel1{TaylorN{T}, S},
                            auxT, Δnegl) where {T, S}
-    # N = get_numvars()
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(S)#IntervalBox(-1 .. 1, Val(N))
+    auxQ = symmetric_box(S)
     Δa = a.pol(auxT)(auxQ)
     Δb = b.pol(auxT)(auxQ)
     a_rem = remainder(a)
@@ -255,7 +254,8 @@ one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
 findfirst(a::TaylorModelN) = findfirst(a.pol)
 
 ==(a::TaylorModelN, b::TaylorModelN) =
-    a.pol == b.pol && remainder(a) == remainder(b) && all(isequal_interval.(tmdata(a), tmdata(b)))
+    a.pol == b.pol && isequal_interval(remainder(a), remainder(b)) &&
+        all(isequal_interval.(tmdata(a), tmdata(b)))
         # expansion_point(a) == expansion_point(b) && domain(a) == domain(b)
 
 
@@ -297,7 +297,8 @@ function *(a::TaylorModelN, b::TaylorModelN)
 
     # Remaing terms of the product
     vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
-    suma = Array{promote_type(TS.numtype(res), TS.numtype(domain(a)))}(undef, rnegl_order-order)
+    suma = Array{promote_type(TS.numtype(res),
+                    TS.numtype(domain(a)))}(undef, rnegl_order-order)
     for k in order+1:rnegl_order
         vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
         @inbounds for i = 0:k
@@ -308,7 +309,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     end
 
     # Bound for the neglected part of the product of polynomials
-    Δnegl = sum( sort!(suma, by=abs2) )
+    Δnegl = sum( suma ) # = sum( sort!(suma, by=abs2) )
     Δ = remainder_product(a, b, aux, Δnegl)
 
     return TaylorModelN(res, Δ, expansion_point(a), domain(a))

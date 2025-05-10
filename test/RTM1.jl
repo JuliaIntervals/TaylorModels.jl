@@ -4,18 +4,14 @@ using TaylorModels
 
 using Test, Random
 
-
-myrand(a::Interval) = diam(a)*rand() + inf(a)
-
 const _num_tests = 1000
-const TM = TaylorModels
 const α_mid = TM.α_mid
 
 setdisplay(:full)
 
 function check_containment(ftest, tma::RTaylorModel1)
     x0 = expansion_point(tma)
-    xfp = myrand(domain(tma))#diam(domain(tma))*(rand()-0.5) + mid(x0)
+    xfp = sample(domain(tma))#diam(domain(tma))*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
     range = tma(interval(xfp, xfp)-x0)
     bb = in_interval(ftest(xbf), range)
@@ -148,7 +144,8 @@ end
         ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
         q0 = [0.5]
         δq0 = [interval(-0.1, 0.1)]
-        qaux = normalize_taylor(q0[1] + TaylorN(Interval{Float64}, 1, order=orderQ), δq0, true)
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
+        # qaux = normalize_taylor(q0[1] + TaylorN(Interval{Float64}, 1, order=orderQ), δq0, true)
         symIbox = symmetric_box(Float64, 1)
         t = Taylor1([qaux, one(qaux)], orderT)
         dom = interval(-0.5, 0.5)
@@ -167,8 +164,8 @@ end
         @test_skip polynomial(fgTM1) ≈ polynomial(hh)
         @test remainder(fgTM1) == remainder(hh)
         for ind = 1:_num_tests
-            xξ = myrand(dom)-x00
-            qξ = myrand.(symIbox)
+            xξ = sample(dom)-x00
+            qξ = sample.(symIbox)
             tt = tm(xξ)(qξ)
             @test issubset_interval(h(tt), fgTM1(dom-x00)(symIbox))
         end
@@ -178,17 +175,17 @@ end
         fgTM1 = f(tm) / g(tm)
         @test !isentire_interval(remainder(fgTM1))
         for ind = 1:_num_tests
-            xξ = myrand(dom)-x00
-            qξ = myrand.(symIbox)
+            xξ = sample(dom)-x00
+            qξ = sample.(symIbox)
             tt = 1+t(xξ)(qξ)
             @test issubset_interval(tt, fgTM1(dom-x00)(symIbox))
         end
 
         # Testing integration
         @test integrate(tm, symIbox) == RTaylorModel1(integrate(t), x0, x00, dom)
-        @test integrate(f(tm), symIbox) == RTaylorModel1(integrate(f(t)), 0..0, x00, dom)
+        @test integrate(f(tm), symIbox) == RTaylorModel1(integrate(f(t)), x0, x00, dom)
         t = Taylor1([qaux, one(qaux)], orderT)
-        tm = RTaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
+        tm = RTaylorModel1(deepcopy(t), interval(-0.25, 0.25), x00, dom)
         @test integrate(tm, symIbox) == RTaylorModel1(integrate(t),
             remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
     end
@@ -336,7 +333,8 @@ end
         t00 = mid(dom)
         symIbox = symmetric_box(Float64, 1)
         δq0 = [interval(-0.25, 0.25)]
-        qaux = normalize_taylor(TaylorN(Interval{Float64}, 1, order=orderQ) + t00, δq0, true)
+        qaux = normalize_taylor(TaylorN(1, order=orderQ) + t00, δq0, true)
+        # qaux = normalize_taylor(TaylorN(Interval{Float64}, 1, order=orderQ) + t00, δq0, true)
         xT = Taylor1([qaux, one(qaux)], orderT)
         tm = RTaylorModel1(deepcopy(xT), x0, t00, dom)
 
@@ -355,8 +353,8 @@ end
         polT = pol(tm)
 
         for ind = 1:_num_tests
-            xξ = myrand(dom)
-            q0ξ = t00 + myrand.(δq0)[1]
+            xξ = sample(dom)
+            q0ξ = t00 + sample.(δq0)[1]
             t = Taylor1(2*orderT) + q0ξ
             st = s(t)
             ct = c(t)
@@ -434,7 +432,7 @@ end
         order = 4
         tm = RTaylorModel1(order, x0, ii0)
 
-        integ_res = integrate(exp(tm), 1..1)
+        integ_res = integrate(exp(tm), x1)
         exact_res = exp(tm)
         @test exact_res.pol == integ_res.pol
         @test issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1),
@@ -452,7 +450,7 @@ end
             @test check_containment(sin, integ_res)
         end
 
-        integ_res = integrate(-sin(tm), 1..1)
+        integ_res = integrate(-sin(tm), x1)
         exact_res = cos(tm)
         @test exact_res.pol == integ_res.pol
         @test issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1),
@@ -464,7 +462,7 @@ end
         integ_res = integrate(1/(1+tm^2))
         exact_res = atan(tm)
         @test exact_res.pol == integ_res.pol
-        @test_broken remainder(exact_res)*(ii0-x0)^(order+1) ⊆ remainder(integ_res)*(ii0-x0)^(order+1)
+        @test_broken issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1), remainder(integ_res)*(ii0-x0)^(order+1))
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
         end

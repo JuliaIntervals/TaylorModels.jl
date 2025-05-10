@@ -22,15 +22,6 @@ function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1,
     bb = sup(fTIend) < 0 || inf(fTIend) > 0
     return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
 end
-# function bound_remainder(::Type{TaylorModel1}, f::Function, polf::Taylor1{TaylorN{T}},
-#         polfI::Taylor1, x0, I::Interval) where {T}
-#     # The domain of the TaylorN part is assumed to be
-#     # the normalized symmetric box
-#     _order = get_order(polf) + 1
-#     fTIend = polfI[_order]
-#     bb = sup(fTIend) < 0 || inf(fTIend) > 0
-#     return _monot_bound_remainder(TaylorModel1, Val(bb), f, polf, polfI, x0, I)
-# end
 
 
 """
@@ -164,13 +155,13 @@ tighter bound.
 """
 function bound_taylor1(fT::Taylor1, I::Interval)
     # Check if the fT is monotonous (the derivative has a given sign)
-    fTd  = TaylorSeries.derivative(fT)
+    fTd  = TS.derivative(fT)
     range_deriv = fTd(I)
     (sup(range_deriv) ≤ 0 || inf(range_deriv) ≥ 0) && return bound_taylor1(fT, fTd, I)
 
     # Compute roots of the derivative using the second derivative
     # Fix some sort of relative tolerance for Newton root search
-    fTd2 = TaylorSeries.derivative(fTd)
+    fTd2 = TS.derivative(fTd)
     # TODO: Needs update!!
     rootsder = roots(x->fTd(x), x->fTd2(x), I, Newton, 1.0e-5*mag(I))
 
@@ -246,9 +237,9 @@ function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) w
 
     n_iter = 0
     while d > ϵ && n_iter < max_iter
-        x0 = mid(dom - x0)
-        c = mid(dom)
-        update!(Pm, x0)
+        x0 = mid.(dom - x0)
+        c = mid.(dom)
+        TS.update!(Pm, x0)
         non_linear = nonlinear_polynomial(Pm)
         linear = Pm - non_linear
         if T <: Interval
@@ -279,7 +270,7 @@ function linear_dominated_bounder(fT::TaylorModel1{T, S}; ϵ=1e-3, max_iter=5) w
     return interval(inf(bound), hi) + remainder(fT)
 end
 
-"""
+@doc """
     linear_dominated_bounder(fT::TaylorModelN, ϵ=1e-3::Float64, max_iter=5::Int)
 
 Compute a tighter polynomial bound for the Taylor model `fT` by the linear
@@ -287,58 +278,63 @@ dominated bounder algorithm. The linear dominated algorithm is applied until
 the bound of `fT` gets tighter than `ϵ` or the number of steps reachs `max_iter`.
 The returned bound corresponds to the improved polynomial bound with the remainder
 of the `TaylorModelN` included.
-"""
-function linear_dominated_bounder(fT::TaylorModelN{T,S}; ϵ=1e-5, max_iter=5) where {T, S}
-    d = one(T)
-    dom = domain(fT)
-    x0 = expansion_point(fT)
-    pol = polynomial(fT)
-    Pm = deepcopy(pol)
-    bound = zero(Interval{S})
-    pol_hi = sup(pol(dom - x0))
+""" linear_dominated_bounder
 
-    n_iter = 0
-    x00 = Array{S}(undef, N)
-    new_boxes = fill(bound, N)
-    linear_coeffs = Array{Float64}(undef, N)
-    while d > ϵ && n_iter < max_iter
-        x00 .= mid(dom - x0)
-        c = mid(dom)
-        update!(Pm, x00)
-        linear_part = Pm[1]
-        if T <: Interval
-            @. linear_coeffs = mid(linear_part.coeffs)
-        else
-            @. linear_coeffs = linear_part.coeffs
-        end
-        non_linear = nonlinear_polynomial(Pm)
-        linear = Pm - non_linear
-        centered_domain = dom .- c
-        I1 = linear(centered_domain)
-        Ih = non_linear(centered_domain)
-        bound = inf(I1) + Ih
-        d = diam(bound)
-        n_iter += 1
-        for (idx, box) in enumerate(dom)
-            Li = linear_coeffs[idx]
-            box_lo = inf(box)
-            box_hi = sup(box)
-            if Li == 0
-                domi = box
-            elseif Li < 0
-                lo = max(box_hi - (d / abs(Li)), box_lo)
-                domi = interval(lo, box_hi)
+for TT = (:T, :(Interval{T}))
+    @eval function linear_dominated_bounder(fT::TaylorModelN{$TT,S}; ϵ=1e-5, max_iter=5) where
+            {T<:IANumTypes, S<:IANumTypes}
+        d = one(T)
+        dom = domain(fT)
+        N = length(dom)
+        x0 = expansion_point(fT)
+        pol = polynomial(fT)
+        Pm = deepcopy(pol)
+        bound = zero(Interval{S})
+        pol_hi = sup(pol(dom - x0))
+
+        n_iter = 0
+        x00 = Array{S}(undef, N)
+        new_boxes = fill(bound, N)
+        linear_coeffs = Array{Float64}(undef, N)
+        while d > ϵ && n_iter < max_iter
+            x00 .= mid.(dom - x0)
+            c = mid.(dom)
+            TS.update!(Pm, x00)
+            linear_part = Pm[1]
+            if $TT == Interval{T}
+                @. linear_coeffs = mid(linear_part.coeffs)
             else
-                hi = min(box_lo + (d / abs(Li)), box_hi)
-                domi = interval(box_lo, hi)
+                @. linear_coeffs = linear_part.coeffs
             end
-            new_boxes[idx] = domi
+            non_linear = nonlinear_polynomial(Pm)
+            linear = Pm - non_linear
+            centered_domain = dom .- c
+            I1 = linear(centered_domain)
+            Ih = non_linear(centered_domain)
+            bound = inf(I1) + Ih
+            d = diam(bound)
+            n_iter += 1
+            for (idx, box) in enumerate(dom)
+                Li = linear_coeffs[idx]
+                box_lo = inf(box)
+                box_hi = sup(box)
+                if Li == 0
+                    domi = box
+                elseif Li < 0
+                    lo = max(box_hi - (d / abs(Li)), box_lo)
+                    domi = interval(lo, box_hi)
+                else
+                    hi = min(box_lo + (d / abs(Li)), box_hi)
+                    domi = interval(box_lo, hi)
+                end
+                new_boxes[idx] = domi
+            end
+            x0 = dom
+            dom = [new_boxes...]
         end
-        x0 = dom
-        dom = Vector(new_boxes...)
-    end
 
-    return interval(inf(bound), pol_hi) + remainder(fT)
+        return interval(inf(bound), pol_hi) + remainder(fT)
+    end
 end
 
 """
@@ -396,12 +392,12 @@ function quadratic_fast_bounder(fT::TaylorModelN)
     P = polynomial(fT)
     dom = domain(fT)
     x0 = expansion_point(fT)
-    H = Matrix(TaylorSeries.hessian(P))
+    H = Matrix(TS.hessian(P))
     bound_tm = fT(dom - x0)
-    if isposdef(H)
+    if isposdef(mid.(H))
         P1 = -P[1].coeffs
         xn = H \ P1
-        x = get_variables()#set_variables("x", numvars=length(xn))
+        x = get_variables()
         Qxn = 0.5 * (x - xn)' * H * (x - xn)
         bound_qfb = (P - Qxn)(dom - x0)
         hi = sup(P(dom - x0))

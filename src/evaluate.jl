@@ -101,7 +101,7 @@ end
 (tm::TaylorModelN{T,S})(a::AbstractVector{R}) where {T,S,R} = evaluate(tm, a)
 
 evaluate(tm::Vector{TaylorModelN{T,S}}, a::Vector{Interval{S}}) where {T,S} =
-    Interval.( tm[i](a) for i in eachindex(tm) )
+    interval.( tm[i](a) for i in eachindex(tm) )
 
 
 function evaluate(a::Taylor1{TaylorModelN{T,S}}, dx::T) where {T<:Real, S<:Real}

@@ -281,12 +281,13 @@ function fp_rpa(tm::TaylorModelN{Interval{T},T}) where {T}
     Δ = remainder(tm)
     x0 = expansion_point(tm)
     I = domain(tm)
+    N = length(I)
     order = get_order(tm)
 
     b = zero(fT)
     t = TaylorN([HomogeneousPolynomial(zeros(T,N))], order)
     for ind = 0:order
-        @inbounds for homPol in 1:length(fT[ind])
+        @inbounds for homPol in eachindex(fT[ind])
             t[ind][homPol] = mid(fT[ind][homPol])
             b[ind][homPol] = fT[ind][homPol] - t[ind][homPol]
         end

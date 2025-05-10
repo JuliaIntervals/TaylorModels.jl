@@ -25,7 +25,7 @@ for TM in tupleTMs
                 if $(TM) == TaylorModel1
                     @assert in_interval(zero(S), rem) && issubset_interval(x0, dom)
                 else
-                    @assert issubset_interval(x0,dom)
+                    @assert issubset_interval(x0, dom)
                 end
                 return new{T,S}(pol, rem, x0, dom)
             end
@@ -124,7 +124,7 @@ struct TaylorModelN{T,S} <: AbstractSeries{T}
             dom::Vector{Interval{S}}) where {T<:NumberNotSeries, S<:IANumTypes}
 
         @assert get_numvars() == length(x0) == length(dom)
-        @assert in_interval(zero(S), rem) && subset_interval(x0, dom)
+        @assert in_interval(zero(S), rem) && all(issubset_interval.(x0, dom))
 
         return new{T,S}(pol, rem, x0, dom)
     end
@@ -167,12 +167,14 @@ TaylorModelN(a::T, ord::Integer, x0::Vector{Interval{T}},
 Structure containing the solution of a validated integration.
 
 # Fields
-    `time :: AbstractVector{T}`  Vector containing the expansion time of the `TaylorModel1` solutions
+    `time :: AbstractVector{T}`  Vector containing the expansion time of the
+    `TaylorModel1` solutions
 
-    `fp   :: AbstractVector{Vector{Interval{T}}` vector representing the flowpipe results
+    `fp   :: AbstractVector{Vector{Interval{T}}` vector representing the flowpipe
+    results
 
-    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]` represents
-    the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
+    `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]`
+    represents the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
 """
 struct TMSol{T<:Real, V1<:AbstractVector{T}, V2<:AbstractVector{Vector{Interval{T}}},
         M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}

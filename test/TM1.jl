@@ -4,8 +4,6 @@ using TaylorModels
 
 using Test, Random
 
-myrand(a::Interval) = diam(a)*rand() + inf(a)
-
 const _num_tests = 1000
 const TM = TaylorModels
 const α_mid = TM.α_mid
@@ -14,7 +12,7 @@ setdisplay(:full)
 
 function check_containment(ftest, tma::TaylorModel1)
     x0 = expansion_point(tma)
-    xfp = myrand(domain(tma))#diam(domain(tma))*(rand()-0.5) + mid(x0)
+    xfp = sample(domain(tma))#diam(domain(tma))*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
     range = tma(interval(xfp, xfp)-x0)
     bb = in_interval(ftest(xbf), range)
@@ -28,15 +26,15 @@ end
     ii0 = interval(-0.5, 0.5)
 
     tpol = exp( Taylor1(2) )
-    @test isequal_interval(TaylorModels.bound_taylor1( tpol, ii0),
-            interval(tpol(inf(ii0)), tpol(sup(ii0))))
-    @test isequal_interval(TaylorModels.bound_taylor1(
-            exp( Taylor1(Interval{Float64}, 2) ), ii0),
-            interval(tpol(inf(ii0)), tpol(sup(ii0))))
+    @test isequal_interval(TM.bound_taylor1( tpol, ii0),
+    interval(tpol(inf(ii0)), tpol(sup(ii0))))
+    @test isequal_interval(TM.bound_taylor1(
+        exp( Taylor1(Interval{Float64}, 2) ), ii0),
+        interval(tpol(inf(ii0)), tpol(sup(ii0))))
 
     # An uncomfortable example from Makino
     t = Taylor1(5)
-    f(x) = 1 - x^4 + x^5
+    f(x) = one(x) - x^4 + x^5
     @test_broken issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(t), x1))
     tm = TaylorModel1(5, x0, ii0)
     @test_broken issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm)))
@@ -86,7 +84,7 @@ end
         # Tests related to fixorder
         a = TaylorModel1(Taylor1([1.0, 1]), y0, x0, y1)
         b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), y0, x0, y1)
-        aa, bb = TaylorModels.fixorder(a, b)
+        aa, bb = TM.fixorder(a, b)
         @test get_order(aa) == get_order(bb) == 1
         @test isa(aa, TaylorModel1) == isa(bb, TaylorModel1) == true
         @test aa == a
@@ -134,7 +132,7 @@ end
         # Tests involving TM1s with different orders
         a = TaylorModel1(Taylor1([1.0, 1]), y0, x0, y1)
         b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), y0, x0, y1)
-        aa, bb = TaylorModels.fixorder(a, b)
+        aa, bb = TM.fixorder(a, b)
         @test get_order(aa) == get_order(bb)
         @test get_order(bb) == 1
         @test a + b == aa + bb
@@ -165,8 +163,7 @@ end
         ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
         q0 = [0.5]
         δq0 = [interval(-0.1, 0.1)]
-        qaux = normalize_taylor(q0[1] +
-            TaylorN(typeof(δq0[1]), 1, order=orderQ), δq0, true)
+        qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
         symIbox = symmetric_box(Float64)
         t = Taylor1([qaux, one(qaux)], orderT)
         dom = y0
@@ -185,8 +182,8 @@ end
         @test_skip polynomial(fgTM1) ≈ polynomial(hh)
         @test isequal(remainder(fgTM1), remainder(hh))
         for ind = 1:_num_tests
-            xξ = myrand(dom)-x00
-            qξ = myrand.(symIbox)
+            xξ = sample(dom)-x00
+            qξ = sample.(symIbox)
             tt = t(xξ)(qξ)
             @test issubset_interval(h(tt), fgTM1(dom-x00)(symIbox))
         end
@@ -196,17 +193,17 @@ end
         fgTM1 = f(tm) / g(tm)
         @test !isentire_interval(remainder(fgTM1))
         for ind = 1:_num_tests
-            xξ = myrand(dom)-x00
-            qξ = myrand.(symIbox)
+            xξ = sample(dom)-x00
+            qξ = sample.(symIbox)
             tt = 1 + t(xξ)(qξ)
             @test issubset_interval(tt, fgTM1(dom-x00)(symIbox))
         end
 
         # Testing integration
-        @test integrate(tm, symIbox) == TaylorModel1(integrate(t), 0..0, x00, dom)
-        @test integrate(f(tm), symIbox) == TaylorModel1(integrate(f(t)), 0..0, x00, dom)
+        @test integrate(tm, symIbox) == TaylorModel1(integrate(t), x0, x00, dom)
+        @test integrate(f(tm), symIbox) == TaylorModel1(integrate(f(t)), x0, x00, dom)
         t = Taylor1([qaux,one(qaux)], orderT)
-        tm = TaylorModel1(deepcopy(t), -0.25 .. 0.25, x00, dom)
+        tm = TaylorModel1(deepcopy(t), interval(-0.25, 0.25), x00, dom)
         @test integrate(tm, symIbox) == TaylorModel1(integrate(t),
             remainder(tm)*(domain(tm)-expansion_point(tm)), x00, dom)
 
@@ -225,8 +222,8 @@ end
         @test get_order(exp_tm4) == get_order(exp_tm)
         @test polynomial(exp_tm4) == polynomial(exp_tm)
         for ind = 1:_num_tests
-            xξ = myrand(dom)-x00
-            qξ = myrand.(symIbox)
+            xξ = sample(dom)-x00
+            qξ = sample.(symIbox)
             tt = t(xξ)(qξ)
             @test issubset_interval(exp(tt), exp_tm4(dom-x00)(symIbox))
             @test issubset_interval(exp(tt), exp_tm(dom-x00)(symIbox))
@@ -374,7 +371,7 @@ end
         t00 = mid(dom)
         symIbox = symmetric_box(Float64)
         δq0 = [interval(-0.25, 0.25)]
-        qaux = normalize_taylor(TaylorN(Interval{Float64}, 1, order=orderQ) + t00, δq0, true)
+        qaux = normalize_taylor(TaylorN(1, order=orderQ) + t00, δq0, true)
         xT = Taylor1([qaux, one(qaux)], orderT)
         tm = TaylorModel1(deepcopy(xT), x0, t00, dom)
 
@@ -393,8 +390,8 @@ end
         polT = pol(tm)
 
         for ind = 1:_num_tests
-            xξ = myrand(dom)
-            q0ξ = t00 + myrand.(δq0)[1]
+            xξ = sample(dom)
+            q0ξ = t00 + sample.(δq0)[1]
             t = Taylor1(2*orderT) + q0ξ
             st = s(t)
             ct = c(t)
@@ -472,7 +469,7 @@ end
         order = 4
         tm = TaylorModel1(order, x0, ii0)
 
-        integ_res = integrate(exp(tm), 1..1)
+        integ_res = integrate(exp(tm), x1)
         exact_res = exp(tm)
         @test exact_res.pol == integ_res.pol
         @test issubset_interval(remainder(exact_res), remainder(integ_res))
@@ -488,7 +485,7 @@ end
             @test check_containment(sin, integ_res)
         end
 
-        integ_res = integrate(-sin(tm), 1..1)
+        integ_res = integrate(-sin(tm), x1)
         exact_res = cos(tm)
         @test exact_res.pol == integ_res.pol
         @test issubset_interval(remainder(exact_res), remainder(integ_res))
@@ -527,88 +524,88 @@ end
             "Interval{Float64}(-0.05020487208677604, 0.06448109909211741, trv)"
     end
 
-    # @testset "Tests for bounders" begin
-    #     @testset "Tests for linear dominated bounder" begin
-    #         order = 3
+    @testset "Tests for bounders" begin
+        @testset "Tests for linear dominated bounder" begin
+            order = 3
 
-    #         f = x -> 1 + x^5 - x^4
-    #         D = interval(0.9375, 1)
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_interval = f(D)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         @test diam(bound_ldb) <= diam(bound_interval)
-    #         @test issubset_interval(bound_ldb, bound_naive_tm)
+            f = x -> 1 + x^5 - x^4
+            D = interval(0.9375, 1)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test issubset_interval(bound_ldb, bound_naive_tm)
 
-    #         D = interval(0.75, 0.8125)
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_interval = f(D)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         @test diam(bound_ldb) <= diam(bound_interval)
-    #         @test issubset_interval(bound_ldb, bound_naive_tm)
+            D = interval(0.75, 0.8125)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test issubset_interval(bound_ldb, bound_naive_tm)
 
-    #         f = x -> x^2 * sin(x)
-    #         D = interval(-1.875, -1.25)
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_interval = f(D)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         @test diam(bound_ldb) <= diam(bound_interval)
-    #         @test issubset_interval(bound_ldb, bound_naive_tm)
+            f = x -> x^2 * sin(x)
+            D = interval(-1.875, -1.25)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test issubset_interval(bound_ldb, bound_naive_tm)
 
-    #         D = interval(1.25, 1.875)
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_interval = f(D)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         @test diam(bound_ldb) <= diam(bound_interval)
-    #         @test issubset_interval(bound_ldb, bound_naive_tm)
-    #     end
+            D = interval(1.25, 1.875)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_interval = f(D)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            @test diam(bound_ldb) <= diam(bound_interval)
+            @test issubset_interval(bound_ldb, bound_naive_tm)
+        end
 
-    #     @testset "Tests for quadratic fast bounder" begin
-    #         order = 3
+        @testset "Tests for quadratic fast bounder" begin
+            order = 3
 
-    #         f = x -> 1 + x^5 - x^4
-    #         D = 0.75 .. 0.8125
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         bound_qfb = quadratic_fast_bounder(fT)
-    #         @test bound_qfb ⊆ bound_naive_tm
-    #         # @test diam(bound_qfb) <= diam(bound_ldb)
+            f = x -> 1 + x^5 - x^4
+            D = interval(0.75, 0.8125)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test issubset_interval(bound_qfb, bound_naive_tm)
+            # @test diam(bound_qfb) <= diam(bound_ldb)
 
-    #         f = x -> x^2 * sin(x)
-    #         D = -2.5 .. -1.875
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         bound_qfb = quadratic_fast_bounder(fT)
-    #         @test bound_qfb ⊆ bound_naive_tm
-    #         @test diam(bound_qfb) <= diam(bound_ldb)
+            f = x -> x^2 * sin(x)
+            D = interval(-2.5, -1.875)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test issubset_interval(bound_qfb, bound_naive_tm)
+            @test diam(bound_qfb) <= diam(bound_ldb)
 
-    #         f = x -> x^3 * cos(x) + x
-    #         D = 3.75 .. 4.375
-    #         x0 = mid(D)
-    #         tm = TaylorModel1(order, x0, D)
-    #         fT = f(tm)
-    #         bound_naive_tm = fT(centered_dom(fT))
-    #         bound_ldb = linear_dominated_bounder(fT)
-    #         bound_qfb = quadratic_fast_bounder(fT)
-    #         @test bound_qfb ⊆ bound_naive_tm
-    #         # @test diam(bound_qfb) <= diam(bound_ldb)
-    #     end
-    # end
+            f = x -> x^3 * cos(x) + x
+            D = interval(3.75, 4.375)
+            x0 = mid(D)
+            tm = TaylorModel1(order, x0, D)
+            fT = f(tm)
+            bound_naive_tm = fT(centered_dom(fT))
+            bound_ldb = linear_dominated_bounder(fT)
+            bound_qfb = quadratic_fast_bounder(fT)
+            @test issubset_interval(bound_qfb, bound_naive_tm)
+            @test_broken diam(bound_qfb) <= diam(bound_ldb)
+        end
+    end
 end
