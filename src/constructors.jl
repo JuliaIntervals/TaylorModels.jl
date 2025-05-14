@@ -2,7 +2,6 @@
 
 const tupleTMs = (:TaylorModel1, :RTaylorModel1)
 const NumberNotSeries = TS.NumberNotSeries
-const TI = TaylorIntegration
 const IA = IntervalArithmetic
 const IANumTypes = IA.NumTypes
 
@@ -181,7 +180,6 @@ struct TMSol{T<:Real, V1<:AbstractVector{T}, V2<:AbstractVector{Vector{Interval{
     time :: V1
     fp   :: V2
     xTM  :: M
-
     function TMSol(time::V1, fp::V2, xTM::M) where
             {T<:IANumTypes, V1<:AbstractVector{T}, V2<:AbstractVector{Vector{Interval{T}}},
             M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}

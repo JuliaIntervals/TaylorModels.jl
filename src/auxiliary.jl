@@ -128,9 +128,9 @@ end
 @inline Base.iterate(a::TMSol, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
 @inline Base.eachindex(a::TMSol) = firstindex(a):lastindex(a)
 
-getindex(a::TMSol, n::Integer) = a.xTM[:,n]
-getindex(a::TMSol, u::UnitRange) = a.xTM[:,u]
-getindex(a::TMSol, c::Colon) = a.xTM[:,c]
-getindex(a::TMSol, n::Integer, m::Integer) = a.xTM[m,n]
-getindex(a::TMSol, c::Colon, m::Integer) = a.xTM[m,c]
-getindex(a::TMSol, u::UnitRange, m::Integer) = a.xTM[m,u]
+getindex(a::TMSol, n::Integer) = getindex(get_xTM(a),:,n)
+getindex(a::TMSol, u::UnitRange) = getindex(get_xTM(a),:,u)
+getindex(a::TMSol, c::Colon) = getindex(get_xTM(a),:,c)
+getindex(a::TMSol, n::Integer, m::Integer) = getindex(get_xTM(a),m,n)
+getindex(a::TMSol, u::UnitRange, m::Integer) = getindex(get_xTM(a),m,u)
+getindex(a::TMSol, c::Colon, m::Integer) = getindex(get_xTM(a),m,c)

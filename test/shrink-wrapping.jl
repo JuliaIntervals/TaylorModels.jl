@@ -1,12 +1,11 @@
 # Tests related to validated integration
 
-using TaylorModels
+using TaylorModels, TaylorModels.ValidatedInteg
 using LinearAlgebra: norm
 using Test
 
 # const _num_tests = 1000
 # const α_mid = TaylorModels.α_mid
-const TM = TaylorModels
 
 setdisplay(:full)
 
@@ -28,7 +27,7 @@ setdisplay(:full)
         @test isequal_interval(remainder(result), rem_result)
         # Shrink-wrapping:
         q = [ p ]
-        TM.shrink_wrapping!(q)
+        shrink_wrapping!(q)
         @test isequal_interval(p(dom), q[1](dom))
         @test issubset_interval(remainder(q[1]), Δ)
         @test isequal_interval(remainder(q[1]), x0[1])
@@ -103,7 +102,7 @@ end
     for iter = 1:10#00
         two_state1!(vm0)
         two_state2!(vm0)
-        TM.shrink_wrapping!(vm0)
+        shrink_wrapping!(vm0)
     end
     @test maximum(mag.(remainder.(vm0))) < 1e-8 #2.2e-13
     # The dominating difference is in the linear term
@@ -111,13 +110,13 @@ end
             norm(vm0[1][1] - vm[1][1], Inf))
 
 
-    # # Taylor model with shrink-wrapping after each iterate
+    # Taylor model with shrink-wrapping after each iterate
     vm0 .= deepcopy.(vm)
     for iter = 1:1#00
         two_state1!(vm0)
-        TM.shrink_wrapping!(vm0)
+        shrink_wrapping!(vm0)
         two_state2!(vm0)
-        TM.shrink_wrapping!(vm0)
+        shrink_wrapping!(vm0)
     end
     @test maximum(mag.(remainder.(vm0))) < 2.2e-13
     # The dominating difference is in the linear term
@@ -126,5 +125,5 @@ end
 
     # Test AssertionError
     vm = [TaylorModelN(TaylorN(i, order=order), zi, mib, ib) for i = 1:2]
-    @test_throws AssertionError TM.shrink_wrapping!(vm)
+    @test_throws AssertionError shrink_wrapping!(vm)
 end
