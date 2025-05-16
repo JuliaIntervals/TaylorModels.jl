@@ -2,10 +2,10 @@ module TaylorModels
 
 using Reexport
 @reexport using TaylorSeries, IntervalArithmetic
-@reexport using TaylorIntegration
+# @reexport using TaylorIntegration
 
 using IntervalRootFinding
-using LinearAlgebra: norm, mul!, cond, isposdef
+using LinearAlgebra: norm, isposdef
 
 using RecipesBase
 
@@ -29,9 +29,7 @@ import LinearAlgebra: norm
 export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
 
 export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
-    rpa, fp_rpa, bound_remainder, centered_dom,
-    validated_integ, validated_integ2,
-    symmetric_box
+    rpa, fp_rpa, bound_remainder, centered_dom, symmetric_box
 
 export linear_dominated_bounder, quadratic_fast_bounder
 
@@ -46,8 +44,7 @@ include("arithmetic.jl")
 include("rpa_functions.jl")
 include("integration.jl")
 include("show.jl")
-include("valid_integ/validated_integ.jl")
-# include("valid_integ/validated_integ2.jl")
+include("valid_integ/ValidatedInteg.jl")
 include("recipe.jl")
 
 
