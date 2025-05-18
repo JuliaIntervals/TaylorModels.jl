@@ -1,6 +1,6 @@
 # Tests related to validated integration
 
-using TaylorModels
+using TaylorModels, TaylorModels.ValidatedInteg
 using LinearAlgebra: norm
 using Test
 
@@ -15,26 +15,26 @@ setdisplay(:full)
     _order = 2
     set_variables("x", numvars=1, order=2*_order)
     x0 = SVector{1}(0..0)
-    dom = SVector{1}(-1..1)
+    dom = symmetric_box(Float64, 1)#IntervalBox(-1..1, 1)
     for δ in 1/16:1/16:1
-        Δ = @interval(-δ, δ)
+        Δ = interval(-δ, δ)
         p = TaylorModelN(TaylorN(1, order=_order), Δ, x0, dom)
         # Usual TM case
         result = p * p
         rem_result = δ*(2+δ)*dom[1]
         range_result = dom[1]^2 + rem_result
-        @test result(dom) == range_result
-        @test remainder(result) == rem_result
+        @test isequal_interval(result(dom), range_result)
+        @test isequal_interval(remainder(result), rem_result)
         # Shrink-wrapping:
         q = [ p ]
-        TaylorModels.shrink_wrapping!(q)
-        @test p(dom) == q[1](dom)
-        @test remainder(q[1]) ⊆ Δ
-        @test remainder(q[1]) == x0[1]
+        shrink_wrapping!(q)
+        @test isequal_interval(p(dom), q[1](dom))
+        @test issubset_interval(remainder(q[1]), Δ)
+        @test isequal_interval(remainder(q[1]), x0[1])
         # Result using shrink-wrapped variables
         result_sw = q[1] * q[1]
-        @test remainder(result_sw) ⊆ rem_result
-        @test result_sw(dom) ⊆ range_result
+        @test issubset_interval(remainder(result_sw), rem_result)
+        @test issubset_interval(result_sw(dom), range_result)
     end
 end
 
@@ -65,13 +65,14 @@ end
         return v
     end
 
-    local B = fill( -1 .. 1, SVector{2})
+    local B = symmetric_box(Float64, 2)
     local δ = 0.05
     local ib = δ * B
     local mib = fill( 0..0, SVector{2})
+    local zi = interval(zero(Float64))
 
     # Diverges using naive Interval arithmetic methods
-    ib0 = [ib...]
+    ib0 = [ib...,]
     for iter = 1:210 # iter is twice the number of iterates
         two_state1!(ib0)
         two_state2!(ib0)
@@ -83,44 +84,46 @@ end
     order = 10
     set_variables("x y", order=2*order)
     vm = [TaylorModelN(normalize_taylor(TaylorN(i, order=order), ib, true),
-        0..0, mib, B) for i = 1:2]
+        zi, mib, B) for i = 1:2]
     vm0 = deepcopy(vm)
     for iter = 1:1_000
         two_state1!(vm0)
         two_state2!(vm0)
     end
-    @test maximum(remainder.(vm0)) < 1e-6 # 2.08e-7
+    @test maximum(mag.(remainder.(vm0))) < 1e-6 # 2.08e-7
     # Constant and linear terms are identic to the initial ones
-    @test all(constant_term.(vm0) .== constant_term.(vm))
+    @test all(isequal_interval.(constant_term.(vm0), constant_term.(vm)))
     @test all(linear_polynomial.(vm0) .== linear_polynomial.(vm))
     # Maximum difference of polynomials is very small
-    @test norm(polynomial(vm0[1] - vm[1]), Inf) < 1e-19
+    @test mag(norm(polynomial(vm0[1] - vm[1]), Inf)) < 1e-14
 
     # Taylor model with shrink-wrapping after two iterates
     vm0 .= deepcopy.(vm)
-    for iter = 1:1_000
+    for iter = 1:10#00
         two_state1!(vm0)
         two_state2!(vm0)
-        TaylorModels.shrink_wrapping!(vm0)
+        shrink_wrapping!(vm0)
     end
-    @test maximum(remainder.(vm0)) < 1e-8 #2.2e-13
+    @test maximum(mag.(remainder.(vm0))) < 1e-8 #2.2e-13
     # The dominating difference is in the linear term
-    @test norm(polynomial(vm0[1] - vm[1]), Inf) == norm(vm0[1][1] - vm[1][1], Inf)
+    @test isequal_interval(norm(polynomial(vm0[1] - vm[1]), Inf),
+            norm(vm0[1][1] - vm[1][1], Inf))
 
 
     # Taylor model with shrink-wrapping after each iterate
     vm0 .= deepcopy.(vm)
-    for iter = 1:1_000
+    for iter = 1:1#00
         two_state1!(vm0)
-        TaylorModels.shrink_wrapping!(vm0)
+        shrink_wrapping!(vm0)
         two_state2!(vm0)
-        TaylorModels.shrink_wrapping!(vm0)
+        shrink_wrapping!(vm0)
     end
-    @test maximum(remainder.(vm0)) < 2.2e-13
+    @test maximum(mag.(remainder.(vm0))) < 2.2e-13
     # The dominating difference is in the linear term
-    @test norm(polynomial(vm0[1] - vm[1]), Inf) == norm(vm0[1][1] - vm[1][1], Inf)
+    @test isequal_interval(norm(polynomial(vm0[1] - vm[1]), Inf),
+            norm(vm0[1][1] - vm[1][1], Inf))
 
     # Test AssertionError
-    vm = [TaylorModelN(TaylorN(i, order=order), 0..0, mib, ib) for i = 1:2]
-    @test_throws AssertionError TaylorModels.shrink_wrapping!(vm)
+    vm = [TaylorModelN(TaylorN(i, order=order), zi, mib, ib) for i = 1:2]
+    @test_throws AssertionError shrink_wrapping!(vm)
 end

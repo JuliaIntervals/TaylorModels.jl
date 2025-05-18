@@ -3,6 +3,8 @@
 # getindex, fistindex, lastindex
 for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
     @eval begin
+        tmdata(f::$TM) = (expansion_point(f), domain(f))
+
         copy(f::$TM) = $TM(copy(f.pol), remainder(f), expansion_point(f), domain(f))
         @inline firstindex(a::$TM) = 0
         @inline lastindex(a::$TM) = get_order(a)
@@ -39,15 +41,18 @@ for TM in tupleTMs
         iscontained(a::Interval, tm::$TM) = issubset_interval(a, centered_dom(tm))
     end
 end
-iscontained(a, tm::TaylorModelN) = in_interval(a, centered_dom(tm))
-iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = issubset_interval(a, centered_dom(tm))
+iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
+iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = all(issubset_interval.(a, centered_dom(tm)))
 
+symmetric_box(T::Type{S}, nvars::Int=get_numvars()) where {S<:IA.NumTypes} =
+    [interval(-one(T), one(T)) for _ = 1:nvars]
+symmetric_box(::Type{Interval{T}}) where {T<:IA.NumTypes} = symmetric_box(T)
 
 # fixorder and bound_truncation
 for TM in tupleTMs
     @eval begin
         function fixorder(a::$TM, b::$TM)
-            @assert tmdata(a) == tmdata(b)
+            @assert all(isequal_interval.(tmdata(a), tmdata(b)))
             get_order(a) == get_order(b) && return a, b
 
             order = min(get_order(a), get_order(b))
@@ -82,7 +87,7 @@ function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Int
         order::Int) where {T}
     order ≥ get_order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
-    symIbox = fill(-1 .. 1, SVector{get_numvars()})
+    symIbox = symmetric_box(T)
     res = Taylor1(evaluate.(a.coeffs, Ref(symIbox)))
     res[0:order] .= zero(res[0])
     return res(aux)
@@ -90,7 +95,7 @@ end
 
 
 function fixorder(a::TaylorModelN, b::TaylorModelN)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     get_order(a) == get_order(b) && return a, b
 
     order = min(get_order(a), get_order(b))
@@ -122,9 +127,9 @@ end
 @inline Base.iterate(a::TMSol, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
 @inline Base.eachindex(a::TMSol) = firstindex(a):lastindex(a)
 
-getindex(a::TMSol, n::Integer) = a.xTM[:,n]
-getindex(a::TMSol, u::UnitRange) = a.xTM[:,u]
-getindex(a::TMSol, c::Colon) = a.xTM[:,c]
-getindex(a::TMSol, n::Integer, m::Integer) = a.xTM[m,n]
-getindex(a::TMSol, c::Colon, m::Integer) = a.xTM[m,c]
-getindex(a::TMSol, u::UnitRange, m::Integer) = a.xTM[m,u]
+getindex(a::TMSol, n::Integer) = getindex(get_xTM(a),:,n)
+getindex(a::TMSol, u::UnitRange) = getindex(get_xTM(a),:,u)
+getindex(a::TMSol, c::Colon) = getindex(get_xTM(a),:,c)
+getindex(a::TMSol, n::Integer, m::Integer) = getindex(get_xTM(a),m,n)
+getindex(a::TMSol, u::UnitRange, m::Integer) = getindex(get_xTM(a),m,u)
+getindex(a::TMSol, c::Colon, m::Integer) = getindex(get_xTM(a),m,c)
