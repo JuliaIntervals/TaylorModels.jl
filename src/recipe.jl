@@ -59,16 +59,16 @@ function _plot_intvbox(sol::TMSol; vars=(0,1), timediv=1)
         var1 = vars[3-tup0]
         v1 = _mince_in_time(sol, domT, var1, timediv)
         if tup0 == 1
-            return @. IntervalBox(domT, v1)
+            return SVector.(domT, v1)
         else
-            return @. IntervalBox(v1, domT)
+            return SVector.(v1, domT)
         end
     end
 
     var1, var2 = vars
     v1 = _mince_in_time(sol, domT, var1, timediv)
     v2 = _mince_in_time(sol, domT, var2, timediv)
-    return @. IntervalBox(v1, v2)
+    return SVector.(v1, v2)
 end
 
 """
@@ -123,7 +123,7 @@ function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int,
 
     # Case timediv > 1
     vv = similar(domT)
-    normalized_box = symmetric_box(N, Float64)
+    normalized_box = fill(-1..1, SVector{N})
     δt = mince(domain(sol,1), timediv)
 
     i0 = 1

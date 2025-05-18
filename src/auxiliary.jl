@@ -35,12 +35,12 @@ for TM in tupleTMs
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
         setindex!(a::$TM{T,S}, x::Array{T,1}, c::Colon) where {T<:Number, S} = a[c] .= x
 
-        iscontained(a, tm::$TM) = a ∈ centered_dom(tm)
-        iscontained(a::Interval, tm::$TM) = a ⊆ centered_dom(tm)
+        iscontained(a, tm::$TM) = in_interval(a, centered_dom(tm))
+        iscontained(a::Interval, tm::$TM) = issubset_interval(a, centered_dom(tm))
     end
 end
-iscontained(a, tm::TaylorModelN) = a ∈ centered_dom(tm)
-iscontained(a::IntervalBox, tm::TaylorModelN) = a ⊆ centered_dom(tm)
+iscontained(a, tm::TaylorModelN) = in_interval(a, centered_dom(tm))
+iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = issubset_interval(a, centered_dom(tm))
 
 
 # fixorder and bound_truncation
@@ -82,7 +82,7 @@ function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Int
         order::Int) where {T}
     order ≥ get_order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
-    symIbox = IntervalBox(-1 .. 1, get_numvars())
+    symIbox = fill(-1 .. 1, SVector{get_numvars()})
     res = Taylor1(evaluate.(a.coeffs, Ref(symIbox)))
     res[0:order] .= zero(res[0])
     return res(aux)
@@ -106,7 +106,7 @@ function fixorder(a::TaylorModelN, b::TaylorModelN)
         TaylorModelN(bpol, Δb, expansion_point(b), domain(b))
 end
 
-function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::IntervalBox,
+function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
     order ≥ get_order(a) && return zero(aux[1])
     res = deepcopy(a)

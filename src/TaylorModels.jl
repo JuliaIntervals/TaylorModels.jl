@@ -1,11 +1,12 @@
 module TaylorModels
 
 using Reexport
-@reexport using TaylorSeries, IntervalArithmetic
+@reexport using TaylorSeries, IntervalArithmetic, IntervalArithmetic.Symbols
 @reexport using TaylorIntegration
 
 using IntervalRootFinding
 using LinearAlgebra: norm, mul!, cond, isposdef
+using StaticArrays
 
 using RecipesBase
 
@@ -33,6 +34,15 @@ export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
     validated_integ, validated_integ2
 
 export linear_dominated_bounder, quadratic_fast_bounder
+
+"""
+    symmetric_box(N, [T = Float64])
+
+Create the interval box [-1, 1]^N as a SVector, with elements of type T.
+"""
+function symmetric_box(N, T = Float64)
+    return fill(interval(-one(T), one(T)), SVector{N})
+end
 
 include("constructors.jl")
 include("auxiliary.jl")

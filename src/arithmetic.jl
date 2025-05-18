@@ -144,9 +144,9 @@ function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            b::TaylorModel1{TaylorN{T}, S},
                            auxT, Δnegl) where {T, S}
     N = get_numvars()
-    # An N-dimensional symmetrical IntervalBox is assumed
+    # An N-dimensional symmetrical interval box is assumed
     # to bound the TaylorN part
-    auxQ = IntervalBox(-1 .. 1, Val(N))
+    auxQ = fill(-1..1, SVector{N})
     Δa = a.pol(auxT)(auxQ)
     Δb = b.pol(auxT)(auxQ)
     a_rem = remainder(a)
@@ -180,9 +180,9 @@ end
 function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{TaylorN{T},S},
                             aux, Δnegl, order) where {T, S}
     N = get_numvars()
-    # An N-dimensional symmetrical IntervalBox is assumed
+    # An N-dimensional symmetrical interval box is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(N, T)
+    auxQ = fill(interval(-one(T), one(T)), SVector{N})
     Δa = a.pol(aux)(auxQ)
     Δb = b.pol(aux)(auxQ)
     V = aux^(order+1)

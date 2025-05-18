@@ -50,13 +50,13 @@ end
 
 
 """
-    initialize!(X0::IntervalBox, orderQ, orderT, x, xI)
-    initialize!(X0::IntervalBox, orderQ, orderT, x)
+    initialize!(X0::AbstractVector{<:Interval}, orderQ, orderT, x, xI)
+    initialize!(X0::AbstractVector{<:Interval}, orderQ, orderT, x)
 
 Initialize the internal integration variables and normalize the given interval
 box to the domain `[-1, 1]^n`.
 """
-function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, xI) where {N,T}
+function initialize!(X0::SVector{N,Interval{T}}, orderQ, orderT, x, xI) where {N,T}
     @assert N == get_numvars()
 
     # center of the box and vector of widths
@@ -73,7 +73,7 @@ function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x, xI) where {N,T}
 
     return nothing
 end
-function initialize!(X0::IntervalBox{N,T}, orderQ, orderT, x) where {N,T}
+function initialize!(X0::SVector{N,Interval{T}}, orderQ, orderT, x) where {N,T}
     @assert N == get_numvars()
     q0 = mid.(X0)
     δq0 = X0 .- q0
@@ -134,7 +134,7 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
     # Some variables
     zt = zero(t0)
     zI = zero(Interval{T})
-    zB = zero(IntervalBox{N,T})
+    zB = fill(zero(Interval{T}), SVector{N})
     S  = symmetric_box(N, T)
     t  = t0 + Taylor1(T, orderT)
     tI = t0 + Taylor1(T, orderT+1)
@@ -144,7 +144,7 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
     # Allocation of vectors
     # Output
     tv    = Array{T}(undef, maxsteps+1)
-    xv    = Array{IntervalBox{N,T}}(undef, maxsteps+1)
+    xv    = Array{SVector{N,Interval{T}}}(undef, maxsteps+1)
     @inbounds tv[1] = t0
     @inbounds xv[1] = evaluate(xTMN, S)
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
@@ -170,7 +170,7 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
                     t0, tmax, sign_tstep, xTMN, rem, zB, S,
                     orderT, red_abstol, params,
                     adaptive, minabstol, absorb, check_property)
-        δtI = sign_tstep * Interval(zt, sign_tstep*δt)
+        δtI = sign_tstep * interval(zt, sign_tstep*δt)
 
         # New initial conditions and time, and output vectors
         nsteps += 1
@@ -185,7 +185,7 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
             xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
             # dxI = xI
         end
-        xv[nsteps] = evaluate(xTMN, S) # IntervalBox
+        xv[nsteps] = evaluate(xTMN, S) # interval box
 
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
@@ -225,7 +225,7 @@ function validated_step!(vB::Val{B}, f!,
         rv::TI.RetAlloc{Taylor1{TaylorN{T}}}, rvI::TI.RetAlloc{Taylor1{Interval{T}}},
         t0::T, tmax::T, sign_tstep::Int,
         xTMN::Vector{TaylorModelN{N,T,T}}, rem::Vector{Interval{T}},
-        zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
+        zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::F) where {B,N,T,F}
@@ -252,7 +252,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         dxI::Vector{Taylor1{Interval{T}}},
         δt, sign_tstep::Int,
         xTMN::Vector{TaylorModelN{N,T,T}}, rem::Vector{Interval{T}},
-        zbox::IntervalBox{N,T}, symIbox::IntervalBox{N,T},
+        zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::Function=(t, x)->true) where {N,T}
@@ -267,7 +267,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
     bool_red = true
     while bool_red
         # Validate the solution: remainder consistent with Schauder thm
-        δtI = sign_tstep * Interval(0, sign_tstep*δt)
+        δtI = sign_tstep * interval(0, sign_tstep*δt)
         (_success, Δ) = remainder_taylorstep!(f!, t, x, dx, xI, dxI, symIbox, δtI, params)
         # (_success, Δ, δtI) = remainder_taylorstep2!(f!, t, x, dx, xI, dxI, symIbox, δtI, params)
         # δt = sup(δtI)
@@ -305,7 +305,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
                     rem[i] = remainder(xTMN[i])
                 end
             end
-            xvv = evaluate(xTMN, symIbox) # IntervalBox
+            xvv = evaluate(xTMN, symIbox) # interval box
 
             issatisfied = check_property(t[0]+δt, xvv)
             if !issatisfied
@@ -345,13 +345,13 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::IntervalBox{N,T}, δtI::Interval{T}, params) where {N,T}
+        δI::SVector{N,Interval{T}}, δtI::Interval{T}, params) where {N,T}
 
     orderT = get_order(dx[1])
     aux = δtI^(orderT+1)
-    Δx  = IntervalBox([xI[i][orderT+1] for i in eachindex(xI)]) * aux
-    Δdx = IntervalBox([dxI[i][orderT+1] for i in eachindex(xI)]) * aux
-    Δ0  = IntervalBox([dx[i][orderT](δI) for i in eachindex(x)]) * aux / (orderT+1)
+    Δx  = SVector{length(xI)}([xI[i][orderT+1] for i in eachindex(xI)]) * aux
+    Δdx = SVector{length(xI)}([dxI[i][orderT+1] for i in eachindex(xI)]) * aux
+    Δ0  = SVector{length(x)}([dx[i][orderT](δI) for i in eachindex(x)]) * aux / (orderT+1)
     Δ = Δ0 + Δdx * δtI
     Δxold = Δx
 
@@ -373,7 +373,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
 
         # Expand Δx in the directions needed
         Δxold = Δx
-        if Δ ⊆ Δx
+        if issubset_interval(Δ, Δx)
             @inbounds for ind in 1:N
                 # Widen the directions where ⊂ does not hold
                 vv[ind] = Δx[ind]
@@ -381,7 +381,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
                     vv[ind] = widen.(Δ[ind])
                 end
             end
-            Δx = IntervalBox(vv)
+            Δx = vv
             continue
         end
         Δx = Δ
@@ -483,7 +483,7 @@ function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where{T}
     (Δ ⊂ Δx || Δ == Δx == zero(Δ)) && return true
     return false
 end
-iscontractive(Δ::IntervalBox{N,T}, Δx::IntervalBox{N,T}) where{N,T} =
+iscontractive(Δ::SVector{N,Interval{T}}, Δx::SVector{N,Interval{T}}) where{N,T} =
     all(iscontractive.(Δ[:], Δx[:]))
 
 
@@ -496,8 +496,8 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
     xxI::Vector{Taylor1{TaylorN{Interval{T}}}},
     dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
-    δI::IntervalBox{N,T}, δt::Interval{T},
-    Δx::IntervalBox{N,T}, Δ0::IntervalBox{N,T}, params) where {N,T}
+    δI::SVector{N,Interval{T}}, δt::Interval{T},
+    Δx::SVector{N,Interval{T}}, Δ0::SVector{N,Interval{T}}, params) where {N,T}
 
     # Extend `x` and `dx` to have interval coefficients
     zI = zero(δt)
@@ -510,7 +510,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     f!(dxxI, xxI, params, t)
 
     # Picard iteration, considering only the bound of `f` and the last coeff of f
-    Δdx = IntervalBox( evaluate.( (dxxI - dx)(δt), Ref(δI) ) )
+    Δdx = Interval.(evaluate.( (dxxI - dx)(δt), Ref(δI) ))
     Δ = Δ0 + Δdx * δt
     return Δ
 end
@@ -550,7 +550,7 @@ end
 
 Returns a TaylorModelN, equivalent to `a`, such that the remainder
 is mostly absorbed in the constant and linear coefficients. The linear shift assumes
-that `a` is normalized to the `IntervalBox(-1..1, Val(N))`.
+that `a` is normalized to the interval box `(-1..1)^N`.
 
 Ref: Xin Chen, Erika Abraham, and Sriram Sankaranarayanan,
 "Taylor Model Flowpipe Construction for Non-linear Hybrid
@@ -572,17 +572,17 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     aI = a(δ)
     bI = bpol(δ)
 
-    if bI ⊆ aI
-        rem = Interval(aI.lo-bI.lo, aI.hi-bI.hi)
-    elseif aI ⊆ bI
-        rem = Interval(bI.lo-aI.lo, bI.hi-aI.hi)
+    if issubset_interval(bI, aI)
+        rem = interval(inf(aI)-inf(bI), sup(aI)-sup(bI))
+    elseif issubset_interval(aI, bI)
+        rem = interval(inf(bI)-inf(aI), sup(bI)-sup(aI))
     else
-        r_lo = aI.lo-bI.lo
-        r_hi = aI.hi-bI.hi
+        r_lo = inf(aI)-inf(bI)
+        r_hi = sup(aI)-sup(bI)
         if r_lo > 0
-            rem = Interval(-r_lo, r_hi)
+            rem = interval(-r_lo, r_hi)
         else
-            rem = Interval( r_lo, -r_hi)
+            rem = interval( r_lo, -r_hi)
         end
     end
 
@@ -656,7 +656,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     # Componentwise bound
     r̃ = mag.(invjac * qB) # qB <-- r .* B
     qB´ = r̃ .* B
-    @assert invjac * qB ⊆ qB´
+    @assert issubset_interval(invjac * qB, qB´)
 
     # Step 6 of Bünger algorithm: compute g
     g = invjac*xTNcent .- X

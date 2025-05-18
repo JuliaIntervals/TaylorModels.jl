@@ -73,7 +73,7 @@ end
     order = get_order(a[1])
     aux = δ^order / (order+1)
     Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
-    return IntervalBox(Δ)
+    return interval.(Δ)
 end
 @inline function bound_integration(fT::TaylorModelN, s::TaylorN, which)
     Δ = s(centered_dom(fT)) + remainder(fT) * centered_dom(fT)[which]
@@ -88,7 +88,7 @@ end
 Integrates the one-variable Taylor Model (`TaylorModel1` or `RTaylorModel1`) with
 respect to the independent variable. `c0` is the integration constant; if omitted
 it is taken as zero. When the coefficients of `a` are `TaylorN` variables,
-the domain is specified by `cc0::IntervalBox`.
+the domain is specified by `cc0::AbstractVector{<:Interval}`.
 
 ---
 

@@ -7,15 +7,15 @@ using Test
 # const _num_tests = 1000
 # const α_mid = TaylorModels.α_mid
 
-setformat(:full)
+setdisplay(:full)
 
 # This is based on an example from Buenger, Numer Algor (2018) 78:1001–1017,
 # which shows the efectivity of shrink-wrapping
 @testset "Testing `shrink_wrapping` 1" begin
     _order = 2
     set_variables("x", numvars=1, order=2*_order)
-    x0 = IntervalBox(0..0, 1)
-    dom = IntervalBox(-1..1, 1)
+    x0 = SVector{1}(0..0)
+    dom = SVector{1}(-1..1)
     for δ in 1/16:1/16:1
         Δ = @interval(-δ, δ)
         p = TaylorModelN(TaylorN(1, order=_order), Δ, x0, dom)
@@ -65,10 +65,10 @@ end
         return v
     end
 
-    local B = IntervalBox( -1 .. 1, 2)
+    local B = fill( -1 .. 1, SVector{2})
     local δ = 0.05
     local ib = δ * B
-    local mib = IntervalBox( 0..0, 2)
+    local mib = fill( 0..0, SVector{2})
 
     # Diverges using naive Interval arithmetic methods
     ib0 = [ib...]

@@ -45,14 +45,14 @@ function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx, rv,
     # Some variables
     zt = zero(t0)
     zI = zero(Interval{T})
-    zB = zero(IntervalBox{N,T})
+    zB = fill(zero(Interval{T}), SVector{N})
     S = symmetric_box(N, T)
     t = t0 + Taylor1(orderT)
 
     # Allocation of vectors
     # Output
     tv = Array{T}(undef, maxsteps+1)
-    xv = Array{IntervalBox{N,T}}(undef, maxsteps+1)
+    xv = Array{SVector{N,Interval{T}}}(undef, maxsteps+1)
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
     # Internals
     xaux = Array{Taylor1{TaylorN{T}}}(undef, dof)
@@ -99,7 +99,7 @@ function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx, rv,
                                     adaptive, minabstol,
                                     ε=ε, δ=δ,
                                     validatesteps=validatesteps)
-        domt = sign_tstep * Interval(zt, sign_tstep*δt)
+        domt = sign_tstep * interval(zt, sign_tstep*δt)
 
         # δtI = (δt .. δt) ∩ domt # assure it is inside the domain in t
         nsteps += 1
@@ -178,7 +178,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     #
     T = IntervalArithmetic.numtype(box[1])
     zI = zero(Interval{T})
-    domT = sign_tstep * Interval{T}(zI.lo, sign_tstep*δt)
+    domT = sign_tstep * Interval{T}(inf(zI), sign_tstep*δt)
     orderT = get_order(t)
     @. begin
         polv = deepcopy.(x)

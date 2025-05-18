@@ -8,23 +8,23 @@ using Test, Random
 const _num_tests = 1000
 const α_mid = TaylorModels.α_mid
 
-setformat(:full)
+setdisplay(:full)
 
 function check_containment(ftest, tma::RTaylorModel1)
     x0 = expansion_point(tma)
     xfp = diam(domain(tma))*(rand()-0.5) + mid(x0)
     xbf = big(xfp)
     range = tma((xfp .. xfp)-x0)
-    bb = ftest(xbf) ∈ range
+    bb = in_interval(ftest(xbf), range)
     bb || @show(ftest, xfp, xbf, ftest(xbf), range)
     return bb
 end
 
 @testset "Tests for RTaylorModel1 " begin
-    x0 = Interval(0.0)
-    ii0 = Interval(-0.5, 0.5)
-    x1 = Interval(1.0)
-    ii1 = Interval(0.5, 1.5)
+    x0 = interval(0.0)
+    ii0 = interval(-0.5, 0.5)
+    x1 = interval(1.0)
+    ii1 = interval(0.5, 1.5)
 
     @testset "RTaylorModel1 constructors" begin
         tv = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
@@ -88,7 +88,7 @@ end
         @test a-a == RTaylorModel1(zero(a_pol), 2*Δ, x1, ii1)
         b = a * tv
         @test b == RTaylorModel1(a_pol*tv_pol, remainder(a)*tv_pol(ii1-x1), x1, ii1)
-        @test remainder(b/tv) ⊆ Interval(-2.75, 4.75)
+        @test remainder(b/tv) ⊆ interval(-2.75, 4.75)
         @test constant_term(b) == 1..1
         @test linear_polynomial(b) == 2*x1*Taylor1(5)
         @test nonlinear_polynomial(b) == x1*Taylor1(5)^2
@@ -142,9 +142,9 @@ end
         orderQ = 5
         ξ = set_variables("ξ", order = 2 * orderQ, numvars=1)
         q0 = [0.5]
-        δq0 = IntervalBox(-0.1 .. 0.1, Val(1))
+        δq0 = SVector{1}(-0.1 .. 0.1)
         qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
-        symIbox = IntervalBox(-1 .. 1, Val(1))
+        symIbox = SVector{1}(-1 .. 1)
         t = Taylor1([qaux, one(qaux)], orderT)
         dom = -0.5 .. 0.5
         x00 = mid(dom)
@@ -223,13 +223,13 @@ end
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
-        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
-                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        @test interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
-        @test_throws AssertionError tmb(ii.hi+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(sup(ii)+1.0)
+        @test_throws AssertionError tmb(ii+interval(1))
 
         # test for TM with scalar coefficients
         @test fp_rpa(tmc) == tmc
@@ -245,13 +245,13 @@ end
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
-        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
-                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        @test interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
-        @test_throws AssertionError tmb(ii.hi+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(sup(ii)+1.0)
+        @test_throws AssertionError tmb(ii+interval(1))
 
         order = 3
         ii = ii0
@@ -264,13 +264,13 @@ end
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
-        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
-                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        @test interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
-        @test_throws AssertionError tmb(ii.hi+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(sup(ii)+1.0)
+        @test_throws AssertionError tmb(ii+interval(1))
 
         order = 2
         ii = ii1
@@ -283,13 +283,13 @@ end
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
-        @test interval(ftest(ii.lo)-tmc.pol(ii.lo-ξ0),
-                        ftest(ii.hi)-tmc.pol(ii.hi-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        @test interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
-        @test_throws AssertionError tmb(ii.hi+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(sup(ii)+1.0)
+        @test_throws AssertionError tmb(ii+interval(1))
 
         order = 5
         ii = ii1
@@ -302,13 +302,13 @@ end
         # fT, Δ, ξ0, δ = fp_rpa(tma)
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
-        @test interval(ftest(ii.hi)-tmc.pol(ii.hi-ξ0),
-                        ftest(ii.lo)-tmc.pol(ii.lo-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
+        @test interval(ftest(sup(ii))-tmc.pol(sup(ii)-ξ0),
+                        ftest(inf(ii))-tmc.pol(inf(ii)-ξ0)) ⊆ remainder(tma)*(ii-ξ0)^(order+1)
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
-        @test_throws AssertionError tmb(ii.hi+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(sup(ii)+1.0)
+        @test_throws AssertionError tmb(ii+interval(1))
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8
@@ -322,8 +322,8 @@ end
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
-        @test_throws AssertionError tmb(ii.hi+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(sup(ii)+1.0)
+        @test_throws AssertionError tmb(ii+interval(1))
     end
 
     @testset "RPAs with polynomial Taylor1{TaylorN{T}}" begin
@@ -331,8 +331,8 @@ end
         orderQ = 5
         dom = 0 .. 1
         t00 = mid(dom)
-        symIbox = IntervalBox(-1 .. 1, 1)
-        δq0 = IntervalBox(-0.25 .. 0.25, 1)
+        symIbox = SVector{1}(-1 .. 1)
+        δq0 = SVector{1}(-0.25 .. 0.25)
         qaux = normalize_taylor(TaylorN(1, order=orderQ) + t00, δq0, true)
         xT = Taylor1([qaux, one(qaux)], orderT)
         tm = RTaylorModel1(deepcopy(xT), 0 .. 0, t00, dom)

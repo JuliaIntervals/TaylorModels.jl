@@ -7,12 +7,12 @@ using Random
 
 const _num_tests = 1_000
 
-setformat(:full)
+setdisplay(:full)
 
 # NOTE: IntervalArithmetic v0.16.0 includes this function; but
 # IntervalRootFinding is bounded to use v0.15.x
-interval_rand(X::Interval{T}) where {T} = X.lo + rand(T) * (X.hi - X.lo)
-interval_rand(X::IntervalBox) = interval_rand.(X)
+interval_rand(X::Interval{T}) where {T} = inf(X) + rand(T) * (sup(X) - inf(X))
+interval_rand(X::AbstractVector{<:Interval}) = interval_rand.(X)
 
 # Function to check, against an exact solution of the ODE, the computed
 # validted solution
@@ -25,7 +25,7 @@ function test_integ(fexact, t0, qTM, q0, δq0)
     δt = rand(domt)
     δtI = (δt .. δt) ∩ domt
     q0ξ = interval_rand(δq0)
-    q0ξB = IntervalBox([(q0ξ[i] .. q0ξ[i]) ∩ δq0[i] for i in eachindex(q0ξ)])
+    q0ξB = SVector{lenght(q0ξ)}((q0ξ[i] .. q0ξ[i]) ∩ δq0[i] for i in eachindex(q0ξ))
     # Box computed to overapproximate the solution at time δt
     q = evaluate.(evaluate.(qTM, δtI), Ref(normalized_box))
     # Box computed from the exact solution must be within q
@@ -52,7 +52,7 @@ end
         normalized_box = symmetric_box(2, Float64)
         q0 = [10.0, 0.0]
         δq0 = 0.25 * normalized_box
-        X0 = IntervalBox(q0 .+ δq0)
+        X0 = interval.(q0 .+ δq0)
 
         # Parameters
         abstol = 1e-20
@@ -139,8 +139,8 @@ end
         # Initial conditions
         tini, tend = 10.0, 0.0
         q0 = [10.0, 0.0]
-        δq0 = IntervalBox(-0.25 .. 0.25, 2)
-        X0 = IntervalBox(q0 .+ δq0)
+        δq0 = fill(-0.25 .. 0.25, SVector{2})
+        X0 = q0 .+ δq0
 
         @testset "Backward integration 1" begin
             sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
@@ -211,7 +211,7 @@ end
         orderT = 20
         q0 = [2.]
         δq0 = 0.0625 * normalized_box
-        X0 = IntervalBox(q0 .+ δq0)
+        X0 = q0 .+ δq0
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
         @testset "Forward integration 1" begin
@@ -272,7 +272,7 @@ end
         params = nothing
         q0 = [0.5]
         δq0 = 0.4 * normalized_box
-        X0 = IntervalBox(q0 .+ δq0)
+        X0 = q0 .+ δq0
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
         sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
@@ -327,8 +327,8 @@ end
         # Initial conditions
         tini, tend = 0.0, 12.0
         q0 = [1.1, 0.1, 0.0]
-        δq0 = IntervalBox(-0.1 .. 0.1, -0.1 .. 0.1, 0..0)
-        X0 = IntervalBox(q0 .+ δq0)
+        δq0 = SVector(-0.1 .. 0.1, -0.1 .. 0.1, 0..0)
+        X0 = q0 .+ δq0
         ene0 = ene_pendulum(X0)
 
         # Parameters
@@ -350,8 +350,8 @@ end
 
         # Initial conditions 2
         q0 = [1.1, 0.1, 0.0]
-        δq0 = IntervalBox(-0.1 .. 0.1, -0.1 .. 0.1, -0.01 .. 0.01)
-        X0 = IntervalBox(q0 .+ δq0)
+        δq0 = SVector(-0.1 .. 0.1, -0.1 .. 0.1, -0.01 .. 0.01)
+        X0 = q0 .+ δq0
         ene0 = ene_pendulum(X0)
 
         sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);

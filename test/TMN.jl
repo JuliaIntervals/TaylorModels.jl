@@ -6,9 +6,9 @@ using Test, Random
 
 const _num_tests = 1000
 
-setformat(:full)
+setdisplay(:full)
 
-function get_random_point(ib0::IntervalBox{N, T}) where {N, T}
+function get_random_point(ib0::AbstractVector{<:Interval}{N, T}) where {N, T}
     xmid = mid(ib0)
     return diam.(ib0) .* (rand(N) .- 0.5) .+ xmid
 end
@@ -17,7 +17,7 @@ function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T
     x0 = expansion_point(tma)
     xfp = get_random_point(domain(tma))
     xbf = [big(xfp[i]) for i=1:N]
-    ib = IntervalBox([@interval(xfp[i]) for i=1:N]...)
+    ib = SVector{N}(@interval(xfp[i]) for i in 1:N)
     range = evaluate(tma, ib-x0)
     bb = all(ftest(xx(xbf .- mid(x0))) ⊆ range)
     bb || @show(ftest, ib, xbf, ftest(xbf...), range)
@@ -29,10 +29,10 @@ const _order_max = 2*(_order+1)
 set_variables(Interval{Float64}, [:x, :y], order=_order_max)
 
 @testset "Tests for TaylorModelN " begin
-    b0 = Interval(0.0) × Interval(0.0)
-    ib0 = Interval(-0.5, 0.5) × Interval(-0.5, 0.5)
-    b1 =  Interval(0.0) × Interval(1.0)
-    ib1 = Interval(-0.5, 0.5) × Interval(0.5, 1.5)
+    b0 = interval(0.0) × interval(0.0)
+    ib0 = interval(-0.5, 0.5) × interval(-0.5, 0.5)
+    b1 =  interval(0.0) × interval(1.0)
+    ib1 = interval(-0.5, 0.5) × interval(0.5, 1.5)
 
     zi = 0..0
     xT = TaylorN(Interval{Float64}, 1, order=_order)
@@ -56,7 +56,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test TaylorModelN{2, Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
         # Test errors in construction
-        @test_throws AssertionError TaylorModelN(xT, zi, IntervalBox(1..1), IntervalBox(1..1))
+        @test_throws AssertionError TaylorModelN(xT, zi, SVector{1}(1..1), SVector{1}(1..1))
         @test_throws AssertionError TaylorModelN(xT, zi, b0, ib1)
         @test_throws AssertionError TaylorModelN(xT, 1..1, b0, ib0)
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
@@ -109,7 +109,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
 
         remt = remainder(1/(1-TaylorModel1(_order, b1[1], ib1[1])))
         @test remainder(1 / (1-xm)) == remt
-        @test remainder(ym / (1-xm)) == Interval(-0.25, 0.25)
+        @test remainder(ym / (1-xm)) == interval(-0.25, 0.25)
 
         @test remainder(xm^2) == remainder(ym^2)
         @test (centered_dom(xm)[1])^3 == remainder(xm^3)
@@ -136,13 +136,13 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test tma.pol == tmb.pol
         @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
-        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        # @test interval(ftest(inf(ii))-fT(inf(ii)-ξ0),
+        #                 ftest(sup(ii))-fT(sup(ii)-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
-        @test_throws AssertionError tmb(ib1.+Interval(1))
+        @test_throws AssertionError tmb(ib1.+interval(1))
 
         # test for TM with scalar coefficients
         tmc = fp_rpa(tma)
@@ -155,13 +155,13 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test tma.pol == tmb.pol
         @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
-        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        # @test interval(ftest(inf(ii))-fT(inf(ii)-ξ0),
+        #                 ftest(sup(ii))-fT(sup(ii)-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
-        @test_throws AssertionError tmb(ib1.+Interval(1))
+        @test_throws AssertionError tmb(ib1.+interval(1))
 
         ftest = x -> sin(x)
         xx = 1- xm^2 + ym
@@ -170,13 +170,13 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test tma.pol == tmb.pol
         @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
-        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        # @test interval(ftest(inf(ii))-fT(inf(ii)-ξ0),
+        #                 ftest(sup(ii))-fT(sup(ii)-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
-        @test_throws AssertionError tmb(ib1.+Interval(1))
+        @test_throws AssertionError tmb(ib1.+interval(1))
 
         ftest = x -> sqrt(x)
         xx = xm^2 + ym
@@ -185,13 +185,13 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test tma.pol == tmb.pol
         @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
-        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        # @test interval(ftest(inf(ii))-fT(inf(ii)-ξ0),
+        #                 ftest(sup(ii))-fT(sup(ii)-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
-        @test_throws AssertionError tmb(ib1.+Interval(1))
+        @test_throws AssertionError tmb(ib1.+interval(1))
 
         ftest = x -> inv(x)
         xx = 1 + xm + ym
@@ -200,13 +200,13 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test tma.pol == tmb.pol
         @test remainder(tma) ⊆ remainder(tmb)
         # fT, Δ, ξ0 = rpafp(tma)
-        # @test interval(ftest(ii.lo)-fT(ii.lo-ξ0),
-        #                 ftest(ii.hi)-fT(ii.hi-ξ0)) ⊆ remainder(tma)
+        # @test interval(ftest(inf(ii))-fT(inf(ii)-ξ0),
+        #                 ftest(sup(ii))-fT(sup(ii)-ξ0)) ⊆ remainder(tma)
         for ind = 1:_num_tests
             @test check_containment(ftest, xx, tma)
         end
         @test_throws AssertionError tmb(ib1.+1.0)
-        @test_throws AssertionError tmb(ib1.+Interval(1))
+        @test_throws AssertionError tmb(ib1.+interval(1))
     end
 
     @testset "Composition of functions and their inverses" begin
@@ -275,7 +275,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            aux = IntervalBox(xtest) - b0
+            aux = xtest - b0
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
@@ -291,7 +291,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            aux = IntervalBox(xtest) - b0
+            aux = xtest - b0
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
@@ -307,7 +307,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            aux = IntervalBox(xtest) - b0
+            aux = xtest - b0
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
@@ -323,7 +323,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            aux = IntervalBox(xtest) - b0
+            aux = xtest - b0
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
@@ -336,7 +336,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         for ind in 1:_num_tests
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
-            aux = IntervalBox(xtest) - b0
+            aux = xtest - b0
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
         end
 
@@ -351,7 +351,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             xtest = get_random_point(ib0)
             cx = [mid(ib0[1]), xtest[2]]
             cy = [xtest[1], mid(ib0[2])]
-            aux = IntervalBox(xtest) - b0
+            aux = xtest - b0
             @test (∫fdx(xtest...) - ∫fdx(cx...)) ∈ ∫fTdx(aux)
             @test (∫fdy(xtest...) - ∫fdy(cy...)) ∈ ∫fTdy(aux)
         end
@@ -401,16 +401,16 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         mccormick_min = -1.9133
 
         @testset "Tests for linear dominated bounder" begin
-            ib0 = IntervalBox(2.875 .. 3.0625, 0.5 .. 0.625) # A box near global minimum
+            ib0 = SVector(2.875 .. 3.0625, 0.5 .. 0.625) # A box near global minimum
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
-            @test beale_min ∈ bound_ldb
+            @test in_interval(beale_min, bound_ldb)
 
             # Same as previous, but with Float64 coefficients
             xT = TaylorN(Float64, 1, order=_order)
@@ -421,18 +421,18 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             ym = TaylorModelN(yT, 0 .. 0, b0, ib0)
             fT = beale(xm, ym)
             @test bound_ldb ⊆ bound_naive_tm
-            @test beale_min ∈ bound_ldb
+            @test in_interval(beale_min, bound_ldb)
 
-            ib0 = IntervalBox(2.875 .. 3.0625, 0.375 .. 0.5)
+            ib0 = SVector(2.875 .. 3.0625, 0.375 .. 0.5)
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
-            @test beale_min ∈ bound_ldb
+            @test in_interval(beale_min, bound_ldb)
 
             xT = TaylorN(Float64, 1, order=_order)
             yT = TaylorN(Float64, 2, order=_order)
@@ -444,11 +444,11 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
-            @test beale_min ∈ bound_ldb
+            @test in_interval(beale_min, bound_ldb)
 
-            ib0 = IntervalBox(1.01176 .. 1.1353, 0.888235 .. 1.01177)
+            ib0 = SVector(1.01176 .. 1.1353, 0.888235 .. 1.01177)
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = rosenbrock(xm, ym)
@@ -467,9 +467,9 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             bound_ldb = linear_dominated_bounder(fT)
             @test bound_ldb ⊆ bound_naive_tm
 
-            ib0 = IntervalBox(-0.647059 .. -0.588235, -1.58824 .. -1.52941)
+            ib0 = SVector(-0.647059 .. -0.588235, -1.58824 .. -1.52941)
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = mccormick(xm, ym)
@@ -490,39 +490,39 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         end
         @testset "Tests for quadratic fast bounder" begin
             δ = 0.1
-            ib0 = IntervalBox((3 - δ) .. (3 + δ), (0.5 - δ) .. (0.5 + δ))
+            ib0 = SVector((3 - δ) .. (3 + δ), (0.5 - δ) .. (0.5 + δ))
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
-            @test beale_min ∈ bound_qfb
+            @test in_interval(beale_min, bound_qfb)
 
-            ib0 = IntervalBox((1. - δ) .. (1. + δ), (1. - δ) .. (1 + δ))
+            ib0 = SVector((1. - δ) .. (1. + δ), (1. - δ) .. (1 + δ))
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = rosenbrock(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
-            @test rosenbrock_min ∈ bound_qfb
+            @test in_interval(rosenbrock_min, bound_qfb)
 
-            ib0 = IntervalBox((-0.54719 - δ) .. (-0.54719 + δ),
+            ib0 = SVector((-0.54719 - δ) .. (-0.54719 + δ),
                               (-1.54719 - δ) .. (-1.54719 + δ))
             c = mid(ib0)
-            b0 = Interval(c[1]) × Interval(c[2])
+            b0 = interval(c[1]) × interval(c[2])
             xm = TaylorModelN(1, _order, b0, ib0)
             ym = TaylorModelN(2, _order, b0, ib0)
             fT = mccormick(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
             @test bound_qfb ⊆ bound_naive_tm
-            @test mccormick_min ∈ bound_qfb
+            @test in_interval(mccormick_min, bound_qfb)
         end
     end
 end
