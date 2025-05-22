@@ -31,9 +31,23 @@ end
 
 
 # init_cache_VI
-function init_cache_VI(dense::Val{D}, t0::T, x0::Array{Interval{U},1},
+"""
+    init_cache_VI(t0::T, x0::Array{Interval{U},1},
         maxsteps::Int, orderT::Int, orderQ::Int, f!::F, params = nothing;
-        parse_eqs::Bool = true) where {D,U,T,F}
+        parse_eqs::Bool = true)
+    init_cache_VI(t0::T, x0::Array{TaylorModel1{TaylorN{U},U},1},
+        maxsteps::Int, orderT::Int, ::Int, f!::F, params = nothing;
+        parse_eqs::Bool = true)
+
+Initialize the internal integration variables and normalize the given interval
+box to the domain `[-1, 1]^n`. If `x0` corresponds to a vector of TaylorModel1,
+it is assumed that the domain of the TaylorN variables is normalized to the domain
+`[-1, 1]^n`.
+
+"""
+function init_cache_VI(t0::T, x0::Array{Interval{U},1},
+        maxsteps::Int, orderT::Int, orderQ::Int, f!::F, params = nothing;
+        parse_eqs::Bool = true) where {U,T,F}
 
     dof = length(x0)
     zI = zero(Interval{U})
@@ -87,10 +101,9 @@ function init_cache_VI(dense::Val{D}, t0::T, x0::Array{Interval{U},1},
 
     return cacheVI
 end
-
-function init_cache_VI(dense::Val{D}, t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
+function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
         maxsteps::Int, orderT::Int, ::Int, f!::F, params = nothing;
-        parse_eqs::Bool = true) where {D,U,T,F}
+        parse_eqs::Bool = true) where {U,T,F}
 
     dof = length(xTM)
     zI = zero(Interval{U})
@@ -141,6 +154,7 @@ function init_cache_VI(dense::Val{D}, t0::T, xTM::Array{TaylorModel1{TaylorN{U},
 
     return cacheVI
 end
+
 
 # stepsize
 function TI.stepsize(x::Taylor1{Interval{U}}, epsilon::T) where {T<:Real,U<:Number}

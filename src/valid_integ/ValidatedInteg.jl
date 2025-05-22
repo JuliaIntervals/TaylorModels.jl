@@ -8,7 +8,7 @@ using Reexport
 using LinearAlgebra: cond, mul!
 using Parameters
 
-export shrink_wrapping!, validated_integ#, validated_integ2
+export shrink_wrapping!, validated_integ, validated_integ2
 
 const TI = TaylorIntegration
 const IA = IntervalArithmetic
@@ -16,6 +16,6 @@ const IANumTypes = IA.NumTypes
 
 include("tweaksTI.jl")
 include("validated_integ.jl")
-# include("valid_integ/validated_integ2.jl")
+include("validated_integ2.jl")
 
 end
