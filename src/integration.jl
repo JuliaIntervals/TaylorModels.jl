@@ -42,8 +42,8 @@ for TM in tupleTMs
 end
 
 
-function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
-        c0::TaylorModelN{N,T,S}) where {N,T,S}
+function integrate(a::TaylorModel1{TaylorModelN{T,S},S},
+        c0::TaylorModelN{T,S}) where {T,S}
     integ_pol = integrate(a.pol, c0)
     δ = centered_dom(a)
 
@@ -73,7 +73,7 @@ end
     order = get_order(a[1])
     aux = δ^order / (order+1)
     Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
-    return IntervalBox(Δ)
+    return Δ
 end
 @inline function bound_integration(fT::TaylorModelN, s::TaylorN, which)
     Δ = s(centered_dom(fT)) + remainder(fT) * centered_dom(fT)[which]
@@ -88,7 +88,7 @@ end
 Integrates the one-variable Taylor Model (`TaylorModel1` or `RTaylorModel1`) with
 respect to the independent variable. `c0` is the integration constant; if omitted
 it is taken as zero. When the coefficients of `a` are `TaylorN` variables,
-the domain is specified by `cc0::IntervalBox`.
+the domain is specified by `cc0::Vector{Interval}`.
 
 ---
 
@@ -123,7 +123,6 @@ to bound the integration. The remainder corresponds to
 
 function picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
         xTM1TMN::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-
     x_picard = similar(xTM1TMN)
     picard_lindelof!(f!, dxTM1TMN, xTM1TMN, t, x_picard, params)
     return x_picard
@@ -133,7 +132,6 @@ function picard_lindelof!(f!,
         dxTM1TMN::Vector{TaylorModel1{T,S}},
         xTM1TMN ::Vector{TaylorModel1{T,S}},
         x_picard::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-
     dof = length(xTM1TMN)
     f!(dxTM1TMN, xTM1TMN, params, t)
     # x_picard = integrate.(dxTM1TMN, constant_term.(xTM1TMN))
