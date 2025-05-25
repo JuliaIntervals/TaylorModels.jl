@@ -122,7 +122,7 @@ function validated_step!(vB::Val{B}, f!,
         zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
-        check_property::F) where {B,T,F}
+        check_property::F) where {N,B,T,F}
 
     # One step integration (non-validated)
     δt = TI.taylorstep!(vB, f!, t, x, dx, xaux, abstol, params, rv)
@@ -149,7 +149,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
-        check_property::Function=(t, x)->true) where {T}
+        check_property::Function=(t, x)->true) where {N,T}
 
     # Test if `check_property` is satisfied; if not, half the integration time.
     # If after 25 checks `check_property` is not satisfied, throw an error.
@@ -241,7 +241,6 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
         δI::SVector{N,Interval{T}}, δtI::Interval{T}, params) where {N,T}
 
-    N = length(x)
     orderT = get_order(dx[1])
     aux = δtI^(orderT+1)
     Δx  = SVector{length(xI)}([xI[i][orderT+1] for i in eachindex(xI)]) * aux
@@ -525,9 +524,8 @@ The domain of `xTMN` is the normalized interval box `[-1,1]^N`.
 Ref: Florian B\"unger, Shrink wrapping for Taylor models revisited,
 Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
-function shrink_wrapping!(xTMN::Vector{TaylorModelN{T,S}}) where {T,S}
+function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
     # Original domain of TaylorModelN should be the symmetric normalized box
-    N = length(domain(xTMN[1]))
     B = symmetric_box(S, N)
     @assert all(isequal_interval.(domain.(xTMN), (B,)))
     x0 = zero(B)

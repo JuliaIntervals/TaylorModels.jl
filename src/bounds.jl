@@ -281,11 +281,10 @@ of the `TaylorModelN` included.
 """ linear_dominated_bounder
 
 for TT = (:T, :(Interval{T}))
-    @eval function linear_dominated_bounder(fT::TaylorModelN{$TT,S}; ϵ=1e-5, max_iter=5) where
-            {T<:IANumTypes, S<:IANumTypes}
+    @eval function linear_dominated_bounder(fT::TaylorModelN{N,$TT,S}; ϵ=1e-5, max_iter=5) where
+            {N,T<:IANumTypes, S<:IANumTypes}
         d = one(T)
         dom = domain(fT)
-        N = length(dom)
         x0 = expansion_point(fT)
         pol = polynomial(fT)
         Pm = deepcopy(pol)

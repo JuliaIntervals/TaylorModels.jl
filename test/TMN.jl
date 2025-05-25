@@ -8,8 +8,7 @@ const _num_tests = 1000
 
 setdisplay(:full)
 
-function check_containment(ftest, xx::TaylorModelN{T,S}, tma::TaylorModelN{T,S}) where {T,S}
-    N = length(domain(tma))
+function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T,S}) where {N,T,S}
     x0 = expansion_point(tma)
     xfp = sample.(domain(tma))
     xbf = [big(xfp[i]) for i=1:N]
@@ -35,8 +34,8 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
     yT = TaylorN(Interval{Float64}, 2, order=_order)
 
     @testset "TaylorModelN constructors" begin
-        xm = TaylorModelN{Interval{Float64}, Float64}(xT, zi, b0, ib0)
-        ym = TaylorModelN{Interval{Float64}, Float64}(yT, zi, b0, ib0)
+        xm = TaylorModelN{_order,Interval{Float64}, Float64}(xT, zi, b0, ib0)
+        ym = TaylorModelN{_order,Interval{Float64}, Float64}(yT, zi, b0, ib0)
         @test xm == TaylorModelN(xT, zi, b0, ib0)
         @test ym == TaylorModelN(yT, zi, b0, ib0)
         @test xm == TaylorModelN(1, _order, b0, ib0)

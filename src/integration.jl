@@ -42,8 +42,8 @@ for TM in tupleTMs
 end
 
 
-function integrate(a::TaylorModel1{TaylorModelN{T,S},S},
-        c0::TaylorModelN{T,S}) where {T,S}
+function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
+        c0::TaylorModelN{N,T,S}) where {N,T,S}
     integ_pol = integrate(a.pol, c0)
     δ = centered_dom(a)
 

@@ -7,6 +7,7 @@ using Reexport
 @reexport using TaylorIntegration
 using LinearAlgebra: cond, mul!
 using Parameters
+using StaticArrays
 
 export shrink_wrapping!, validated_integ, validated_integ2
 

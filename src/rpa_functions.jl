@@ -200,7 +200,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{S,T},T}) where {T<:Real
     return TaylorModel1(tmres.pol, Δ, x0, I)
 end
 
-function rpa(g::Function, tmf::TaylorModelN{T,S}) where {T,S}
+function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     _order = get_order(tmf)
 
     # # Avoid overestimations
@@ -272,14 +272,13 @@ for TM in tupleTMs
     end
 end
 
-fp_rpa(tm::TaylorModelN{T, T}) where {T} = tm
+fp_rpa(tm::TaylorModelN{N, T, T}) where {N,T} = tm
 
-function fp_rpa(tm::TaylorModelN{Interval{T},T}) where {T}
+function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     fT = polynomial(tm)
     Δ = remainder(tm)
     x0 = expansion_point(tm)
     I = domain(tm)
-    N = length(I)
     order = get_order(tm)
 
     b = zero(fT)

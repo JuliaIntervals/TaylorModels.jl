@@ -12,7 +12,7 @@ end
 #     reverse(promote(a,b))
 
 #
-function promote(a::TaylorModelN{T,S}, b::TaylorN{R}) where {T, S, R}
+function promote(a::TaylorModelN{N,T,S}, b::TaylorN{R}) where {N, T, S, R}
     RR = promote_type(T,R)
     aa = TaylorModelN(convert(TaylorN{RR},a.pol), remainder(a), expansion_point(a),
         domain(a))
@@ -21,8 +21,8 @@ function promote(a::TaylorModelN{T,S}, b::TaylorN{R}) where {T, S, R}
 end
 # promote(b::TaylorN{R}, a::TaylorModelN{T,S}) where { T, S, R} = reverse( promote(a, b) )
 
-function promote(a::Taylor1{TaylorModelN{Interval{T},S}}, b::Taylor1{Interval{T}}) where
-        {T<:Real, S<:Real}
+function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::Taylor1{Interval{T}}) where
+        {N,T<:Real, S<:Real}
     orderTMN = get_order(a[0])
     bTN = Array{TaylorModelN{N,Interval{T},S}}(undef, get_order(a)+1)
     unoTM = TaylorModelN(interval(T(1), T(1)), orderTMN, expansion_point(a[0]), domain(a[0]))
@@ -34,8 +34,8 @@ end
 # promote(b::Taylor1{Interval{T}}, a::Taylor1{TaylorModelN{Interval{T},S}}) where
 #     { T<:Real, S<:Real} = reverse( promote(a, b) )
 
-function promote(a::Taylor1{TaylorModelN{Interval{T},S}}, b::T) where
-        { T<:Real, S<:Real}
+function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::T) where
+        {N, T<:Real, S<:Real}
 
     orderTMN = get_order(a[0])
     bTN = Array{TaylorModelN{N,Interval{T},S}}(undef, get_order(a)+1)
@@ -49,8 +49,8 @@ end
 # promote(b::T, a::Taylor1{TaylorModelN{Interval{T},S}}) where
 #         { T<:Real, S<:Real} = reverse( promote(a, b) )
 
-function promote(a::Taylor1{TaylorModelN{T,S}}, b::R) where
-        { T<:Real, S<:Real, R<:Real}
+function promote(a::Taylor1{TaylorModelN{N,T,S}}, b::R) where
+        {N, T<:Real, S<:Real, R<:Real}
 
     orderTMN = get_order(a[0])
     TT = promote_type(T,R)
@@ -81,10 +81,10 @@ for TM in tupleTMs
     # @eval promote(a::$TM{T,S}, b::R) where {T,S<:Real,R} = promote(a, convert(S, b))
     # @eval promote(b::R, a::$TM{T,S}) where {T,S,R} = reverse( promote(a,b) )
     #
-    @eval function promote(a::$TM{TaylorModelN{T,S},S}, b::T) where {T,S}
+    @eval function promote(a::$TM{TaylorModelN{N,T,S},S}, b::T) where {N,T,S}
         a_pol0 = a.pol[0]
         tmN = TaylorModelN(b, get_order(a_pol0), expansion_point(a_pol0), domain(a_pol0))
         return (a, $TM(Taylor1([tmN], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
     end
-    # @eval promote(b::T, a::$TM{TaylorModelN{T,S},S}) where {T,S} = reverse( promote(a,b) )
+    # @eval promote(b::T, a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} = reverse( promote(a,b) )
 end

@@ -57,7 +57,7 @@ end
 
 
 # Substitute a TaylorModelN into a TM1; it **does not** include the remainder
-function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{T,S}) where{T,S}
+function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
 
@@ -78,7 +78,7 @@ end
 
 # Evaluates the TMN on an interval, or array with proper dimension;
 # the computation includes the remainder
-function evaluate(tm::TaylorModelN{T,S}, a::AbstractVector{Interval{S}}) where {T,S}
+function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{Interval{S}}) where {N,T,S}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
@@ -87,9 +87,9 @@ function evaluate(tm::TaylorModelN{T,S}, a::AbstractVector{Interval{S}}) where {
     return tm.pol(a) + Δ
 end
 
-(tm::TaylorModelN{T,S})(a::AbstractVector{Interval{S}}) where {T,S} = evaluate(tm, a)
+(tm::TaylorModelN{N,T,S})(a::AbstractVector{Interval{S}}) where {N,T,S} = evaluate(tm, a)
 
-function evaluate(tm::TaylorModelN{T,S}, a::AbstractVector{R}) where {T,S,R}
+function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
     @assert iscontained(a, tm)
     _order = get_order(tm)
 
@@ -98,13 +98,13 @@ function evaluate(tm::TaylorModelN{T,S}, a::AbstractVector{R}) where {T,S,R}
     return tm.pol(a) + Δ
 end
 
-(tm::TaylorModelN{T,S})(a::AbstractVector{R}) where {T,S,R} = evaluate(tm, a)
+(tm::TaylorModelN{N,T,S})(a::AbstractVector{R}) where {N,T,S,R} = evaluate(tm, a)
 
-evaluate(tm::Vector{TaylorModelN{T,S}}, a::AbstractVector{Interval{S}}) where {T,S} =
+evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::AbstractVector{Interval{S}}) where {N,T,S} =
     interval.( tm[i](a) for i in eachindex(tm) )
 
 
-function evaluate(a::Taylor1{TaylorModelN{T,S}}, dx::T) where {T<:Real, S<:Real}
+function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N,T<:Real, S<:Real}
     @inbounds suma = a[end]*one(dx)
     @inbounds for k in get_order(a)-1:-1:0
         suma = suma*dx + a[k]

@@ -106,7 +106,7 @@ The approximation ``f(x) = p(x) + \delta (x - x_0)^{n+1}`` is satisfied for all
 
 # TaylorModelN's struct
 """
-    TaylorModelN{T,S}
+    TaylorModelN{N,T,S}
 
 Taylor Models with absolute remainder for `N` independent variables.
 
@@ -124,26 +124,38 @@ struct TaylorModelN{N,T,S} <: AbstractSeries{T}
         @assert N == get_numvars()
         @assert in_interval(zero(S), rem) && all(issubset_interval.(x0, dom))
 
-        return new{T,S}(pol, rem, x0, dom)
+        return new{N,T,S}(pol, rem, x0, dom)
     end
 end
 
 # Outer constructors
+function TaylorModelN{N,T,S}(pol::TaylorN{T}, rem::Interval{S},
+        x0::AbstractVector{Interval{S}}, dom::AbstractVector{Interval{S}}) where {N,T<:NumberNotSeries,S<:Real}
+    @assert N == get_numvars()
+    return TaylorModelN{N,T,S}(pol, rem, SVector{N}(x0), SVector{N}(dom))
+end
+
+function TaylorModelN(pol::TaylorN{T}, rem::Interval{S},
+        x0::AbstractVector{Interval{S}}, dom::AbstractVector{Interval{S}}) where {T<:NumberNotSeries,S<:Real}
+    N = get_numvars()
+    return TaylorModelN{N,T,S}(pol, rem, SVector{N}(x0), SVector{N}(dom))
+end
+
 TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::SVector{N,Interval{S}},
-    dom::SVector{N,Interval{S}}) where {N,T,S} = TaylorModelN{N,T,S}(pol, rem, x0, dom)
+    dom::SVector{N,Interval{S}}) where {N,T<:NumberNotSeries,S<:Real} = TaylorModelN{N,T,S}(pol, rem, x0, dom)
 
 # Constructor for just changing the remainder
-TaylorModelN(u::TaylorModelN{T,S}, Δ::Interval{S}) where {T,S} =
-    TaylorModelN{T,S}(u.pol, Δ, expansion_point(u), domain(u))
+TaylorModelN(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
+    TaylorModelN{N,T,S}(u.pol, Δ, expansion_point(u), domain(u))
 
 # Short-cut for independent variable
-TaylorModelN(nv::Integer, ord::Integer, x0::SVector{N,Interval{T}}, dom::SVector{N,Interval{T}}) where {N,T} =
+TaylorModelN(nv::Integer, ord::Integer, x0::AbstractVector{Interval{T}}, dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(x0[nv] + TaylorN(Interval{T}, nv, order=ord), zero(dom[1]), x0, dom)
 
 # Short-cut for a constant
-TaylorModelN(a::Interval{T}, ord::Integer, x0::SVector{N,Interval{T}}, dom::SVector{N,Interval{T}}) where {N,T} =
+TaylorModelN(a::Interval{T}, ord::Integer, x0::AbstractVector{Interval{T}}, dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
-TaylorModelN(a::T, ord::Integer, x0::SVector{N,Interval{T}}, dom::SVector{N,Interval{T}}) where {N,T} =
+TaylorModelN(a::T, ord::Integer, x0::AbstractVector{<:Interval{T}}, dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
 
 # Functions to retrieve the order and remainder
@@ -152,7 +164,7 @@ TaylorModelN(a::T, ord::Integer, x0::SVector{N,Interval{T}}, dom::SVector{N,Inte
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
-@inline get_numvars(tm::TaylorModelN{T,S}) where {T,S} = length(tm.x0)
+@inline get_numvars(tm::TaylorModelN{N,T,S}) where {N,T,S} = length(tm.x0)
 # Centered domain
 @inline centered_dom(tm::TaylorModelN) = domain(tm) .- expansion_point(tm)
 
@@ -181,7 +193,7 @@ struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{SVector{N,Interv
         @assert length(time) == length(fp) == size(xTM,2)
         # TODO: Check correct number of vaiables
         # N == size(xTM,1)
-        return new{T,V1,V2,M}(time, fp, xTM)
+        return new{N,T,V1,V2,M}(time, fp, xTM)
     end
 end
 
