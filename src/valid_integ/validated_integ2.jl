@@ -1,85 +1,79 @@
 # Some methods for validated integration of ODEs (second approach)
 
-function validated_integ2(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int,
+function validated_integ2(f!, X0::Vector{Interval{U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
         abstol::T, params=nothing;
-        maxsteps::Int=2000, parse_eqs=true,
-        adaptive::Bool=true, minabstol=T(_DEF_MINABSTOL), absorb::Bool=false,
+        maxsteps::Int=2000, parse_eqs::Bool=true,
+        adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
         validatesteps::Int=30, ε::T=1e-10, δ::T=1e-6,
-        absorb_steps::Int=3) where {T <: Real}
+        absorb_steps::Int=3) where {T <: Real, U}
 
-    # Initialize the Taylor1 expansions
-    # N = get_numvars()
-    # dof = N
-    dof = length(X0)
-    t = t0 + Taylor1(T, orderT)
+    # Initialize cache
+    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
 
-    # Internals: jet transport integration
-    x = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    dx = Array{Taylor1{TaylorN{T}}}(undef, dof)
-
-    # Set initial conditions
-    initialize!(X0, orderQ, orderT, x)
-    f!(dx, x, params, t)
-
-    # Determine if specialized jetcoeffs! method exists (built by @taylorize)
-    parse_eqs, rv = TI._determine_parsing!(parse_eqs, f!, t, x, dx, params)
-
-    # Re-initialize the Taylor1 expansions
-    t  = t0 + Taylor1(T, orderT )
-    initialize!(X0, orderQ, orderT, x)
-
-    return _validated_integ2!(f!, t0, tmax, orderT, x, dx, rv,
-        abstol, params, parse_eqs, maxsteps, adaptive, minabstol, absorb,
+    return _validated_integ2!(f!, X0, t0, tmax, abstol, cacheVI, params,
+        maxsteps, adaptive, minabstol, absorb,
         validatesteps, ε, δ, absorb_steps)
 end
 
-function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx, rv,
-        abstol::T, params, parse_eqs::Bool, maxsteps::Int,
-        adaptive::Bool, minabstol::T, absorb::Bool,
+function validated_integ2(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
+        abstol::T, params=nothing;
+        maxsteps::Int=2000, parse_eqs::Bool=true,
+        adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
+        validatesteps::Int=30, ε::T=1e-10, δ::T=1e-6,
+        absorb_steps::Int=3) where {T <: Real, U}
+
+    # Initialize cache
+    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    q0 = evaluate(constant_term.(polynomial.(X0)), symmetric_box(T,length(X0)))
+
+    return _validated_integ2!(f!, q0, t0, tmax, abstol, cacheVI, params,
+        maxsteps, adaptive, minabstol, absorb,
+        validatesteps, ε, δ, absorb_steps)
+end
+
+
+function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCacheVI, params,
+        maxsteps::Int, adaptive::Bool, minabstol::T, absorb::Bool,
         validatesteps::Int, ε::T, δ::T, absorb_steps::Int) where {T <: Real}
 
+    # Unpack caches
+    @unpack tv, xv, xaux, t, x, dx, rv, xauxI, tI, xI, dxI, rvI,
+            xTMN, xTM1v, rem, parse_eqs = cacheVI
+
     # Set proper parameters for jet transport
-    N = get_numvars()
-    dof = N
-
-    # Some variables
+    sign_tstep = copysign(1, tf - t0)
+    dof = length(q0)
+    orderT = get_order(t)
     zt = zero(t0)
-    zI = zero(Interval{T})
-    zB = fill(zero(Interval{T}), SVector{N})
-    S = symmetric_box(N, T)
-    t = t0 + Taylor1(orderT)
+    zI = interval(zero(T))
+    S  = symmetric_box(T, dof)
+    zB = zero(S)
+    @inbounds xv[1] = q0
+    @inbounds tv[1] = t0
 
-    # Allocation of vectors
-    # Output
-    tv = Array{T}(undef, maxsteps+1)
-    xv = Array{SVector{N,Interval{T}}}(undef, maxsteps+1)
-    xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
-    # Internals
-    xaux = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    xTMN = Array{TaylorModelN{N,T,T}}(undef, dof)
     xTM1 = Array{TaylorModel1{TaylorN{T},T}}(undef, dof)
     dxTM1 = Array{TaylorModel1{TaylorN{T},T}}(undef, dof)
     low_ratiov = Array{T}(undef, dof)
     hi_ratiov = Array{T}(undef, dof)
-    rem = Array{Interval{T}}(undef, dof)
+    # rem = Array{Interval{T}}(undef, dof)
     E = Array{Interval{T}}(undef, dof)
     E′ = Array{Interval{T}}(undef, dof)
 
-    # Initializations
+    # # Initializations
     @. begin
-        xTMN = TaylorModelN(constant_term(x), zI, (zB,), (S,))
+    #     xTMN = TaylorModelN(constant_term(x), zI, (zB,), (S,))
         xTM1 = TaylorModel1(deepcopy(x), zI, zI, zI)
-        rem = zI
-        xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
+    #     rem = zI
+    #     xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
     end
     polv = polynomial.(xTM1)
     fill!(E, zI)
     fill!(E′, zI)
-    @inbounds tv[1] = t0
-    @inbounds xv[1] = evaluate(xTMN, S)
+    # @inbounds tv[1] = t0
+    # @inbounds xv[1] = evaluate(xTMN, S)
 
     # Direction of the integration
-    sign_tstep = copysign(1, tf - t0)
+    # sign_tstep = copysign(1, tf - t0)
 
     red_abstol = abstol
 
@@ -101,7 +95,7 @@ function _validated_integ2!(f!, t0::T, tf::T, orderT::Int, x, dx, rv,
                                     validatesteps=validatesteps)
         domt = sign_tstep * interval(zt, sign_tstep*δt)
 
-        # δtI = (δt .. δt) ∩ domt # assure it is inside the domain in t
+        # δtI = intersect_interval(interval(δt, δt), domt) # assure it is inside the domain in t
         nsteps += 1
         @inbounds tv[nsteps] = t0
         t0 += δt
@@ -176,9 +170,10 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                         adaptive::Bool, minabstol;
                         ε=1e-10, δ=1e-6, validatesteps=20, extrasteps=50)
     #
-    T = IntervalArithmetic.numtype(box[1])
-    zI = zero(Interval{T})
-    domT = sign_tstep * Interval{T}(inf(zI), sign_tstep*δt)
+    T = IA.numtype(box[1])
+    zI = interval(zero(T))
+    zt = zero(t[0])
+    domT = sign_tstep * interval(zt, sign_tstep*δt)
     orderT = get_order(t)
     @. begin
         polv = deepcopy.(x)
@@ -187,8 +182,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
         E = remainder(xTM1K)
         # E = remainder(x0)
     end
-    εi = (1 - ε) .. (1 + ε)
-    δi = -δ .. δ
+    εi = interval(1 - ε, 1 + ε)
+    δi = interval(-δ, δ)
 
     _success = false
     reduced_abstol = abstol
@@ -226,7 +221,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                 if bool_red
                     reduced_abstol = reduced_abstol/10
                     δt = δt * 0.1^(1/orderT)
-                    domT = sign_tstep * Interval{T}(0, sign_tstep*δt)
+                    domT = sign_tstep * interval(0, sign_tstep*δt)
                     @. begin
                         xTM1K = TaylorModel1(polv, zI, zI, domT)
                         # xTM1K = TaylorModel1(polv, rem, zI, domT)

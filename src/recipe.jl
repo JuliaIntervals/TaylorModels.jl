@@ -83,7 +83,7 @@ intervals, which is useful to decrease the overapproximations associated
 to the whole time domain.
 """
 function mince_in_time(sol::TMSol; var::Int=0, timediv::Int=1)
-    @assert timediv > 0 "`timediv must be 1 or larger"
+    @assert timediv > 0 "`timediv must be 1 or a larger Int"
     @assert 0 ≤ var ≤ get_numvars(sol)
 
     domT = _mince_in_time(sol, Val(true), timediv)
@@ -123,7 +123,7 @@ function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int,
 
     # Case timediv > 1
     vv = similar(domT)
-    normalized_box = fill(-1..1, SVector{N})
+    normalized_box = symmetric_box(Float64,N)
     δt = mince(domain(sol,1), timediv)
 
     i0 = 1

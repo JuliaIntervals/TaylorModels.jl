@@ -193,4 +193,4 @@ end
 @inline get_xTM(a::TMSol, n::Int) = getindex(getfield(a,:xTM),:,n)
 @inline domain(a::TMSol) = domain.(getindex(getfield(a, :xTM), 1, :)) # vector!
 @inline domain(a::TMSol, n::Int) = domain(getindex(getfield(a, :xTM), 1, n))
-@inline get_numvars(a::TMSol{T,V1,V2,M}) where {T,V1,V2,M} = get_numvars(a.xTM[1])
+@inline get_numvars(a::TMSol{T,V1,V2,M}) where {T,V1,V2,M} = get_numvars(a.xTM[1][0])

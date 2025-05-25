@@ -3,189 +3,83 @@
 const _DEF_MINABSTOL = 1.0e-50
 
 
-function validated_integ(f!, X0, t0::T, tmax::T, orderQ::Int, orderT::Int,
+function validated_integ(f!, X0::Vector{Interval{U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
         abstol::T, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
-        check_property::F=(t, x)->true) where {T<:Real, F}
+        check_property::F=(t, x)->true) where {T<:Real, U, F}
 
-    # Initialize the Taylor1 expansions
-    # N = get_numvars()
-    # dof = N
-    dof = length(X0)
-    t  = t0 + Taylor1(T, orderT )
-    tI = t0 + Taylor1(T, orderT+1)
+    # Initialize cache
+    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
 
-    # Internals: jet transport integration
-    x     = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    dx    = Array{Taylor1{TaylorN{T}}}(undef, dof)
+    return _validated_integ!(f!, X0, t0, tmax, abstol, cacheVI, params,
+        maxsteps, adaptive, minabstol, absorb, check_property)
+end
 
-    # Internals: Taylor1{Interval{T}} integration
-    xI    = Array{Taylor1{Interval{T}}}(undef, dof)
-    dxI   = Array{Taylor1{Interval{T}}}(undef, dof)
+function validated_integ(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
+        abstol::T, params=nothing;
+        maxsteps::Int=2000, parse_eqs::Bool=true,
+        adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
+        check_property::F=(t, x)->true) where {T<:Real, U, F}
 
-    # Aux vars (parse_eqs == false)
-    xaux  = Array{Taylor1{TaylorN{T}}}(undef, dof)
-    xauxI = Array{Taylor1{Interval{T}}}(undef, dof)
+    # Initialize cache
+    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    q0 = evaluate(constant_term.(polynomial.(X0)), symmetric_box(T,length(X0)))
 
-    # Set initial conditions
-    initialize!(X0, orderQ, orderT, x, xI)
-    f!(dx, x, params, t)
-    f!(dxI, xI, params, tI)
-
-    # Determine if specialized jetcoeffs! method exists (built by @taylorize)
-    parse_eqsI, rvI = TI._determine_parsing!( parse_eqs, f!, tI, xI, dxI, params)
-    parse_eqs,  rv  = TI._determine_parsing!( parse_eqs, f!, t, x, dx, params)
-    @assert parse_eqs == parse_eqsI
-
-    # Re-initialize the Taylor1 expansions
-    t  = t0 + Taylor1(T, orderT )
-    tI = t0 + Taylor1(T, orderT+1)
-    initialize!(X0, orderQ, orderT, x, xI)
-    return _validated_integ!(f!, t0, tmax, x, dx, xI, dxI,
-        xaux, xauxI, rv, rvI, orderT, abstol, params,
-        parse_eqs, maxsteps, adaptive, minabstol, absorb, check_property)
+    return _validated_integ!(f!, q0, t0, tmax, abstol, cacheVI, params,
+        maxsteps, adaptive, minabstol, absorb, check_property)
 end
 
 
+function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T, cacheVI::VectorCacheVI, params,
+        maxsteps::Int, adaptive::Bool, minabstol::T,
+        absorb::Bool, check_property::F) where {T<:Real,F}
 
-"""
-    initialize!(X0::AbstractVector{<:Interval}, orderQ, orderT, x, xI)
-    initialize!(X0::AbstractVector{<:Interval}, orderQ, orderT, x)
+    # Unpack caches
+    @unpack tv, xv, xaux, t, x, dx, rv, xauxI, tI, xI, dxI, rvI,
+            xTMN, xTM1v, rem, parse_eqs = cacheVI
 
-Initialize the internal integration variables and normalize the given interval
-box to the domain `[-1, 1]^n`.
-"""
-function initialize!(X0::SVector{N,Interval{T}}, orderQ, orderT, x, xI) where {N,T}
-    @assert N == get_numvars()
-
-    # center of the box and vector of widths
-    q0 = mid.(X0)
-    δq0 = X0 .- q0
-
-    qaux = normalize_taylor.(q0 .+ TaylorN.(1:N, order=orderQ), (δq0,), true)
-    @. begin
-        x = Taylor1(qaux, orderT)
-        # dx = Taylor1(zero(qaux), orderT)
-        xI = Taylor1(X0, orderT+1)
-        # dxI = Taylor1(zero(X0), orderT+1)
-    end
-
-    return nothing
-end
-function initialize!(X0::SVector{N,Interval{T}}, orderQ, orderT, x) where {N,T}
-    @assert N == get_numvars()
-    q0 = mid.(X0)
-    δq0 = X0 .- q0
-
-    qaux = normalize_taylor.(q0 .+ TaylorN.(1:N, order=orderQ), (δq0,), true)
-    @. begin
-        x = Taylor1(qaux, orderT)
-        # dx = x
-    end
-    return nothing
-end
-
-"""
-    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x, xI)
-    initialize!(X0::Vector{TaylorModel1{TaylorN{T}, T}}, orderQ, orderT, x)
-
-Initialize the auxiliary integration variables assuming that the given vector
-of taylor models `X0` is normalized to the domain `[-1, 1]^n` in space.
-"""
-function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x, xI) where {T}
-    # nomalized domain
-    N = get_numvars()
-    S = symmetric_box(N, T)
-
-    qaux = constant_term.(polynomial.(X0))
-    @. begin
-        x = Taylor1(qaux, orderT)
-        # dx = x
-        # we assume that qaux is normalized to S=[-1, 1]^N
-        xI = Taylor1(evaluate(qaux, (S,)), orderT+1)
-        # dxI = xI
-    end
-    return nothing
-end
-function initialize!(X0::Vector{TaylorModel1{TaylorN{T},T}}, orderQ, orderT, x) where {T}
-    # nomalized domain
-    N = get_numvars()
-
-    qaux = constant_term.(polynomial.(X0))
-    @. begin
-        x = Taylor1(qaux, orderT)
-        # dx = x
-    end
-    return nothing
-end
-
-
-
-function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
-                xaux, xauxI, rv, rvI, orderT::Int, abstol::T, params,
-                parse_eqs::Bool, maxsteps::Int, adaptive::Bool, minabstol::T,
-                absorb::Bool, check_property::F) where {T<:Real,F}
-
-    # Set proper parameters for jet transport
-    N = get_numvars()
-    dof = N
-
-    # Some variables
+    # Initial conditions
+    sign_tstep = copysign(1, tmax - t0)
+    dof = length(q0)
+    orderT = get_order(t)
     zt = zero(t0)
     zI = zero(Interval{T})
-    zB = fill(zero(Interval{T}), SVector{N})
-    S  = symmetric_box(N, T)
-    t  = t0 + Taylor1(T, orderT)
-    tI = t0 + Taylor1(T, orderT+1)
-    xTMN  = Array{TaylorModelN{N,T,T}}(undef, dof)
-    @. xTMN = TaylorModelN(constant_term(x), zI, (zB,), (S,))
-
-    # Allocation of vectors
-    # Output
-    tv    = Array{T}(undef, maxsteps+1)
-    xv    = Array{SVector{N,Interval{T}}}(undef, maxsteps+1)
+    S  = symmetric_box(T, dof)
+    zB = zero(S)
+    @inbounds xv[1] = q0
     @inbounds tv[1] = t0
-    @inbounds xv[1] = evaluate(xTMN, S)
-    xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
-    rem   = Array{Interval{T}}(undef, dof)
-    @. begin
-        rem = zI
-        xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
-    end
-
-    # Direction of the integration
-    sign_tstep = copysign(1, tmax-t0)
-
-    local _success # if true, the validation step succeeded
-    red_abstol = abstol
 
     # Integration
     nsteps = 1
+    local _success # if true, the validation step succeeded
+    red_abstol = abstol
     while sign_tstep*t0 < sign_tstep*tmax
-
         # Validated step of the integration
         (_success, δt, red_abstol) = validated_step!(Val(parse_eqs), f!,
                     t, x, dx, tI, xI, dxI, xaux, xauxI, rv, rvI,
-                    t0, tmax, sign_tstep, xTMN, rem, zB, S,
-                    orderT, red_abstol, params,
+                    t0, tmax, sign_tstep,
+                    xTMN, rem,
+                    zB, S, orderT, red_abstol, params,
                     adaptive, minabstol, absorb, check_property)
-        δtI = sign_tstep * interval(zt, sign_tstep*δt)
+        δtI = interval(zt, sign_tstep*δt)
+
+        # Save different objects
+        nsteps += 1
+        for ind in eachindex(x)
+            xTM1v[ind, nsteps] = TaylorModel1(deepcopy(x[ind]), rem[ind], zI, δtI) # deepcopy is needed!
+            x[ind] = Taylor1(evaluate(x[ind], δt), orderT)
+            # dx = Taylor1(zero(constant_term(x)), orderT)
+            xI[ind] = Taylor1(evaluate(xTMN[ind], S), orderT+1)
+            # dxI = xI
+        end
 
         # New initial conditions and time, and output vectors
-        nsteps += 1
         @inbounds tv[nsteps] = t0
+        xv[nsteps] = evaluate(xTMN, S)       # Vector{Interval}
         t0 += δt
         @inbounds t[0] = t0
         @inbounds tI[0] = t0
-        @. begin
-            xTM1v[:, nsteps] = TaylorModel1(deepcopy(x), rem, zI, δtI) # deepcopy is needed!
-            x = Taylor1(evaluate(x, δt), orderT)
-            # dx = Taylor1(zero(constant_term(x)), orderT)
-            xI = Taylor1(evaluate(xTMN, (S,)), orderT+1)
-            # dxI = xI
-        end
-        xv[nsteps] = evaluate(xTMN, S) # interval box
 
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
@@ -210,13 +104,13 @@ function _validated_integ!(f!, t0::T, tmax::T, x, dx, xI, dxI,
 
     end
 
-    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps), view(xTM1v,:,1:nsteps))
+    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps,), view(xTM1v,:,1:nsteps))
 end
 
 
 
 """
-    validated-step!
+    validated_step!
 """
 function validated_step!(vB::Val{B}, f!,
         t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
@@ -228,7 +122,7 @@ function validated_step!(vB::Val{B}, f!,
         zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
-        check_property::F) where {B,N,T,F}
+        check_property::F) where {B,T,F}
 
     # One step integration (non-validated)
     δt = TI.taylorstep!(vB, f!, t, x, dx, xaux, abstol, params, rv)
@@ -255,7 +149,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
-        check_property::Function=(t, x)->true) where {N,T}
+        check_property::Function=(t, x)->true) where {T}
 
     # Test if `check_property` is satisfied; if not, half the integration time.
     # If after 25 checks `check_property` is not satisfied, throw an error.
@@ -347,6 +241,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
         δI::SVector{N,Interval{T}}, δtI::Interval{T}, params) where {N,T}
 
+    N = length(x)
     orderT = get_order(dx[1])
     aux = δtI^(orderT+1)
     Δx  = SVector{length(xI)}([xI[i][orderT+1] for i in eachindex(xI)]) * aux
@@ -377,11 +272,12 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
             @inbounds for ind in 1:N
                 # Widen the directions where ⊂ does not hold
                 vv[ind] = Δx[ind]
-                if Δ[ind] == Δx[ind]
-                    vv[ind] = widen.(Δ[ind])
+                if isequal_interval(Δ[ind], Δx[ind])
+                    # vv[ind] = widen.(Δ[ind])
+                    vv[ind] = interval(prevfloat(inf(Δ[ind])), nextfloat(sup(Δ[ind])))
                 end
             end
-            Δx = vv
+            Δx = copy(vv)
             continue
         end
         Δx = Δ
@@ -454,11 +350,11 @@ end
 
 #         # Expand Δx in the directions needed
 #         Δxold = Δx
-#         if Δ ⊆ Δx
+#         if issubset_interval(Δ, Δx)
 #             @inbounds for ind in 1:N
 #                 # Widen the directions where ⊂ does not hold
 #                 vv[ind] = Δx[ind]
-#                 if Δx[ind] ⊆ Δ[ind]
+#                 if issubset_interval(Δx[ind], Δ[ind])
 #                     vv[ind] = widen.(Δ[ind])
 #                 end
 #             end
@@ -479,8 +375,9 @@ end
 Checks if `Δ .⊂ Δx` is satisfied. If ``Δ ⊆ Δx` is satisfied, it returns
 `true` if all cases where `==` holds corresponds to the zero `Interval`.
 """
-function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where{T}
-    (Δ ⊂ Δx || Δ == Δx == zero(Δ)) && return true
+function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where {T}
+    (isinterior(Δ, Δx) || (isequal_interval(Δ, Δx) &&
+        isequal_interval(Δ, zero(Δ)))) && return true
     return false
 end
 iscontractive(Δ::SVector{N,Interval{T}}, Δx::SVector{N,Interval{T}}) where{N,T} =
@@ -500,7 +397,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     Δx::SVector{N,Interval{T}}, Δ0::SVector{N,Interval{T}}, params) where {N,T}
 
     # Extend `x` and `dx` to have interval coefficients
-    zI = zero(δt)
+    # zI = zero(δt)
     @. begin
         xxI = x + Δx
         # dxxI = dx + zI
@@ -557,16 +454,16 @@ Ref: Xin Chen, Erika Abraham, and Sriram Sankaranarayanan,
 Systems", in Real Time Systems Symposium (RTSS), pp. 183-192 (2012),
 IEEE Press.
 """
-function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
+function absorb_remainder(a::TaylorModelN{T,T}) where {T}
     Δ = remainder(a)
     orderQ = get_order(a)
-    δ = symmetric_box(N, T)
+    δ = symmetric_box(T)
     aux = diam(Δ)/(2N)
     rem = zero(Δ)
 
     # Linear shift
     lin_shift = mid(Δ) + sum((aux*TaylorN(i, order=orderQ) for i in 1:N))
-    bpol = a.pol + lin_shift
+    bpol = polynomial(a) + lin_shift
 
     # Compute the new remainder
     aI = a(δ)
@@ -591,24 +488,30 @@ end
 
 
 # Postverify and define Taylor models to be returned
-function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,T,T}},
-        X::Vector{TaylorN{T}}) where {N,T}
-    postverify = true
-    x0 = expansion_point(xTMN[1])
-    B = domain(xTMN[1])
-    zI = zero(Interval{T})
-    @inbounds for i in eachindex(xTMN)
-        pol = polynomial(xTMN[i])
-        ppol = fp_rpa(TaylorModelN(pol(X), zI, x0, B ))
-        postverify = postverify && (xTMN[i](B) ⊆ ppol(B))
-        xTMN[i] = copy(ppol)
+for TT in (:T, :(Interval{T}))
+    @eval function scalepostverify_sw!(xTMN::Vector{TaylorModelN{$TT,S}},
+            X::Vector{TaylorN{$TT}}) where {T<:IANumTypes, S<:IANumTypes}
+        postverify = true
+        x0 = expansion_point(xTMN[1])
+        B = domain(xTMN[1])
+        zI = zero(Interval{S})
+        oI = one($TT)
+        @inbounds for i in eachindex(xTMN)
+            pol = polynomial(xTMN[i])
+            tmn = TaylorModelN(pol(X), zI, x0, B )
+            ppol = fp_rpa(tmn) * oI
+            bb = issubset_interval(xTMN[i](B), ppol(B)) ||
+                    isequal_interval(xTMN[i](B), ppol(B))
+            postverify = postverify && bb
+            xTMN[i] = copy(ppol)
+        end
+        @assert postverify """
+            Failed to post-verify shrink-wrapping:
+            X = $(linear_polynomial(X))
+            xTMN = $(xTMN)
+            """
+        return postverify
     end
-    @assert postverify """
-        Failed to post-verify shrink-wrapping:
-        X = $(linear_polynomial(X))
-        xTMN = $(xTMN)
-        """
-    return postverify
 end
 
 
@@ -622,11 +525,11 @@ The domain of `xTMN` is the normalized interval box `[-1,1]^N`.
 Ref: Florian B\"unger, Shrink wrapping for Taylor models revisited,
 Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
-function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
+function shrink_wrapping!(xTMN::Vector{TaylorModelN{T,S}}) where {T,S}
     # Original domain of TaylorModelN should be the symmetric normalized box
-    B = symmetric_box(N, T)
-    @assert all(domain.(xTMN) .== (B,))
-    zI = zero(Interval{T})
+    N = length(domain(xTMN[1]))
+    B = symmetric_box(S, N)
+    @assert all(isequal_interval.(domain.(xTMN), (B,)))
     x0 = zero(B)
     @assert all(expansion_point.(xTMN) .== (x0,))
 
@@ -646,23 +549,23 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     xTNcent_lin = linear_polynomial(xTNcent)
 
     # Step 4 of Bünger algorithm: Jacobian (at zero) and its inverse
-    jac = TaylorSeries.jacobian(xTNcent_lin)
+    jac = TS.jacobian(xTNcent_lin)
     # If the conditional number is too large (inverse of jac is ill defined),
-    # don't change xTMN
-    cond(jac) > 1.0e4 && return one_r
+    # don't change xTMN; we use the mid-point jacobian matrix
+    cond(mid.(jac)) > 1.0e4 && return one_r
     # Inverse of the Jacobian
     invjac = inv(jac)
 
     # Componentwise bound
     r̃ = mag.(invjac * qB) # qB <-- r .* B
-    qB´ = r̃ .* B
-    @assert issubset_interval(invjac * qB, qB´)
+    qBprime = r̃ .* B
+    @assert issubset_interval(invjac * qB, qBprime)
 
     # Step 6 of Bünger algorithm: compute g
     g = invjac*xTNcent .- X
     # g = invjac*(xTNcent .- xTNcent_lin)
     # ... and its jacobian matrix (full dependence!)
-    jacmatrix_g = TaylorSeries.jacobian(g, X)
+    jacmatrix_g = TS.jacobian(g, X)
 
     # Alternative to Step 7: Check the validity of Eq 16 (or 17) for Lemma 2
     # of Bünger's paper, for s=0, and s very small. If it satisfies it,
@@ -678,7 +581,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
     end
     s .= eps.(q)
     @. q = 1.0 + r̃ + s
-    jaq_q1 = jacmatrix_g * (q .- 1.0)
+    jaq_q1 .= jacmatrix_g * (q .- 1.0)
     eq16 = all(mag.(evaluate.(jaq_q1, Ref(q .* B))) .≤ s)
     if eq16
         postverify = scalepostverify_sw!(xTMN, q .* X)
@@ -703,7 +606,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,T}}) where {N,T}
         q_1 .= q .- 1.0
         q_old .= q
         mul!(jaq_q1, jacmatrix_g, q_1)
-        eq16 = all(evaluate.(jaq_q1, Ref(qB)) .≤ s)
+        eq16 = all(mag.(evaluate.(jaq_q1, Ref(qB))) .≤ s)
         eq16 && break
         @inbounds for i in eachindex(xTMN)
             s[i] = mag( jaq_q1[i](qB) )
