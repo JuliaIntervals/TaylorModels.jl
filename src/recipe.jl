@@ -123,7 +123,7 @@ function _mince_in_time(sol::TMSol, domT::Vector{Interval{T}}, var::Int,
 
     # Case timediv > 1
     vv = similar(domT)
-    normalized_box = symmetric_box(Float64,N)
+    normalized_box = symmetric_box(N,Float64)
     δt = mince(domain(sol,1), timediv)
 
     i0 = 1

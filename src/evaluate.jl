@@ -80,10 +80,7 @@ end
 # the computation includes the remainder
 function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{Interval{S}}) where {N,T,S}
     @assert iscontained(a, tm)
-    _order = get_order(tm)
-
     Δ = remainder(tm)
-
     return tm.pol(a) + Δ
 end
 

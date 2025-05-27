@@ -44,9 +44,18 @@ end
 iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
 iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = all(issubset_interval.(a, centered_dom(tm)))
 
-symmetric_box(T::Type{S}, nvars::Int=get_numvars()) where {S<:IA.NumTypes} =
-    [interval(-one(T), one(T)) for _ = 1:nvars]
-symmetric_box(::Type{Interval{T}}) where {T<:IA.NumTypes} = symmetric_box(T)
+
+"""
+    symmetric_box(N::Int, [Type{T} = Float64])
+    symmetric_box(::Type{T})
+
+Create the interval box [-1, 1]^N as a SVector, with elements of type T. If N is omitted,
+it corresponds to `get_numvars()`.
+"""
+symmetric_box(N::Int, T::Type{S} = Float64) where {S<:IA.NumTypes} =
+    fill(interval(-one(T), one(T)), SVector{N})
+symmetric_box(::Type{T}) where {T<:IA.NumTypes} = symmetric_box(get_numvars(), T)
+
 
 # fixorder and bound_truncation
 for TM in tupleTMs
@@ -87,7 +96,7 @@ function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Int
         order::Int) where {T}
     order ≥ get_order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
-    symIbox = symmetric_box(T)
+    symIbox = symmetric_box(numtype(aux))
     res = Taylor1(evaluate.(a.coeffs, Ref(symIbox)))
     res[0:order] .= zero(res[0])
     return res(aux)

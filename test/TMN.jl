@@ -48,10 +48,10 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test TaylorModelN(2, _order, b0, ib0) == TaylorModelN(ym, zi)
 
         @test isa(xm, AbstractSeries)
-        @test TaylorModelN{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
+        @test TaylorModelN{2,Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
         # Test errors in construction
-        @test_throws AssertionError TaylorModelN(xT, zi, [interval(1)], [interval(1)])
+        @test_throws DimensionMismatch TaylorModelN(xT, zi, [interval(1)], [interval(1)])
         @test_throws AssertionError TaylorModelN(xT, zi, b0, ib1)
         @test_throws AssertionError TaylorModelN(xT, interval(1,1), b0, ib0)
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
@@ -357,7 +357,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         xm = TaylorModelN(1, _order, b1, ib1)
         ym = TaylorModelN(2, _order, b1, ib1)
         use_show_default(true)
-        @test string(xm+ym) == "TaylorModelN{Interval{Float64}, Float64}" *
+        @test string(xm+ym) == "TaylorModelN{2, Interval{Float64}, Float64}" *
             "(TaylorN{Interval{Float64}}(HomogeneousPolynomial{Interval{Float64}}" *
             "[HomogeneousPolynomial{Interval{Float64}}(Interval{Float64}" *
             "[Interval{Float64}(1.0, 1.0, com)], 0), " *

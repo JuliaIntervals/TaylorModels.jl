@@ -146,7 +146,7 @@ end
         δq0 = [interval(-0.1, 0.1)]
         qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
         # qaux = normalize_taylor(q0[1] + TaylorN(Interval{Float64}, 1, order=orderQ), δq0, true)
-        symIbox = symmetric_box(Float64, 1)
+        symIbox = symmetric_box(1, Float64)
         t = Taylor1([qaux, one(qaux)], orderT)
         dom = interval(-0.5, 0.5)
         x00 = mid(dom)
@@ -331,7 +331,7 @@ end
         orderQ = 5
         dom = y0
         t00 = mid(dom)
-        symIbox = symmetric_box(Float64, 1)
+        symIbox = symmetric_box(1, Float64)
         δq0 = [interval(-0.25, 0.25)]
         qaux = normalize_taylor(TaylorN(1, order=orderQ) + t00, δq0, true)
         # qaux = normalize_taylor(TaylorN(Interval{Float64}, 1, order=orderQ) + t00, δq0, true)

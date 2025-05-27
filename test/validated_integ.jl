@@ -13,14 +13,16 @@ setdisplay(:full)
 # validted solution
 # test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
 function test_integ(fexact, t0, qTM, q0, δq0)
-    normalized_box = symmetric_box(Float64, length(q0))
+    N = length(q0)
+    normalized_box = Vector(symmetric_box(N))
     # Time domain
     domt = domain(qTM[1])
     # Random time (within time domain) and random initial condition
     δt = sample(domt)
     δtI = intersect_interval(interval(δt, δt), domt)
     q0ξ = sample.(δq0)
-    q0ξB = SVector{lenght(q0ξ)}((q0ξ[i] .. q0ξ[i]) ∩ δq0[i] for i in eachindex(q0ξ))
+    q0ξB = SVector{N}(intersect_interval(interval(q0ξ[i], q0ξ[i]), δq0[i])
+                    for i in eachindex(q0ξ))
     # Box computed to overapproximate the solution at time δt
     q = evaluate.(evaluate.(qTM, δtI), Ref(normalized_box))
     # Box computed from the exact solution must be within q
@@ -46,7 +48,7 @@ end
 
         # Initial conditions
         tini, tend = 0.0, 10.0
-        normalized_box = symmetric_box(Float64, 2)
+        normalized_box = symmetric_box(2)
         q0 = [10.0, 0.0]
         δq0 = 0.25 * normalized_box
         X0 = q0 .+ δq0
@@ -203,7 +205,7 @@ end
         exactsol(t, x0) = 1 / (1/x0[1] - t)
 
         tini, tend = 0., 0.45
-        normalized_box = symmetric_box(Float64, 1)
+        normalized_box = symmetric_box(1)
         abstol = 1e-15
         orderQ = 5
         orderT = 20
@@ -263,7 +265,7 @@ end
         exactsol(t, x) = x[1] / sqrt(1 + 2*x[1]^2*t)
 
         tini, tend = 0.0, 3.0
-        normalized_box = symmetric_box(Float64,1)
+        normalized_box = symmetric_box(1)
         abstol = 1e-20
         orderQ = 3
         orderT = 20
@@ -362,6 +364,6 @@ end
             validatesteps=32);
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
         qTM = getfield(sol, 3)
-        @test_broken all(isbounded.(remainder.(qTM)))
+        @test all(isbounded.(remainder.(qTM)))
     end
 end

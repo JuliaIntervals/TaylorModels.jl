@@ -34,14 +34,7 @@ export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
 
 export linear_dominated_bounder, quadratic_fast_bounder
 
-"""
-    symmetric_box(N, [T = Float64])
 
-Create the interval box [-1, 1]^N as a SVector, with elements of type T.
-"""
-function symmetric_box(N, T = Float64)
-    return fill(interval(-one(T), one(T)), SVector{N})
-end
 setdisplay(:full)
 
 include("constructors.jl")

@@ -3,16 +3,17 @@
 const _DEF_MINABSTOL = 1.0e-50
 
 
-function validated_integ(f!, X0::Vector{Interval{U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
+function validated_integ(f!, X0::AbstractVector{Interval{U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
         abstol::T, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
         check_property::F=(t, x)->true) where {T<:Real, U, F}
 
     # Initialize cache
-    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    vX0 = Vector(X0)
+    cacheVI = init_cache_VI(t0, vX0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
 
-    return _validated_integ!(f!, X0, t0, tmax, abstol, cacheVI, params,
+    return _validated_integ!(f!, vX0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol, absorb, check_property)
 end
 
@@ -24,7 +25,7 @@ function validated_integ(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tma
 
     # Initialize cache
     cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
-    q0 = evaluate(constant_term.(polynomial.(X0)), symmetric_box(T,length(X0)))
+    q0 = evaluate(constant_term.(polynomial.(X0)), Vector(symmetric_box(length(X0),U)))
 
     return _validated_integ!(f!, q0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol, absorb, check_property)
@@ -45,7 +46,7 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T, cacheVI::VectorCac
     orderT = get_order(t)
     zt = zero(t0)
     zI = zero(Interval{T})
-    S  = symmetric_box(T, dof)
+    S  = Vector(symmetric_box(dof, T))
     zB = zero(S)
     @inbounds xv[1] = q0
     @inbounds tv[1] = t0
@@ -119,7 +120,7 @@ function validated_step!(vB::Val{B}, f!,
         rv::TI.RetAlloc{Taylor1{TaylorN{T}}}, rvI::TI.RetAlloc{Taylor1{Interval{T}}},
         t0::T, tmax::T, sign_tstep::Int,
         xTMN::Vector{TaylorModelN{N,T,T}}, rem::Vector{Interval{T}},
-        zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
+        zbox::Vector{Interval{T}}, symIbox::Vector{Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::F) where {N,B,T,F}
@@ -146,7 +147,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         dxI::Vector{Taylor1{Interval{T}}},
         δt, sign_tstep::Int,
         xTMN::Vector{TaylorModelN{N,T,T}}, rem::Vector{Interval{T}},
-        zbox::SVector{N,Interval{T}}, symIbox::SVector{N,Interval{T}},
+        zbox::Vector{Interval{T}}, symIbox::Vector{Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::Function=(t, x)->true) where {N,T}
@@ -188,7 +189,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
             for i in eachindex(x)
-                xTMN[i] = fp_rpa( TaylorModelN(x[i](δtI), rem[i], zbox, symIbox) )
+                xTMN[i] = fp_rpa( TaylorModelN(x[i](δtI), rem[i], SVector{N}(zbox), SVector{N}(symIbox)) )
 
                 # If remainder is still too big, do it again
                 j = 0
@@ -239,13 +240,14 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::SVector{N,Interval{T}}, δtI::Interval{T}, params) where {N,T}
+        δI::Vector{Interval{T}}, δtI::Interval{T}, params) where {T}
 
     orderT = get_order(dx[1])
     aux = δtI^(orderT+1)
-    Δx  = SVector{length(xI)}([xI[i][orderT+1] for i in eachindex(xI)]) * aux
-    Δdx = SVector{length(xI)}([dxI[i][orderT+1] for i in eachindex(xI)]) * aux
-    Δ0  = SVector{length(x)}([dx[i][orderT](δI) for i in eachindex(x)]) * aux / (orderT+1)
+    N = length(x)
+    Δx  = [xI[i][orderT+1] for i in eachindex(xI)] * aux
+    Δdx = [dxI[i][orderT+1] for i in eachindex(xI)] * aux
+    Δ0  = [dx[i][orderT](δI) for i in eachindex(x)] * aux / (orderT+1)
     Δ = Δ0 + Δdx * δtI
     Δxold = Δx
 
@@ -379,7 +381,7 @@ function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where {T}
         isequal_interval(Δ, zero(Δ)))) && return true
     return false
 end
-iscontractive(Δ::SVector{N,Interval{T}}, Δx::SVector{N,Interval{T}}) where{N,T} =
+iscontractive(Δ::Vector{Interval{T}}, Δx::Vector{Interval{T}}) where {T} =
     all(iscontractive.(Δ[:], Δx[:]))
 
 
@@ -392,8 +394,8 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
     xxI::Vector{Taylor1{TaylorN{Interval{T}}}},
     dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
-    δI::SVector{N,Interval{T}}, δt::Interval{T},
-    Δx::SVector{N,Interval{T}}, Δ0::SVector{N,Interval{T}}, params) where {N,T}
+    δI::Vector{Interval{T}}, δt::Interval{T},
+    Δx::Vector{Interval{T}}, Δ0::Vector{Interval{T}}, params) where {T}
 
     # Extend `x` and `dx` to have interval coefficients
     # zI = zero(δt)
@@ -488,8 +490,8 @@ end
 
 # Postverify and define Taylor models to be returned
 for TT in (:T, :(Interval{T}))
-    @eval function scalepostverify_sw!(xTMN::Vector{TaylorModelN{$TT,S}},
-            X::Vector{TaylorN{$TT}}) where {T<:IANumTypes, S<:IANumTypes}
+    @eval function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,$TT,S}},
+            X::Vector{TaylorN{$TT}}) where {N,T<:IANumTypes, S<:IANumTypes}
         postverify = true
         x0 = expansion_point(xTMN[1])
         B = domain(xTMN[1])
@@ -526,7 +528,7 @@ Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
 function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
     # Original domain of TaylorModelN should be the symmetric normalized box
-    B = symmetric_box(S, N)
+    B = symmetric_box(S)
     @assert all(isequal_interval.(domain.(xTMN), (B,)))
     x0 = zero(B)
     @assert all(expansion_point.(xTMN) .== (x0,))

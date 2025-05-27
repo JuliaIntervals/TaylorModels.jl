@@ -1,11 +1,10 @@
 # Tests related to validated integration
 
 using TaylorModels, TaylorModels.ValidatedInteg
+using StaticArrays
 using LinearAlgebra: norm
 using Test
 
-# const _num_tests = 1000
-# const α_mid = TaylorModels.α_mid
 
 setdisplay(:full)
 
@@ -14,8 +13,8 @@ setdisplay(:full)
 @testset "Testing `shrink_wrapping` 1" begin
     _order = 2
     set_variables("x", numvars=1, order=2*_order)
-    x0 = SVector{1}(0..0)
-    dom = symmetric_box(Float64, 1)#IntervalBox(-1..1, 1)
+    x0 = SVector{1}(interval(0))
+    dom = symmetric_box(1, Float64)
     for δ in 1/16:1/16:1
         Δ = interval(-δ, δ)
         p = TaylorModelN(TaylorN(1, order=_order), Δ, x0, dom)
@@ -65,11 +64,11 @@ end
         return v
     end
 
-    local B = symmetric_box(Float64, 2)
+    local B = symmetric_box(2, Float64)
     local δ = 0.05
     local ib = δ * B
-    local mib = fill( 0..0, SVector{2})
     local zi = interval(zero(Float64))
+    local mib = fill(zi, SVector{2})
 
     # Diverges using naive Interval arithmetic methods
     ib0 = [ib...,]

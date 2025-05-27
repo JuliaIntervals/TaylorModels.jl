@@ -179,7 +179,7 @@ function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{Tayl
                             aux, Δnegl, order) where {T, S}
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(T)
+    auxQ = symmetric_box(S)
     Δa = a.pol(aux)(auxQ)
     Δb = b.pol(aux)(auxQ)
     V = aux^(order+1)

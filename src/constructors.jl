@@ -164,7 +164,7 @@ TaylorModelN(a::T, ord::Integer, x0::AbstractVector{<:Interval{T}}, dom::Abstrac
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
-@inline get_numvars(tm::TaylorModelN{N,T,S}) where {N,T,S} = length(tm.x0)
+@inline get_numvars(tm::TaylorModelN{N,T,S}) where {N,T,S} = N
 # Centered domain
 @inline centered_dom(tm::TaylorModelN) = domain(tm) .- expansion_point(tm)
 
@@ -177,23 +177,21 @@ Structure containing the solution of a validated integration.
     `time :: AbstractVector{T}`  Vector containing the expansion time of the
     `TaylorModel1` solutions
 
-    `fp   :: AbstractVector{SVector{N,Interval{T}}}`  vector of interval boxes representing the flowpipe
+    `fp   :: AbstractVector{Vector{N,Interval{T}}}`  vector of interval boxes representing the flowpipe
 
     `xTMv :: AbstractMatrix{TaylorModel1{TaylorN{T},T}}`  Matrix whose entry `xTMv[i,t]`
     represents the `TaylorModel1` of the i-th dependent variable, obtained at time time[t].
 """
-struct TMSol{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{SVector{N,Interval{T}}},
+struct TMSol{T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{Vector{Interval{T}}},
         M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
     time :: V1
     fp   :: V2
     xTM  :: M
     function TMSol(time::V1, fp::V2, xTM::M) where
-            {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{SVector{N,Interval{T}}},
+            {T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{Vector{Interval{T}}},
             M<:AbstractMatrix{TaylorModel1{TaylorN{T},T}}}
         @assert length(time) == length(fp) == size(xTM,2)
-        # TODO: Check correct number of vaiables
-        # N == size(xTM,1)
-        return new{N,T,V1,V2,M}(time, fp, xTM)
+        return new{T,V1,V2,M}(time, fp, xTM)
     end
 end
 

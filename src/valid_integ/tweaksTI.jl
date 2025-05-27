@@ -51,7 +51,7 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
 
     dof = length(x0)
     zI = zero(Interval{U})
-    S  = symmetric_box(U, dof)
+    S  = symmetric_box(dof, U)
     zB = zero(S)
     qaux = mid.(x0)
     δq0 = x0 .- qaux
@@ -77,7 +77,7 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
     end
 
     # More initializations
-    xTMN  = Array{TaylorModelN{T,T}}(undef, dof)
+    xTMN  = Array{TaylorModelN{dof,T,T}}(undef, dof)
     @. xTMN = TaylorModelN(constant_term(x), zI, (zB,), (S,))
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
     rem   = Array{Interval{T}}(undef, dof)
@@ -107,12 +107,12 @@ function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
 
     dof = length(xTM)
     zI = zero(Interval{U})
-    S  = symmetric_box(U, dof)
+    S  = symmetric_box(dof, U)
     zB = zero(S)
 
     # Initialize the vector of Taylor1{TaylorN} expansions
     q0 = constant_term.(polynomial.(xTM))
-    x0 = evaluate(evaluate.(polynomial.(xTM)), symmetric_box(U,dof))
+    x0 = evaluate(evaluate.(polynomial.(xTM)), Vector(S))
 
     # Initialize the vector of Taylor1{TaylorN{U}} expansions
     t, x, dx = TI.init_expansions(t0, q0, orderT)
@@ -130,7 +130,7 @@ function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
     end
 
     # More initializations
-    xTMN  = Array{TaylorModelN{T,T}}(undef, dof)
+    xTMN  = Array{TaylorModelN{dof,T,T}}(undef, dof)
     @. xTMN = TaylorModelN(constant_term(x), zI, (zB,), (S,))
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
     rem   = Array{Interval{T}}(undef, dof)
@@ -160,7 +160,6 @@ end
 function TI.stepsize(x::Taylor1{Interval{U}}, epsilon::T) where {T<:Real,U<:Number}
     R = promote_type(typeof(norm(constant_term(x), Inf)), T)
     ord = x.order
-    # h = convert(R, Inf)
     h = typemax(R)
     z = zero(R)
     for k in (ord - 1, ord)
