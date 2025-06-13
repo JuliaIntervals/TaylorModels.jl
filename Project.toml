@@ -17,7 +17,7 @@ TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
 [compat]
 Aqua = "0.8"
 IntervalArithmetic = "^0.20"
-IntervalRootFinding = "0.5"
+IntervalRootFinding = "0.5, 0.6"
 LinearAlgebra = "<0.0.1, 1"
 Markdown = "<0.0.1, 1"
 Random = "<0.0.1, 1"
