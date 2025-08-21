@@ -4,5 +4,5 @@
 ```
 
 ```@autodocs
-Modules = [TaylorModels]
+Modules = [TaylorModels, TaylorModels.ValidatedInteg]
 ```

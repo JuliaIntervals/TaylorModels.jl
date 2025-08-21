@@ -1,12 +1,9 @@
 # Methods ported from TaylorIntegration, specialized for validated integrations
 
 # VectorCacheVI
-# @unpack tv, xv, xaux, t, x, dx, rv, xauxI, tI, xI, dxI, rvI,
-#         xTMN, xTM1v, rem, parse_eqs = cacheVI
 struct VectorCacheVI{
         TV,XV,
         XAUX,TT,X,DX,RV,
-        # TVI,
         XAUXI,TTI,XI,DXI,RVI,
         XTMN,XTM1V,REM,PARSE_EQS} <: TI.AbstractVectorCache
     tv::TV
@@ -16,8 +13,6 @@ struct VectorCacheVI{
     x::X
     dx::DX
     rv::RV
-    # tvI::TVI
-    # psolI::PSOLI
     xauxI::XAUXI
     tI::TTI
     xI::XI
@@ -87,8 +82,6 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
     end
 
     # Initialize cache
-    # @unpack tv, xv, xaux, t, x, dx, rv, xauxI, tI, xI, dxI, rvI,
-    #         xTMN, xTM1v, rem, parse_eqs = cacheVI
     cacheVI = VectorCacheVI(
             Array{T}(undef, maxsteps + 1),
             Vector{Vector{Interval{U}}}(undef, maxsteps + 1),
@@ -140,8 +133,6 @@ function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
     end
 
     # Initialize cache
-    # @unpack tv, xv, xaux, t, x, dx, rv, xauxI, tI, xI, dxI, rvI,
-    #         xTMN, xTM1v, rem, parse_eqs = cacheVI
     cacheVI = VectorCacheVI(
             Array{T}(undef, maxsteps + 1),
             Vector{Vector{Interval{U}}}(undef, maxsteps + 1),
