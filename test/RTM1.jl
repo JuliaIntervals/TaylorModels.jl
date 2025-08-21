@@ -44,7 +44,8 @@ end
         @test RTaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
 
         # Zero may not be contained in the remainder of a RTaylorModel1
-        @test 0 ∉ remainder(RTaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0))
+        @test !in_interval(0,
+            remainder(RTaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0)))
 
         # Test errors in construction
         @test_throws AssertionError RTaylorModel1(5, x1, ii0)
