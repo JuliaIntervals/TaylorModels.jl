@@ -474,20 +474,20 @@ end
         use_show_default(true)
         @test string(exp(tm)) == "RTaylorModel1{Interval{Float64}, Float64}" *
             "(Taylor1{Interval{Float64}}(Interval{Float64}[" *
-            "Interval{Float64}(2.718281828459045, 2.7182818284590455, com), " *
-            "Interval{Float64}(2.718281828459045, 2.7182818284590455, com), " *
-            "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com), " *
-            "Interval{Float64}(0.45304697140984085, 0.45304697140984096, com)], 3), " *
-            "Interval{Float64}(0.10281598943126369, 0.1256036426541982, trv)_NG, " *
-            "Interval{Float64}(1.0, 1.0, com), Interval{Float64}(0.5, 1.5, com)_NG)"
+            "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
+            "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
+            "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true), " *
+            "Interval{Float64}(0.45304697140984085, 0.45304697140984096, com, true)], 3), " *
+            "Interval{Float64}(0.10281598943126369, 0.1256036426541982, trv, false), " *
+            "Interval{Float64}(1.0, 1.0, com, true), Interval{Float64}(0.5, 1.5, com, false))"
         use_show_default(false)
-        @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com) + " *
-            "Interval{Float64}(3.0, 3.0, com) t + Interval{Float64}(3.0, 3.0, com) t² + " *
-            "Interval{Float64}(1.0, 1.0, com) t³ + Interval{Float64}(0.0, 0.0, com)_NG t⁴"
-        @test string(exp(tm)) == " Interval{Float64}(2.718281828459045, 2.7182818284590455, com) + " *
-            "Interval{Float64}(2.718281828459045, 2.7182818284590455, com) t + " *
-            "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com) t² + " *
-            "Interval{Float64}(0.45304697140984085, 0.45304697140984096, com) t³ + " *
-            "Interval{Float64}(0.10281598943126369, 0.1256036426541982, trv)_NG t⁴"
+        @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com, true) + " *
+            "Interval{Float64}(3.0, 3.0, com, true) t + Interval{Float64}(3.0, 3.0, com, true) t² + " *
+            "Interval{Float64}(1.0, 1.0, com, true) t³ + Interval{Float64}(0.0, 0.0, com, false) t⁴"
+        @test string(exp(tm)) == " Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) + " *
+            "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) t + " *
+            "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true) t² + " *
+            "Interval{Float64}(0.45304697140984085, 0.45304697140984096, com, true) t³ + " *
+            "Interval{Float64}(0.10281598943126369, 0.1256036426541982, trv, false) t⁴"
     end
 end

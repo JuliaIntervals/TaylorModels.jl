@@ -360,24 +360,24 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         @test string(xm+ym) == "TaylorModelN{2, Interval{Float64}, Float64}" *
             "(TaylorN{Interval{Float64}}(HomogeneousPolynomial{Interval{Float64}}" *
             "[HomogeneousPolynomial{Interval{Float64}}(Interval{Float64}" *
-            "[Interval{Float64}(1.0, 1.0, com)], 0), " *
+            "[Interval{Float64}(1.0, 1.0, com, true)], 0), " *
             "HomogeneousPolynomial{Interval{Float64}}" *
-            "(Interval{Float64}[Interval{Float64}(1.0, 1.0, com), " *
-            "Interval{Float64}(1.0, 1.0, com)], 1), " *
+            "(Interval{Float64}[Interval{Float64}(1.0, 1.0, com, true), " *
+            "Interval{Float64}(1.0, 1.0, com, true)], 1), " *
             "HomogeneousPolynomial{Interval{Float64}}" *
-            "(Interval{Float64}[Interval{Float64}(0.0, 0.0, com), " *
-            "Interval{Float64}(0.0, 0.0, com), " *
-            "Interval{Float64}(0.0, 0.0, com)], 2)], 2), " *
-            "Interval{Float64}(0.0, 0.0, com), " *
-            "Interval{Float64}[Interval{Float64}(0.0, 0.0, com), " *
-            "Interval{Float64}(1.0, 1.0, com)], " *
-            "Interval{Float64}[Interval{Float64}(-0.5, 0.5, com), " *
-            "Interval{Float64}(0.5, 1.5, com)])"
+            "(Interval{Float64}[Interval{Float64}(0.0, 0.0, com, true), " *
+            "Interval{Float64}(0.0, 0.0, com, true), " *
+            "Interval{Float64}(0.0, 0.0, com, true)], 2)], 2), " *
+            "Interval{Float64}(0.0, 0.0, com, true), " *
+            "Interval{Float64}[Interval{Float64}(0.0, 0.0, com, true), " *
+            "Interval{Float64}(1.0, 1.0, com, true)], " *
+            "Interval{Float64}[Interval{Float64}(-0.5, 0.5, com, true), " *
+            "Interval{Float64}(0.5, 1.5, com, true)])"
         use_show_default(false)
-        @test string((xm+ym)^2) == " Interval{Float64}(1.0, 1.0, com) + " *
-            "Interval{Float64}(2.0, 2.0, com) x + Interval{Float64}(2.0, 2.0, com) y + " *
-            "Interval{Float64}(1.0, 1.0, com) x² + Interval{Float64}(2.0, 2.0, com) x y + " *
-            "Interval{Float64}(1.0, 1.0, com) y² + Interval{Float64}(0.0, 0.0, com)_NG"
+        @test string((xm+ym)^2) == " Interval{Float64}(1.0, 1.0, com, true) + " *
+            "Interval{Float64}(2.0, 2.0, com, true) x + Interval{Float64}(2.0, 2.0, com, true) y + " *
+            "Interval{Float64}(1.0, 1.0, com, true) x² + Interval{Float64}(2.0, 2.0, com, true) x y + " *
+            "Interval{Float64}(1.0, 1.0, com, true) y² + Interval{Float64}(0.0, 0.0, com, false)"
     end
 
     @testset "Tests for bounders" begin
