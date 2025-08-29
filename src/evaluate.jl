@@ -24,8 +24,6 @@ for TM in tupleTMs
 
     # Evaluate the $TM{TaylorN} by assuming the TaylorN vars are properly symmetrized,
     # and thus `a` is contained in the corresponding [-1,1] box; this is not checked.
-    @eval evaluate(tm::$TM{TaylorN{T},S}, a::Vector{Interval{S}}) where
-        {T<:NumberNotSeries,S} = evaluate(tm, Vector(a.v))
     @eval function evaluate(tm::$TM{TaylorN{T},S}, a::AbstractVector{R}) where
             {T<:NumberNotSeries,S,R}
         @assert length(a) == get_numvars()

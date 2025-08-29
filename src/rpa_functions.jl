@@ -249,7 +249,7 @@ if it is not an exactly representable value.
 
 for TM in tupleTMs
     @eval begin
-        fp_rpa(tm::$TM{T, T}) where {T} = tm
+        fp_rpa(tm::$TM{T, T}) where {T<:TS.NumberNotSeries} = tm
 
         function fp_rpa(tm::$TM{Interval{T},T}) where {T}
             fT = polynomial(tm)
@@ -271,6 +271,31 @@ for TM in tupleTMs
         end
     end
 end
+
+function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
+        {S<:Real, T<:TS.NumberNotSeries}
+    fT = polynomial(tm)
+    Δ = remainder(tm)
+    x0 = expansion_point(tm)
+    I = domain(tm)
+    order = get_order(fT[0])
+    N = get_numvars(fT[0])
+    D = symmetric_box(N)
+
+    b = zero(fT)
+    t = Taylor1(TaylorN([HomogeneousPolynomial(zeros(T,N))], order), get_order(fT))
+    for ind in eachindex(fT)
+        for homPol in eachindex(fT[ind])
+            for jind in eachindex(fT[ind][homPol])
+                t[ind][homPol][jind] = mid(fT[ind][homPol][jind])
+                b[ind][homPol][jind] = fT[ind][homPol][jind] - t[ind][homPol][jind]
+            end
+        end
+    end
+    rem = Δ + b(I-x0)(D)
+    return TaylorModel1(t, rem, x0, I)
+end
+
 
 fp_rpa(tm::TaylorModelN{N, T, T}) where {N,T} = tm
 
