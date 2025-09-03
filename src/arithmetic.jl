@@ -129,7 +129,8 @@ for TM in tupleTMs
     end
 end
 
-# Remainder of the product
+# Remainder of the product: checks the three (algebraically equivalent) forms
+# to evaluate the remainder, and chooses the best (cf. Bunger 2020)
 # TaylorModel1
 function remainder_product(a, b, aux, Δnegl)
     Δa = a.pol(aux)
@@ -137,7 +138,11 @@ function remainder_product(a, b, aux, Δnegl)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
-    return Δ
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            b::TaylorModel1{TaylorN{T}, S},
@@ -150,7 +155,11 @@ function remainder_product(a::TaylorModel1{TaylorN{T}, S},
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem
-    return Δ
+    Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
         b::TaylorModel1{TaylorModelN{N,T,S},S}, aux, Δnegl) where {N,T,S}
@@ -173,7 +182,11 @@ function remainder_product(a, b, aux, Δnegl, order)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
-    return Δ
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem * V) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem * V) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{TaylorN{T},S},
                             aux, Δnegl, order) where {T, S}
@@ -186,7 +199,11 @@ function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{Tayl
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem * V
-    return Δ
+    Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem * V) * b_rem
+    Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem * V) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 
 
