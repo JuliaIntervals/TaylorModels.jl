@@ -35,10 +35,10 @@ end
     # An uncomfortable example from Makino
     t = Taylor1(5)
     f(x) = one(x) - x^4 + x^5
-    @test_broken issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(t), x1))
+    @test issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(t), x1))
     tm = TaylorModel1(5, x0, ii0)
-    @test_broken issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm)))
-    @test_broken issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm), x1))
+    @test issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm)))
+    @test issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm), x1))
 end
 
 @testset "Tests for TaylorModel1 " begin

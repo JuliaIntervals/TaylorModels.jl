@@ -159,18 +159,15 @@ function bound_taylor1(fT::Taylor1, I::Interval)
     range_deriv = fTd(I)
     (sup(range_deriv) ≤ 0 || inf(range_deriv) ≥ 0) && return bound_taylor1(fT, fTd, I)
 
-    # Compute roots of the derivative using the second derivative
-    # Fix some sort of relative tolerance for Newton root search
-    fTd2 = TS.derivative(fTd)
-    # TODO: Needs update!!
-    rootsder = roots(x->fTd(x), x->fTd2(x), I, Newton, 1.0e-5*mag(I))
+    # Compute roots of the derivative
+    rootsder = roots(x->fTd(x), I)
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
     num_roots == 0 && return fT(I)
     rangepoly = hull( fT(interval(inf(I))), fT(interval(sup(I))) )
     @inbounds for ind in 1:num_roots
-        rangepoly = hull(rangepoly, fT(rootsder[ind].interval))
+        rangepoly = hull(rangepoly, fT(rootsder[ind].region))
     end
 
     return rangepoly
