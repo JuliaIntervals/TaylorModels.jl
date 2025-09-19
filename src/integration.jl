@@ -2,7 +2,7 @@
 
 for TM in tupleTMs
     @eval begin
-        function integrate(a::$(TM){T,S}) where {T,S}
+        function integrate(a::$(TM){T,S}) where {T<:TS.NumberNotSeries,S}
             integ_pol = integrate(a.pol)
             Δ = bound_integration(a, centered_dom(a))
             return $(TM)( integ_pol, Δ, expansion_point(a), domain(a) )
@@ -16,25 +16,25 @@ for TM in tupleTMs
         integrate(a::$(TM){TaylorN{T},S}, c0, δI) where {T,S} = c0 + integrate(a, δI)
 
 
-        @inline function bound_integration(a::$(TM){T,S}, δ) where {T,S}
+        @inline function bound_integration(a::$(TM){T,S}, δ::Interval{S}) where {T<:TS.NumberNotSeries,S}
             order = get_order(a)
             if $TM == TaylorModel1
-                aux = δ^order / (order+1)
-                Δ = δ * (remainder(a) + getcoeff(polynomial(a), order) * aux)
+                aux = pown(δ, order) / interval(order+1)
+                Δ = δ * (remainder(a) + interval(getcoeff(polynomial(a), order)) * aux)
             else
                 Δ = δ * remainder(a)
-                Δ = Δ/(order+2) + getcoeff(polynomial(a), order)/(order+1)
+                Δ = Δ/interval(order+2) + interval(getcoeff(polynomial(a), order))/interval(order+1)
             end
             return Δ
         end
-        @inline function bound_integration(a::$(TM){TaylorN{T}, S}, δ, δI) where {T,S}
+        @inline function bound_integration(a::$(TM){TaylorN{T}, S}, δ::Interval{S}, δI) where {T,S}
             order = get_order(a)
             if $TM == TaylorModel1
-                aux = δ^order / (order+1)
+                aux = pown(δ, order) / interval(order+1)
                 Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
             else
                 Δ = δ * remainder(a)
-                Δ = Δ/(order+2) + getcoeff(polynomial(a), order)(δI)/(order+1)
+                Δ = Δ/interval(order+2) + getcoeff(polynomial(a), order)(δI)/interval(order+1)
             end
             return Δ
         end
@@ -71,8 +71,8 @@ end
 
 @inline function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
     order = get_order(a[1])
-    aux = δ^order / (order+1)
-    Δ = δ .* (remainder.(a) .+ getcoeff.(polynomial.(a), order) .* aux)
+    aux = pown(δ, order) / interval(order+1)
+    Δ = δ .* (remainder.(a) .+ interval.(getcoeff.(polynomial.(a), order)) .* aux)
     return Δ
 end
 @inline function bound_integration(fT::TaylorModelN, s::TaylorN, which)
@@ -129,13 +129,11 @@ function picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
 end
 
 function picard_lindelof!(f!,
+        x_picard::Vector{TaylorModel1{T,S}},
         dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN ::Vector{TaylorModel1{T,S}},
-        x_picard::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-    dof = length(xTM1TMN)
+        xTM1TMN ::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
     f!(dxTM1TMN, xTM1TMN, params, t)
-    # x_picard = integrate.(dxTM1TMN, constant_term.(xTM1TMN))
-    @inbounds for ind = 1:dof
+    @inbounds for ind in eachindex(xTM1TMN)
         x_picard[ind] = integrate(dxTM1TMN[ind], xTM1TMN[ind][0])
     end
     return x_picard

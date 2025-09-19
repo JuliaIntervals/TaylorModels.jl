@@ -92,9 +92,9 @@ Computes the remainder using Lagrange bound
 @inline function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{false}, f::Function,
         polf, polfI, x0, I)
     _order = get_order(polf) + 1
-    fTIend = polfI[_order]
+    fTIend = interval(polfI[_order])
     # Lagrange bound
-    return fTIend * (I-x0)^_order
+    return fTIend * pown(I-x0, _order)
 end
 
 """
@@ -108,11 +108,11 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
     a = interval(inf(I))
     b = interval(sup(I))
     # Error is monotonic
-    denom_lo = (a-x0)^_order
+    denom_lo = pown(a-x0, _order)
     Δlo = f(a) - polf(a-x0)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δlo = Δlo / denom_lo
-    denom_hi = (b-x0)^_order
+    denom_hi = pown(b-x0, _order)
     Δhi = f(b) - polf(b-x0)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δhi = Δhi / denom_hi
@@ -125,11 +125,11 @@ end
     b = interval(sup(I))
     symIbox = symmetric_box(numtype(I))
     # Error is monotonic
-    denom_lo = (a-x0)^_order
+    denom_lo = pown(a-x0, _order)
     Δlo = (f(a) - polf(a-x0))(symIbox)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δlo = Δlo / denom_lo
-    denom_hi = (b-x0)^_order
+    denom_hi = pown(b-x0, _order)
     Δhi = (f(b) - polf(b-x0))(symIbox)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δhi = Δhi / denom_hi
@@ -157,7 +157,7 @@ function bound_taylor1(fT::Taylor1, I::Interval)
     # Check if the fT is monotonous (the derivative has a given sign)
     fTd  = TS.derivative(fT)
     range_deriv = fTd(I)
-    (sup(range_deriv) ≤ 0 || inf(range_deriv) ≥ 0) && return bound_taylor1(fT, fTd, I)
+    (sup(range_deriv) < 0 || inf(range_deriv) > 0) && return bound_taylor1(fT, fTd, I)
 
     # Compute roots of the derivative
     rootsder = roots(x->fTd(x), I)
@@ -185,9 +185,9 @@ a definite sign.
 function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
     I_lo = inf(I)
     I_hi = sup(I)
-    if inf(fTd(I)) ≥ 0
+    if inf(fTd(I)) > 0
         return interval(fT(I_lo), fT(I_hi))
-    elseif sup(fTd(I)) ≤ 0
+    elseif sup(fTd(I)) < 0
         return interval(fT(I_hi), fT(I_lo))
     end
     return fT(I)
@@ -196,9 +196,9 @@ function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
         I::Interval{S}) where {T,S}
     I_lo = inf(I)
     I_hi = sup(I)
-    if inf(fTd(I)) ≥ 0
+    if inf(fTd(I)) > 0
         return hull(fT(I_lo), fT(I_hi))
-    elseif sup(fTd(I)) ≤ 0
+    elseif sup(fTd(I)) < 0
         return hull(fT(I_hi), fT(I_lo))
     end
     return fT(I)

@@ -97,7 +97,7 @@ function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Int
     order ≥ get_order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
     symIbox = symmetric_box(numtype(aux))
-    res = Taylor1(evaluate.(a.coeffs, Ref(symIbox)))
+    res = evaluate(a, symIbox)
     res[0:order] .= zero(res[0])
     return res(aux)
 end

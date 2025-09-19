@@ -26,19 +26,24 @@ end
     ii0 = interval(-0.5, 0.5)
 
     tpol = exp( Taylor1(2) )
-    @test isequal_interval(TM.bound_taylor1( tpol, ii0),
-    interval(tpol(inf(ii0)), tpol(sup(ii0))))
-    @test isequal_interval(TM.bound_taylor1(
-        exp( Taylor1(Interval{Float64}, 2) ), ii0),
-        interval(tpol(inf(ii0)), tpol(sup(ii0))))
+    res = TM.bound_taylor1(tpol, ii0)
+    @test isequal_interval(res, interval(tpol(inf(ii0)), tpol(sup(ii0))))
+    @test isguaranteed(res)
+    res = TM.bound_taylor1(exp(Taylor1(Interval{Float64}, 2)), ii0)
+    @test isequal_interval(res, interval(tpol(inf(ii0)), tpol(sup(ii0))))
+    # @test !isguaranteed(res, ii0)
 
     # An uncomfortable example from Makino
     t = Taylor1(5)
     f(x) = one(x) - x^4 + x^5
-    @test issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(t), x1))
+    ii = interval(1-4^4/5^5, 1)
+    res = TM.bound_taylor1(f(t), x1)
+    @test issubset_interval(ii, res)
     tm = TaylorModel1(5, x0, ii0)
-    @test issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm)))
-    @test issubset_interval(interval(1-4^4/5^5,1), TM.bound_taylor1(f(tm), x1))
+    res = TM.bound_taylor1(f(tm))
+    @test issubset_interval(ii, res)
+    res = TM.bound_taylor1(f(tm), x1)
+    @test issubset_interval(ii, res)
 end
 
 @testset "Tests for TaylorModel1 " begin
@@ -499,6 +504,7 @@ end
         @test_broken issubset_interval(remainder(exact_res), remainder(integ_res))
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
+            @test check_containment(atan, exact_res)
         end
     end
 

@@ -90,14 +90,15 @@ for TM in tupleTMs
             Δf = remainder(tmf)
             x0 = expansion_point(tmf)
             I = domain(tmf)
+            cdom = centered_dom(tmf)
 
             # Range of tmf including remainder (Δf)
             if $TM == TaylorModel1
-                # range_tmf = bound_taylor1(f_pol, I-x0) + Δf
-                range_tmf = f_pol(I-x0) + Δf
+                # range_tmf = bound_taylor1(f_pol, cdom) + Δf
+                range_tmf = tmf(cdom)
             else
-                # range_tmf = bound_taylor1(f_pol, I-x0) + Δf * (I-x0)^(_order+1)
-                range_tmf = f_pol(I-x0) + Δf * (I-x0)^(_order+1)
+                # range_tmf = bound_taylor1(f_pol, cdom) + Δf * (cdom)^(_order+1)
+                range_tmf = tmf(cdom)
             end
 
             # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
@@ -262,7 +263,7 @@ for TM in tupleTMs
             b = Taylor1(Interval{T}, order)
             t = Taylor1(T, order)
             @inbounds for ind=order:-1:0
-                t[ind] = mid(fT[ind], α_mid)
+                t[ind] = mid(fT[ind]) # mid(fT[ind], α_mid)
                 b[ind] = fT[ind] - interval(t[ind])
             end
             δ = b(I-x0)

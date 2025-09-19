@@ -6,13 +6,25 @@ for TM in tupleTMs
     # Evaluates the TM1{T,S} at a::T; the computation includes the remainder
     @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
         @assert iscontained(a, tm)
-
         _order = get_order(tm)
 
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
         else
+            # Δ = remainder(tm) * pown(a, _order + 1)
             Δ = remainder(tm) * a^(_order + 1)
+        end
+
+        return tm.pol(a) + Δ
+    end
+    @eval function evaluate(tm::$TM{T,S}, a::Interval) where {T,S}
+        @assert iscontained(a, tm)
+        _order = get_order(tm)
+
+        if $(TM) == TaylorModel1
+            Δ = remainder(tm)
+        else
+            Δ = remainder(tm) * pown(a, _order + 1)
         end
 
         return tm.pol(a) + Δ
