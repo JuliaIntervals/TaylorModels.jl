@@ -94,7 +94,7 @@ Computes the remainder using Lagrange bound
     _order = get_order(polf) + 1
     fTIend = interval(polfI[_order])
     # Lagrange bound
-    return fTIend * pown(I-x0, _order)
+    return fTIend * (I-x0)^interval(_order)
 end
 
 """
@@ -108,11 +108,11 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
     a = interval(inf(I))
     b = interval(sup(I))
     # Error is monotonic
-    denom_lo = pown(a-x0, _order)
+    denom_lo = (a-x0)^interval(_order)
     Δlo = f(a) - polf(a-x0)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δlo = Δlo / denom_lo
-    denom_hi = pown(b-x0, _order)
+    denom_hi = (b-x0)^interval(_order)
     Δhi = f(b) - polf(b-x0)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δhi = Δhi / denom_hi
@@ -125,11 +125,11 @@ end
     b = interval(sup(I))
     symIbox = symmetric_box(numtype(I))
     # Error is monotonic
-    denom_lo = pown(a-x0, _order)
+    denom_lo = (a-x0)^interval(_order)
     Δlo = (f(a) - polf(a-x0))(symIbox)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δlo = Δlo / denom_lo
-    denom_hi = pown(b-x0, _order)
+    denom_hi = (b-x0)^interval(_order)
     Δhi = (f(b) - polf(b-x0))(symIbox)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δhi = Δhi / denom_hi

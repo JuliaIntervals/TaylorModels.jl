@@ -19,7 +19,7 @@ for TM in tupleTMs
         @inline function bound_integration(a::$(TM){T,S}, δ::Interval{S}) where {T<:TS.NumberNotSeries,S}
             order = get_order(a)
             if $TM == TaylorModel1
-                aux = pown(δ, order) / interval(order+1)
+                aux = δ^interval(order) / interval(order+1)
                 Δ = δ * (remainder(a) + interval(getcoeff(polynomial(a), order)) * aux)
             else
                 Δ = δ * remainder(a)
@@ -30,7 +30,7 @@ for TM in tupleTMs
         @inline function bound_integration(a::$(TM){TaylorN{T}, S}, δ::Interval{S}, δI) where {T,S}
             order = get_order(a)
             if $TM == TaylorModel1
-                aux = pown(δ, order) / interval(order+1)
+                aux = δ^interval(order) / interval(order+1)
                 Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
             else
                 Δ = δ * remainder(a)
@@ -71,7 +71,7 @@ end
 
 @inline function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
     order = get_order(a[1])
-    aux = pown(δ, order) / interval(order+1)
+    aux = δ^interval(order) / interval(order+1)
     Δ = δ .* (remainder.(a) .+ interval.(getcoeff.(polynomial.(a), order)) .* aux)
     return Δ
 end
