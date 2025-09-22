@@ -6,13 +6,24 @@ for TM in tupleTMs
     # Evaluates the TM1{T,S} at a::T; the computation includes the remainder
     @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
         @assert iscontained(a, tm)
-
         _order = get_order(tm)
 
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
         else
             Δ = remainder(tm) * a^(_order + 1)
+        end
+
+        return tm.pol(a) + Δ
+    end
+    @eval function evaluate(tm::$TM{T,S}, a::Interval) where {T,S}
+        @assert iscontained(a, tm)
+        _order = get_order(tm)
+
+        if $(TM) == TaylorModel1
+            Δ = remainder(tm)
+        else
+            Δ = remainder(tm) * a^interval(_order + 1)
         end
 
         return tm.pol(a) + Δ
@@ -24,9 +35,8 @@ for TM in tupleTMs
 
     # Evaluate the $TM{TaylorN} by assuming the TaylorN vars are properly symmetrized,
     # and thus `a` is contained in the corresponding [-1,1] box; this is not checked.
-    @eval evaluate(tm::$TM{TaylorN{T},S}, a::IntervalBox) where {T<:NumberNotSeries,S} =
-        evaluate(tm, Vector(a.v))
-    @eval function evaluate(tm::$TM{TaylorN{T},S}, a::AbstractVector{R}) where {T<:NumberNotSeries,S,R}
+    @eval function evaluate(tm::$TM{TaylorN{T},S}, a::AbstractVector{R}) where
+            {T<:NumberNotSeries,S,R}
         @assert length(a) == get_numvars()
         pol = tm.pol(a)
         return $TM(pol, tm.rem, one(pol[0])*tm.x0, tm.dom)
@@ -77,16 +87,13 @@ end
 
 # Evaluates the TMN on an interval, or array with proper dimension;
 # the computation includes the remainder
-function evaluate(tm::TaylorModelN{N,T,S}, a::IntervalBox{N,S}) where {N,T,S}
+function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{Interval{S}}) where {N,T,S}
     @assert iscontained(a, tm)
-    _order = get_order(tm)
-
     Δ = remainder(tm)
-
     return tm.pol(a) + Δ
 end
 
-(tm::TaylorModelN{N,T,S})(a::IntervalBox{N,S}) where {N,T,S} = evaluate(tm, a)
+(tm::TaylorModelN{N,T,S})(a::AbstractVector{Interval{S}}) where {N,T,S} = evaluate(tm, a)
 
 function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
     @assert iscontained(a, tm)
@@ -99,11 +106,11 @@ end
 
 (tm::TaylorModelN{N,T,S})(a::AbstractVector{R}) where {N,T,S,R} = evaluate(tm, a)
 
-evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::IntervalBox{N,S}) where {N,T,S} =
-    IntervalBox( [ tm[i](a) for i in eachindex(tm) ] )
+evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::AbstractVector{Interval{S}}) where {N,T,S} =
+    interval.( tm[i](a) for i in eachindex(tm) )
 
 
-function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N, T<:Real, S<:Real}
+function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N,T<:Real, S<:Real}
     @inbounds suma = a[end]*one(dx)
     @inbounds for k in get_order(a)-1:-1:0
         suma = suma*dx + a[k]

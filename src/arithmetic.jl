@@ -3,8 +3,6 @@
 # Addition, substraction and other functions
 for TM in tupleTMs
     @eval begin
-        tmdata(f::$TM) = (expansion_point(f), domain(f))
-
         zero(a::$TM) = $TM(zero(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
         one(a::$TM) = $TM(one(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
 
@@ -13,7 +11,8 @@ for TM in tupleTMs
         findfirst(a::$TM) = findfirst(a.pol)
 
         ==(a::$TM, b::$TM) =
-            a.pol == b.pol && remainder(a) == remainder(b) && tmdata(a) == tmdata(b)
+            a.pol == b.pol &&  isequal_interval(remainder(a), remainder(b)) &&
+                all(isequal_interval.(tmdata(a), tmdata(b)))
                 # expansion_point(a) == expansion_point(b) && domain(a) == domain(b)
 
 
@@ -64,7 +63,7 @@ for TM in tupleTMs
 
         # Multiplication
         function *(a::$TM, b::$TM)
-            @assert tmdata(a) == tmdata(b)
+            @assert all(isequal_interval.(tmdata(a), tmdata(b)))
             a_order = get_order(a)
             b_order = get_order(b)
             rnegl_order = a_order + b_order
@@ -130,7 +129,8 @@ for TM in tupleTMs
     end
 end
 
-# Remainder of the product
+# Remainder of the product: checks the three (algebraically equivalent) forms
+# to evaluate the remainder, and chooses the best (cf. Bunger 2020)
 # TaylorModel1
 function remainder_product(a, b, aux, Δnegl)
     Δa = a.pol(aux)
@@ -138,21 +138,28 @@ function remainder_product(a, b, aux, Δnegl)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
-    return Δ
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
                            b::TaylorModel1{TaylorN{T}, S},
                            auxT, Δnegl) where {T, S}
-    N = get_numvars()
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = IntervalBox(-1 .. 1, Val(N))
+    auxQ = symmetric_box(S)
     Δa = a.pol(auxT)(auxQ)
     Δb = b.pol(auxT)(auxQ)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem
-    return Δ
+    Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
         b::TaylorModel1{TaylorModelN{N,T,S},S}, aux, Δnegl) where {N,T,S}
@@ -175,32 +182,39 @@ function remainder_product(a, b, aux, Δnegl, order)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
-    return Δ
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem * V) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem * V) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{TaylorN{T},S},
                             aux, Δnegl, order) where {T, S}
-    N = get_numvars()
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(N, T)
+    auxQ = symmetric_box(S)
     Δa = a.pol(aux)(auxQ)
     Δb = b.pol(aux)(auxQ)
     V = aux^(order+1)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem * V
-    return Δ
+    Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem * V) * b_rem
+    Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem * V) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
 end
 
 
 # Division
 function /(a::TaylorModel1, b::TaylorModel1)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     return basediv(a, b)
 end
 
 function /(a::RTaylorModel1, b::RTaylorModel1)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
 
     # DetermineRootOrderUpperBound seems equivalent (optimized?) to `findfirst`
     bk = findfirst(b)
@@ -246,7 +260,6 @@ end
 
 
 # Same as above, for TaylorModelN
-tmdata(f::TaylorModelN) = (expansion_point(f), domain(f))
 zero(a::TaylorModelN) = TaylorModelN(zero(a.pol), zero(remainder(a)),
     expansion_point(a), domain(a))
 one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
@@ -257,7 +270,8 @@ one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
 findfirst(a::TaylorModelN) = findfirst(a.pol)
 
 ==(a::TaylorModelN, b::TaylorModelN) =
-    a.pol == b.pol && remainder(a) == remainder(b) && tmdata(a) == tmdata(b)
+    a.pol == b.pol && isequal_interval(remainder(a), remainder(b)) &&
+        all(isequal_interval.(tmdata(a), tmdata(b)))
         # expansion_point(a) == expansion_point(b) && domain(a) == domain(b)
 
 
@@ -284,7 +298,7 @@ end
 
 # Multiplication
 function *(a::TaylorModelN, b::TaylorModelN)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     a_order = get_order(a)
     b_order = get_order(b)
     rnegl_order = a_order + b_order
@@ -299,7 +313,8 @@ function *(a::TaylorModelN, b::TaylorModelN)
 
     # Remaing terms of the product
     vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
-    suma = Array{promote_type(TS.numtype(res), TS.numtype(domain(a)))}(undef, rnegl_order-order)
+    suma = Array{promote_type(TS.numtype(res),
+                    TS.numtype(domain(a)))}(undef, rnegl_order-order)
     for k in order+1:rnegl_order
         vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
         @inbounds for i = 0:k
@@ -310,7 +325,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     end
 
     # Bound for the neglected part of the product of polynomials
-    Δnegl = sum( sort!(suma, by=abs2) )
+    Δnegl = sum( suma ) # = sum( sort!(suma, by=abs2) )
     Δ = remainder_product(a, b, aux, Δnegl)
 
     return TaylorModelN(res, Δ, expansion_point(a), domain(a))

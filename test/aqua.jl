@@ -18,9 +18,7 @@ using Aqua
     for method_ambiguity in ambs
         @show method_ambiguity
     end
-    if VERSION < v"1.10.0-DEV"
-        @test length(ambs) == 0
-    end
+    @test length(ambs) == 0
 end
 
 @testset "Aqua tests (additional)" begin

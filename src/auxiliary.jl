@@ -3,6 +3,8 @@
 # getindex, fistindex, lastindex
 for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
     @eval begin
+        tmdata(f::$TM) = (expansion_point(f), domain(f))
+
         copy(f::$TM) = $TM(copy(f.pol), remainder(f), expansion_point(f), domain(f))
         @inline firstindex(a::$TM) = 0
         @inline lastindex(a::$TM) = get_order(a)
@@ -35,19 +37,31 @@ for TM in tupleTMs
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
         setindex!(a::$TM{T,S}, x::Array{T,1}, c::Colon) where {T<:Number, S} = a[c] .= x
 
-        iscontained(a, tm::$TM) = a ∈ centered_dom(tm)
-        iscontained(a::Interval, tm::$TM) = a ⊆ centered_dom(tm)
+        iscontained(a, tm::$TM) = in_interval(a, centered_dom(tm))
+        iscontained(a::Interval, tm::$TM) = issubset_interval(a, centered_dom(tm))
     end
 end
-iscontained(a, tm::TaylorModelN) = a ∈ centered_dom(tm)
-iscontained(a::IntervalBox, tm::TaylorModelN) = a ⊆ centered_dom(tm)
+iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
+iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = all(issubset_interval.(a, centered_dom(tm)))
+
+
+"""
+    symmetric_box(N::Int, [Type{T} = Float64])
+    symmetric_box(::Type{T})
+
+Create the interval box [-1, 1]^N as a SVector, with elements of type T. If N is omitted,
+it corresponds to `get_numvars()`.
+"""
+symmetric_box(N::Int, T::Type{S} = Float64) where {S<:IA.NumTypes} =
+    fill(interval(-one(T), one(T)), SVector{N})
+symmetric_box(::Type{T}) where {T<:IA.NumTypes} = symmetric_box(get_numvars(), T)
 
 
 # fixorder and bound_truncation
 for TM in tupleTMs
     @eval begin
         function fixorder(a::$TM, b::$TM)
-            @assert tmdata(a) == tmdata(b)
+            @assert all(isequal_interval.(tmdata(a), tmdata(b)))
             get_order(a) == get_order(b) && return a, b
 
             order = min(get_order(a), get_order(b))
@@ -82,15 +96,15 @@ function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Int
         order::Int) where {T}
     order ≥ get_order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
-    symIbox = IntervalBox(-1 .. 1, get_numvars())
-    res = Taylor1(evaluate.(a.coeffs, Ref(symIbox)))
+    symIbox = symmetric_box(numtype(aux))
+    res = evaluate(a, symIbox)
     res[0:order] .= zero(res[0])
     return res(aux)
 end
 
 
 function fixorder(a::TaylorModelN, b::TaylorModelN)
-    @assert tmdata(a) == tmdata(b)
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     get_order(a) == get_order(b) && return a, b
 
     order = min(get_order(a), get_order(b))
@@ -106,7 +120,7 @@ function fixorder(a::TaylorModelN, b::TaylorModelN)
         TaylorModelN(bpol, Δb, expansion_point(b), domain(b))
 end
 
-function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::IntervalBox,
+function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
     order ≥ get_order(a) && return zero(aux[1])
     res = deepcopy(a)
@@ -122,9 +136,9 @@ end
 @inline Base.iterate(a::TMSol, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
 @inline Base.eachindex(a::TMSol) = firstindex(a):lastindex(a)
 
-getindex(a::TMSol, n::Integer) = a.xTM[:,n]
-getindex(a::TMSol, u::UnitRange) = a.xTM[:,u]
-getindex(a::TMSol, c::Colon) = a.xTM[:,c]
-getindex(a::TMSol, n::Integer, m::Integer) = a.xTM[m,n]
-getindex(a::TMSol, c::Colon, m::Integer) = a.xTM[m,c]
-getindex(a::TMSol, u::UnitRange, m::Integer) = a.xTM[m,u]
+getindex(a::TMSol, n::Integer) = getindex(get_xTM(a),:,n)
+getindex(a::TMSol, u::UnitRange) = getindex(get_xTM(a),:,u)
+getindex(a::TMSol, c::Colon) = getindex(get_xTM(a),:,c)
+getindex(a::TMSol, n::Integer, m::Integer) = getindex(get_xTM(a),m,n)
+getindex(a::TMSol, u::UnitRange, m::Integer) = getindex(get_xTM(a),m,u)
+getindex(a::TMSol, c::Colon, m::Integer) = getindex(get_xTM(a),m,c)
