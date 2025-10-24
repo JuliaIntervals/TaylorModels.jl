@@ -165,7 +165,7 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
     return RTaylorModel1(tmres.pol, Δ, x0, I)
 end
 
-function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{S,T},T}) where {T<:Real, S<:Real}
+function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<:Real, S<:NumberNotSeries}
     _order = get_order(tmf)
 
     # # Avoid overestimations:
@@ -250,7 +250,7 @@ if it is not an exactly representable value.
 
 for TM in tupleTMs
     @eval begin
-        fp_rpa(tm::$TM{T, T}) where {T<:TS.NumberNotSeries} = tm
+        fp_rpa(tm::$TM{T, T}) where {T<:NumberNotSeries} = tm
 
         function fp_rpa(tm::$TM{Interval{T},T}) where {T}
             fT = polynomial(tm)

@@ -62,7 +62,7 @@ for TM in tupleTMs
             expansion_point(a), domain(a))
 
         # Multiplication
-        function *(a::$TM, b::$TM)
+        function *(a::$TM{T,S}, b::$TM{T,S}) where {T,S}
             @assert all(isequal_interval.(tmdata(a), tmdata(b)))
             a_order = get_order(a)
             b_order = get_order(b)
@@ -319,7 +319,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
         vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
         @inbounds for i = 0:k
             (i > a_order || k-i > b_order) && continue
-            TaylorSeries.mul!(vv[k-order], a_pol[i], b_pol[k-i])
+            TS.mul!(vv[k-order], a_pol[i], b_pol[k-i])
         end
         suma[k-order] = vv[k-order](aux)
     end
@@ -367,4 +367,72 @@ function ^(a::TaylorModelN{N,T,S}, n::Integer) where {N,T,S}
     n == 1 && return a
     n == 2 && return a*a
     return rpa(x->x^n, a)
+end
+
+# Operations involving TaylorModel1{TaylorModelN}
+function *(a::TaylorModel1{TaylorModelN{N,T,S},S}, b::TaylorModelN{N,T,S}) where {N,T,S}
+    res = polynomial(a)*b
+    return TaylorModel1(res, remainder(a), expansion_point(a), domain(a))
+end
+*(b::TaylorModelN{N,T,S}, a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S} = a * b
+
+# Multiplication by numbers
+*(a::Taylor1{TaylorModelN{N,R,S}}, b::T) where {N,R,S,T<:NumberNotSeries} = Taylor1(a.coeffs .* b)
+*(b::T, a::Taylor1{TaylorModelN{N,R,S}}) where {N,R,S,T<:NumberNotSeries} = a * b
+*(a::Taylor1{TaylorModelN{N,S,R}}, b::TaylorModelN{N,S,R}) where {N,S,R} =
+    Taylor1(a.coeffs .* b)
+*(b::TaylorModelN{N,S,R}, a::Taylor1{TaylorModelN{N,S,R}}) where {N,S,R} = a * b
+
+#
+function TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::Taylor1{TaylorModelN{N,T,S}}, ordT::Int) where {N,T,S}
+    # Sanity
+    TS.zero!(res[ordT])
+    for k in 0:ordT
+        res[ordT] += a[k] * b[ordT-k]
+        # for ordQ in eachindex(a[ordT])
+        #     TS.mul!(res[ordT], a[k], b[ordT-k], ordQ)
+        # end
+    end
+    return nothing
+end
+
+function TS.div!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
+    # order and coefficient of first factorized term
+    # ordfact, cdivfact = divfactorization(a, b)
+    anz = findfirst(a)
+    bnz = findfirst(b)
+    anz = anz ≥ 0 ? anz : a.order
+    bnz = bnz ≥ 0 ? bnz : a.order
+    ordfact = min(anz, bnz)
+    # Is the polynomial factorizable?
+    iszero(b[ordfact]) && throw( ArgumentError(
+        """Division does not define a Taylor1 polynomial;
+        order k=$(ordfact) => coeff[$(ordfact)]=$(cdivfact).""") )
+    TS.zero!(c, k)
+    if k == 0
+        c[0] = a[ordfact]/b[ordfact]
+        # TS.div!(c[0], a[ordfact], b[ordfact])
+        return nothing
+    end
+    imin = max(0, k+ordfact-b.order)
+    c[k] = c[imin] * b[k+ordfact-imin]
+    # TS.mul!(c[k], c[imin], b[k+ordfact-imin])
+    for i = imin+1:k-1
+        c[k] += c[i] * b[k+ordfact-i]
+        # TS.mul!(c[k], c[i], b[k+ordfact-i])
+    end
+        if k+ordfact ≤ b.order
+        c[k] = (a[k+ordfact]-c[k])
+        # for l in eachindex(c[k])
+        #     TS.subst!(c[k], a[k+ordfact], c[k], l)
+        # end
+        c[k] = c[k] / b[ordfact]
+        # TS.div!(c[k], b[ordfact])
+    else
+        # c[k] = (-c[k]) / b[ordfact]
+        TS.div_scalar!(c[k], -1, b[ordfact])
+    end
+    return nothing
 end
