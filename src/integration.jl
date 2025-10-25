@@ -12,8 +12,15 @@ for TM in tupleTMs
             Δ = bound_integration(a, centered_dom(a), cc0)
             return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
         end
+        function integrate(a::$(TM){TaylorModelN{N,T,S},S}, cc0) where {N,T,S}
+            integ_pol = integrate(polynomial(a))
+            Δ = bound_integration(a, centered_dom(a), cc0)
+            return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
+        end
         integrate(a::$(TM){T,S}, c0) where {T,S} = c0 + integrate(a)
         integrate(a::$(TM){TaylorN{T},S}, c0, δI) where {T,S} = c0 + integrate(a, δI)
+        integrate(a::$(TM){TaylorModelN{N,T,S},S}, c0::TaylorModelN{N,T,S}, δI) where {N,T,S} =
+            c0 + integrate(a, δI)
 
 
         @inline function bound_integration(a::$(TM){T,S}, δ::Interval{S}) where {T<:TS.NumberNotSeries,S}
@@ -28,6 +35,17 @@ for TM in tupleTMs
             return Δ
         end
         @inline function bound_integration(a::$(TM){TaylorN{T}, S}, δ::Interval{S}, δI) where {T,S}
+            order = get_order(a)
+            if $TM == TaylorModel1
+                aux = δ^interval(order) / interval(order+1)
+                Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
+            else
+                Δ = δ * remainder(a)
+                Δ = Δ/interval(order+2) + getcoeff(polynomial(a), order)(δI)/interval(order+1)
+            end
+            return Δ
+        end
+        @inline function bound_integration(a::$(TM){TaylorModelN{N,T,S}, S}, δ::Interval{S}, δI) where {N,T,S}
             order = get_order(a)
             if $TM == TaylorModel1
                 aux = δ^interval(order) / interval(order+1)
@@ -119,22 +137,3 @@ to bound the integration. The remainder corresponds to
 ``Δ = δ * remainder(a)/(order+2) + getcoeff(polynomial(a), order)/(order+1)``.
 
 """ bound_integration
-
-
-function picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-    x_picard = similar(xTM1TMN)
-    picard_lindelof!(f!, dxTM1TMN, xTM1TMN, t, x_picard, params)
-    return x_picard
-end
-
-function picard_lindelof!(f!,
-        x_picard::Vector{TaylorModel1{T,S}},
-        dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN ::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-    f!(dxTM1TMN, xTM1TMN, params, t)
-    @inbounds for ind in eachindex(xTM1TMN)
-        x_picard[ind] = integrate(dxTM1TMN[ind], xTM1TMN[ind][0])
-    end
-    return x_picard
-end
