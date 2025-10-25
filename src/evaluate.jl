@@ -11,7 +11,7 @@ for TM in tupleTMs
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
         else
-            Δ = remainder(tm) * a^(_order + 1)
+            Δ = remainder(tm) * a^interval(_order + 1)
         end
 
         return tm.pol(a) + Δ
@@ -116,4 +116,18 @@ function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N,T<:Real, S<:R
         suma = suma*dx + a[k]
     end
     return suma
+end
+function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, v::AbstractVector{R}) where {N,T,S,R}
+    suma = Taylor1(zero(a[0])(v), a.order)
+    for k in eachindex(a)
+        suma[k] = a[k](v)
+    end
+    return suma
+end
+function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, v::AbstractVector) where {N,T,S}
+    suma = Taylor1(zero(tm[0])(v), get_order(tm))
+    for k in eachindex(suma)
+        suma[k] = tm[k](v)
+    end
+    return TaylorModel1(suma, remainder(tm), expansion_point(tm), domain(tm))
 end
