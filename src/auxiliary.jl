@@ -36,13 +36,18 @@ for TM in tupleTMs
         end
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
         setindex!(a::$TM{T,S}, x::Array{T,1}, c::Colon) where {T<:Number, S} = a[c] .= x
+        setindex!(a::$TM{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S}, n::Int) where {N,T,S} =
+            setindex!(a.pol.coeffs, deepcopy(x), n+1)
 
         iscontained(a, tm::$TM) = in_interval(a, centered_dom(tm))
         iscontained(a::Interval, tm::$TM) = issubset_interval(a, centered_dom(tm))
     end
 end
 iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
-iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = all(issubset_interval.(a, centered_dom(tm)))
+iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) =
+    all(issubset_interval.(a, centered_dom(tm)))
+setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S}, n::Int) where {N,T,S} =
+    setindex!(a.coeffs, deepcopy(x), n+1)
 
 
 """
@@ -79,12 +84,13 @@ for TM in tupleTMs
 
         function bound_truncation(::Type{$TM}, a::Taylor1, aux::Interval,
                 order::Int)
-            order ≥ get_order(a) && return zero(aux)
+            order_a = get_order(a)
+            order ≥ order_a && return zero(aux)
             if $TM == TaylorModel1
                 res = Taylor1(copy(a.coeffs))
                 res[0:order] .= zero(res[0])
             else
-                res = Taylor1(copy(a.coeffs[order+2:end]), get_order(a)-order )
+                res = Taylor1(a.coeffs[order+2:end], order_a-order )
             end
             return res(aux)
         end
