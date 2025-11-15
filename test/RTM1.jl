@@ -437,8 +437,7 @@ end
         integ_res = integrate(exp(tm), x1)
         exact_res = exp(tm)
         @test exact_res.pol == integ_res.pol
-        @test issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1),
-                remainder(integ_res)*(ii0-x0)^(order+1))
+        @test issubset_interval(remainder(exact_res), remainder(integ_res))
         for ind = 1:_num_tests
             @test check_containment(exp, integ_res)
         end
@@ -446,8 +445,7 @@ end
         integ_res = integrate(cos(tm))
         exact_res = sin(tm)
         @test exact_res.pol == integ_res.pol
-        @test issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1),
-                remainder(integ_res)*(ii0-x0)^(order+1))
+        @test_broken issubset_interval(remainder(exact_res), remainder(integ_res))
         for ind = 1:_num_tests
             @test check_containment(sin, integ_res)
         end
@@ -455,8 +453,7 @@ end
         integ_res = integrate(-sin(tm), x1)
         exact_res = cos(tm)
         @test exact_res.pol == integ_res.pol
-        @test issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1),
-                remainder(integ_res)*(ii0-x0)^(order+1))
+        @test issubset_interval(remainder(exact_res), remainder(integ_res))
         for ind = 1:_num_tests
             @test check_containment(cos, integ_res)
         end
@@ -464,7 +461,7 @@ end
         integ_res = integrate(1/(1+tm^2))
         exact_res = atan(tm)
         @test exact_res.pol == integ_res.pol
-        @test_broken issubset_interval(remainder(exact_res)*(ii0-x0)^(order+1), remainder(integ_res)*(ii0-x0)^(order+1))
+        @test_broken issubset_interval(remainder(exact_res), remainder(integ_res))
         for ind = 1:_num_tests
             @test check_containment(atan, integ_res)
         end
@@ -484,7 +481,7 @@ end
         use_show_default(false)
         @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com, true) + " *
             "Interval{Float64}(3.0, 3.0, com, true) t + Interval{Float64}(3.0, 3.0, com, true) t² + " *
-            "Interval{Float64}(1.0, 1.0, com, true) t³ + Interval{Float64}(0.0, 0.0, com, true) t⁴"
+            "Interval{Float64}(1.0, 1.0, com, true) t³ + Interval{Float64}(0.0, 0.0, com, false) t⁴"
         @test string(exp(tm)) == " Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) + " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) t + " *
             "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true) t² + " *

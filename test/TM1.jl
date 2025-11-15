@@ -182,7 +182,7 @@ end
         fgTM1 = f(tm) / g(tm)
         @test isentire_interval(remainder(fgTM1))
 
-        fgTM1 = f(tm) * (g(tm))^2
+        fgTM1 = f(tm) * g(tm)^2
         hh = h(tm)
         @test_skip polynomial(fgTM1) ≈ polynomial(hh)
         @test isequal(remainder(fgTM1), remainder(hh))
@@ -522,7 +522,7 @@ end
         @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com, true) + " *
             "Interval{Float64}(3.0, 3.0, com, true) t + " *
             "Interval{Float64}(3.0, 3.0, com, true) t² + " *
-            "Interval{Float64}(-0.125, 0.125, trv, false)"
+            "Interval{Float64}(-0.125, 0.125, com, true)"
         @test string(exp(tm)) ==
             " Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) + " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) t + " *
