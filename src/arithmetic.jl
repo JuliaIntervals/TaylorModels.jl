@@ -3,21 +3,21 @@
 # Addition, substraction and other functions
 for TM in tupleTMs
     @eval begin
-        zero(a::$TM) = $TM(zero(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
-        one(a::$TM) = $TM(one(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
+        zero(a::$TM{T,S}) where {T,S} =
+            $TM(zero(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
+        one(a::$TM{T,S}) where {T,S} =
+            $TM(one(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
 
         # iszero(a::$TM) = iszero(a.pol) && iszero(zero(remainder(a)))
 
-        findfirst(a::$TM) = findfirst(a.pol)
+        findfirst(a::$TM{T,S}) where {T,S} = findfirst(a.pol)
 
-        ==(a::$TM, b::$TM) =
-            a.pol == b.pol &&  isequal_interval(remainder(a), remainder(b)) &&
-                all(isequal_interval.(tmdata(a), tmdata(b)))
-                # expansion_point(a) == expansion_point(b) && domain(a) == domain(b)
+        ==(a::$TM, b::$TM) = all(isequal_interval.(tmdata(a), tmdata(b))) &&
+            isequal_interval(remainder(a), remainder(b)) && a.pol == b.pol
 
 
         # Addition
-        +(a::$TM) = $TM(a.pol, remainder(a), expansion_point(a), domain(a))
+        +(a::$TM{T,S}) where {T,S} = $TM(a.pol, remainder(a), expansion_point(a), domain(a))
 
         function +(a::$TM, b::$TM)
             a, b = fixorder(a, b)
@@ -32,7 +32,7 @@ for TM in tupleTMs
 
 
         # Substraction
-        -(a::$TM) = $TM(-a.pol, -remainder(a), expansion_point(a), domain(a))
+        -(a::$TM{T,S}) where {T,S} = $TM(-a.pol, -remainder(a), expansion_point(a), domain(a))
 
         function -(a::$TM, b::$TM)
             a, b = fixorder(a, b)
@@ -70,40 +70,38 @@ for TM in tupleTMs
             aux = centered_dom(a)
 
             # Returned polynomial
-            a_pol = polynomial(a)
-            b_pol = polynomial(b)
-            res = a_pol * b_pol
+            res = a.pol * b.pol
             order = get_order(res)
 
             # Remainder of the product
             if $TM == TaylorModel1
-
                 # Remaining terms of the product as reduced Taylor1 (factored polynomial)
                 rnegl = Taylor1(zero(res[0]), rnegl_order)
                 for k in order+1:rnegl_order
+                    tmp = zero(rnegl[0])
                     @inbounds for i = 0:k
                         (i > a_order || k-i > b_order) && continue
-                        rnegl[k] += a_pol[i] * b_pol[k-i]
+                        tmp += a.pol[i] * b.pol[k-i]
                     end
+                    rnegl[k] = tmp
                 end
-
                 # Bound for the neglected part of the product of polynomials
                 Δnegl = rnegl(aux)
                 Δ = remainder_product(a, b, aux, Δnegl)
             else
-
                 # Remaining terms of the product as reduced Taylor1 (factored polynomial)
                 rnegl = Taylor1(zero(res[0]), rnegl_order-order)
                 for k in order+1:rnegl_order
+                    tmp = zero(rnegl[0])
                     @inbounds for i = 0:k
                         (i > a_order || k-i > b_order) && continue
-                        rnegl[k-order-1] += a_pol[i] * b_pol[k-i]
+                        tmp += a.pol[i] * b.pol[k-i]
                     end
+                    rnegl[k-order-1] = tmp
                 end
                 Δnegl = rnegl(aux)
                 Δ = remainder_product(a, b, aux, Δnegl, order)
             end
-
             return $TM(res, Δ, expansion_point(a), domain(a))
         end
 
@@ -113,17 +111,51 @@ for TM in tupleTMs
         /(b::T, a::$TM) where {T<:NumberNotSeries} = b * inv(a)
 
         # Power
-        function ^(a::$TM, r::Number)
-            r == zero(r) && return one(a)
-            r == 1 && return a
-            r == 2 && return a*a
+        # Square
+        function TS.square(a::$TM{T,S}) where {T,S}
+            a_order = get_order(a)
+            aux = centered_dom(a)
+            res = TS.square(a.pol)
+            # Bound for the neglected part of the product of polynomials
+            if $TM == TaylorModel1
+                resnegl = Taylor1(zero(res[0]), 2*a_order)
+                for k in a_order+1:2*a_order
+                    tmp = zero(a.pol[0])
+                    @inbounds for i = 0:k
+                        (i > a_order || k-i > a_order) && continue
+                        # resnegl[k] += a.pol[i] * a.pol[k-i]
+                        tmp += a.pol[i] * a.pol[k-i]
+                    end
+                    resnegl[k] = tmp
+                end
+                Δnegl = resnegl(aux)
+                Δ = remainder_square(a, aux, Δnegl)
+            else
+                resnegl = Taylor1(zero(res[0]), a_order)
+                for k in a_order+1:2*a_order
+                    tmp = zero(a.pol[0])
+                    @inbounds for i = 0:k
+                        (i > a_order || k-i > a_order) && continue
+                        tmp += a.pol[i] * a.pol[k-i]
+                    end
+                    resnegl[k-a_order-1] = tmp
+                end
+                Δnegl = resnegl(aux)
+                Δ = remainder_square(a, aux, Δnegl, a_order)
+            end
+            return $TM(res, Δ, expansion_point(a), domain(a))
+        end
+
+        function ^(a::$TM{T,S}, r::NumberNotSeries) where {T,S}
+            isinteger(r) && return a^Int(r)
             return rpa(x->x^r, a)
         end
 
-        function ^(a::$TM, n::Integer)
-            n == 0 && return one(a)
+        function ^(a::$TM{T,S}, n::Integer) where {T,S}
+            iszero(n) && return one(a)
             n == 1 && return a
-            n == 2 && return a*a
+            n == 2 && return TS.square(a)
+            n > 0 && return Base.power_by_squaring(a, n)
             return rpa(x->x^n, a)
         end
     end
@@ -145,8 +177,8 @@ function remainder_product(a, b, aux, Δnegl)
     return Δ1
 end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
-                           b::TaylorModel1{TaylorN{T}, S},
-                           auxT, Δnegl) where {T, S}
+        b::TaylorModel1{TaylorN{T}, S},
+        auxT, Δnegl) where {T, S}
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
     auxQ = symmetric_box(S)
@@ -168,7 +200,6 @@ function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
-
     # Evaluate at the TMN centered domain
     auxN = centered_dom(a[0])
     ΔN = Δ(auxN)
@@ -188,8 +219,9 @@ function remainder_product(a, b, aux, Δnegl, order)
     isequal_interval(Δ, Δ1) && return Δ
     return Δ1
 end
-function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{TaylorN{T},S},
-                            aux, Δnegl, order) where {T, S}
+function remainder_product(a::RTaylorModel1{TaylorN{T},S},
+        b::RTaylorModel1{TaylorN{T},S},
+        aux, Δnegl, order) where {T, S}
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
     auxQ = symmetric_box(S)
@@ -202,6 +234,64 @@ function remainder_product(a::RTaylorModel1{TaylorN{T},S}, b::RTaylorModel1{Tayl
     Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem * V) * b_rem
     Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem * V) * a_rem
     Δ1 = intersect_interval(Δ1, Δ2)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
+end
+
+# TaylorModel1
+function remainder_square(a, aux, Δnegl)
+    Δa = a.pol(aux)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^2
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
+end
+function remainder_square(a::TaylorModel1{TaylorN{T}, S},
+        auxT, Δnegl) where {T, S}
+    # An N-dimensional symmetrical IntervalBox is assumed
+    # to bound the TaylorN part
+    auxQ = symmetric_box(S)
+    Δa = a.pol(auxT)(auxQ)
+    a_rem = remainder(a)
+    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^2
+    Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
+end
+function remainder_square(a::TaylorModel1{TaylorModelN{N,T,S},S},
+        aux, Δnegl) where {N,T,S}
+    Δa = a.pol(aux)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^2
+    # Evaluate at the TMN centered domain
+    auxN = centered_dom(a[0])
+    return Δ(auxN)
+end
+# RTaylorModel1
+function remainder_square(a, aux, Δnegl, order)
+    Δa = a.pol(aux)
+    V = aux^(order+1)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a.rem + a.rem^2 * V
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem * V) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ)
+    isequal_interval(Δ, Δ1) && return Δ
+    return Δ1
+end
+function remainder_square(a::RTaylorModel1{TaylorN{T},S},
+        aux, Δnegl, order) where {T, S}
+    # An N-dimensional symmetrical IntervalBox is assumed
+    # to bound the TaylorN part
+    auxQ = symmetric_box(S)
+    Δa = a.pol(aux)(auxQ)
+    V = aux^(order+1)
+    a_rem = remainder(a)
+    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^2 * V
+    Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem * V) * a_rem
+    Δ1 = intersect_interval(Δ1, Δ)
     isequal_interval(Δ, Δ1) && return Δ
     return Δ1
 end
@@ -306,22 +396,21 @@ function *(a::TaylorModelN, b::TaylorModelN)
     aux = centered_dom(a)
 
     # Returned polynomial
-    a_pol = polynomial(a)
-    b_pol = polynomial(b)
-    res = a_pol * b_pol
+    res = a.pol * b.pol
     order = get_order(res)
 
     # Remaing terms of the product
-    vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
+    # vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
     suma = Array{promote_type(TS.numtype(res),
                     TS.numtype(domain(a)))}(undef, rnegl_order-order)
     for k in order+1:rnegl_order
-        vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
+        # vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
+        tmp = HomogeneousPolynomial(zero(TS.numtype(res)), k)
         @inbounds for i = 0:k
             (i > a_order || k-i > b_order) && continue
-            TS.mul!(vv[k-order], a_pol[i], b_pol[k-i])
+            TS.mul!(tmp, a.pol[i], b.pol[k-i])
         end
-        suma[k-order] = vv[k-order](aux)
+        suma[k-order] = tmp(aux)
     end
 
     # Bound for the neglected part of the product of polynomials
@@ -356,16 +445,43 @@ end
 
 
 # Power
+# Square
+function TS.square(a::TaylorModelN)
+    a_order = get_order(a)
+    rnegl_order = 2*a_order
+    @assert rnegl_order ≤ get_order()
+    aux = centered_dom(a)
+    # Returned polynomial
+    a_pol = polynomial(a)
+    res = a_pol^2
+    order = get_order(res)
+    # Remaing terms of the product
+    vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
+    suma = Array{promote_type(TS.numtype(res),
+                    TS.numtype(domain(a)))}(undef, rnegl_order-order)
+    for k in order+1:rnegl_order
+        vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
+        @inbounds for i = 0:k
+            (i > a_order || k-i > a_order) && continue
+            TS.mul!(vv[k-order], a_pol[i], a_pol[k-i])
+        end
+        suma[k-order] = vv[k-order](aux)
+    end
+    # Bound for the neglected part of the product of polynomials
+    Δnegl = sum( suma ) # = sum( sort!(suma, by=abs2) )
+    Δ = remainder_square(a, aux, Δnegl)
+    return TaylorModelN(res, Δ, expansion_point(a), domain(a))
+end
+
 function ^(a::TaylorModelN{N,T,S}, r::Number) where {N,T,S}
-    r == 0 && return one(a)
-    r == 1 && return a
-    r == 2 && return a*a
+    isinteger(r) && return a^Int(r)
     return rpa(x->x^r, a)
 end
 function ^(a::TaylorModelN{N,T,S}, n::Integer) where {N,T,S}
     n == 0 && return one(a)
     n == 1 && return a
-    n == 2 && return a*a
+    n == 2 && return TS.square(a)
+    n > 0 && return Base.power_by_squaring(a, n)
     return rpa(x->x^n, a)
 end
 
@@ -388,12 +504,15 @@ function TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,
         b::Taylor1{TaylorModelN{N,T,S}}, ordT::Int) where {N,T,S}
     # Sanity
     TS.zero!(res[ordT])
+    tmp = res[ordT]
     for k in 0:ordT
-        res[ordT] += a[k] * b[ordT-k]
+        # res[ordT] += a[k] * b[ordT-k]
+        tmp += a[k] * b[ordT-k]
         # for ordQ in eachindex(a[ordT])
         #     TS.mul!(res[ordT], a[k], b[ordT-k], ordQ)
         # end
     end
+    res[ordT] = tmp
     return nothing
 end
 
@@ -417,21 +536,22 @@ function TS.div!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}
         return nothing
     end
     imin = max(0, k+ordfact-b.order)
-    c[k] = c[imin] * b[k+ordfact-imin]
+    tmp = c[imin] * b[k+ordfact-imin]
     # TS.mul!(c[k], c[imin], b[k+ordfact-imin])
     for i = imin+1:k-1
-        c[k] += c[i] * b[k+ordfact-i]
+        tmp += c[i] * b[k+ordfact-i]
         # TS.mul!(c[k], c[i], b[k+ordfact-i])
     end
-        if k+ordfact ≤ b.order
-        c[k] = (a[k+ordfact]-c[k])
+    if k+ordfact ≤ b.order
+        tmp = (a[k+ordfact]-tmp)
         # for l in eachindex(c[k])
         #     TS.subst!(c[k], a[k+ordfact], c[k], l)
         # end
-        c[k] = c[k] / b[ordfact]
+        c[k] = tmp / b[ordfact]
         # TS.div!(c[k], b[ordfact])
     else
         # c[k] = (-c[k]) / b[ordfact]
+        c[k] = tmp
         TS.div_scalar!(c[k], -1, b[ordfact])
     end
     return nothing
