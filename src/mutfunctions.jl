@@ -38,10 +38,11 @@ function TS.sqr!(c::Taylor1{TaylorModelN{N,T,S}},
     end
     kodd = k%2
     kend = (k - 2 + kodd) >> 1
+    tmp = zero(c[k])
     for i = 0:kend
-        c[k] += a[i] * a[k-i]
+        tmp += a[i] * a[k-i]
     end
-    c[k+1] = 2 * c[k+1]
+    c[k] = 2 * tmp
     kodd == 1 && return nothing
     c[k] += a[k>>1]^2
     return nothing
@@ -55,14 +56,15 @@ function TS.sqrt!(c::Taylor1{TaylorModelN{N,T,S}},
     end
     kodd = (k - k0)%2
     kend = (k - k0 - 2 + kodd) >> 1
+    tmp = zero(c[k])
     for i = k0+1:k0+kend
-        c[k] += c[i] * c[k+k0-i]
+        tmp += c[i] * c[k+k0-i]
     end
-    aux = a[k+k0] - 2*c[k]
+    tmp = a[k+k0] - 2*tmp
     if kodd == 0
-        aux = aux - (c[kend+k0+1])^2
+        tmp = tmp - (c[kend+k0+1])^2
     end
-    c[k] = aux / (2*c[k0])
+    c[k] = tmp / (2*c[k0])
     return nothing
 end
 
@@ -73,10 +75,11 @@ function TS.exp!(c::Taylor1{TaylorModelN{N,T,S}},
         c[0] = exp(constant_term(a))
         return nothing
     end
+    tmp = zero(c[k])
     for i = 0:k-1
-        c[k] += (k-i) * a[k-i] * c[i]
+        tmp += (k-i) * a[k-i] * c[i]
     end
-    c[k] = c[k] / k
+    c[k] = tmp / k
     return nothing
 end
 
@@ -86,10 +89,11 @@ function TS.log!(c::Taylor1{TaylorModelN{N,T,S}},
         c[0] = log(constant_term(a))
         return nothing
     end
+    tmp = zero(c[k])
     for i = 1:k-1
-        c[k] += (k-i) * a[i] * c[k-i]
+        tmp += (k-i) * a[i] * c[k-i]
     end
-    c[k] = (a[k] - c[k]/k) / constant_term(a)
+    c[k] = (a[k] - tmp/k) / constant_term(a)
     return nothing
 end
 
@@ -101,13 +105,15 @@ function TS.sincos!(s::Taylor1{TaylorModelN{N,T,S}},
         s[0], c[0] = sin( a0 ), cos( a0 )
         return nothing
     end
+    tmps = zero(s[k])
+    tmpc = zero(c[k])
     for i = 1:k
         x = i * a[i]
-        s[k] += x * c[k-i]
-        c[k] -= x * s[k-i]
+        tmps += x * c[k-i]
+        tmpc -= x * s[k-i]
     end
-    s[k] = s[k] / k
-    c[k] = c[k] / k
+    s[k] = tmps / k
+    c[k] = tmpc / k
     return nothing
 end
 
@@ -120,10 +126,11 @@ function TS.tan!(c::Taylor1{TaylorModelN{N,T,S}},
         c2[0] = aux^2
         return nothing
     end
+    tmp = zero(c[k])
     for i = 0:k-1
-        c[k] += (k-i) * a[k-i] * c2[i]
+        tmp += (k-i) * a[k-i] * c2[i]
     end
-    c[k] = a[k] + c[k]/k
+    c[k] = a[k] + tmp/k
     # c2 = c^2
     TS.sqr!(c2, c, k)
     return nothing
@@ -138,12 +145,13 @@ function TS.asin!(c::Taylor1{TaylorModelN{N,T,S}},
         r[0] = sqrt( 1 - a0^2)
         return nothing
     end
+    tmp = zero(c[k])
     for i in 1:k-1
-        c[k] += (k-i) * r[i] * c[k-i]
+        tmp += (k-i) * r[i] * c[k-i]
     end
     # r = sqrt(1-a^2)
     TS.sqrt!(r, 1-a^2, k)
-    c[k] = (a[k] - c[k]/k) / constant_term(r)
+    c[k] = (a[k] - tmp/k) / constant_term(r)
     return nothing
 end
 
@@ -169,12 +177,13 @@ function TS.atan!(c::Taylor1{TaylorModelN{N,T,S}},
         r[0] = 1 + a0^2
         return nothing
     end
+    tmp = zero(c[k])
     for i in 1:k-1
-        c[k] += (k-i) * r[i] * c[k-i]
+        tmp += (k-i) * r[i] * c[k-i]
     end
     # r = a^2
     TS.sqr!(r, a, k)
-    c[k] = (a[k] - c[k]/k) / constant_term(r)
+    c[k] = (a[k] - tmp/k) / constant_term(r)
     return nothing
 end
 
@@ -186,13 +195,15 @@ function TS.sinhcosh!(s::Taylor1{TaylorModelN{N,T,S}},
         c[0] = cosh( constant_term(a) )
         return nothing
     end
+    tmps = zero(s[k])
+    tmpc = zero(c[k])
     for i = 1:k
         x = i * a[i]
-        s[k] += x * c[k-i]
-        c[k] += x * s[k-i]
+        tmps += x * c[k-i]
+        tmpc += x * s[k-i]
     end
-    s[k] = s[k] / k
-    c[k] = c[k] / k
+    s[k] = tmps / k
+    c[k] = tmpc / k
     return nothing
 end
 
@@ -205,10 +216,11 @@ function TS.tanh!(c::Taylor1{TaylorModelN{N,T,S}},
         c2[0] = aux^2
         return nothing
     end
+    tmp = zero(c[k])
     for i = 0:k-1
-        c[k] += (k-i) * a[k-i] * c2[i]
+        tmp += (k-i) * a[k-i] * c2[i]
     end
-    c[k] = a[k] - c[k]/k
+    c[k] = a[k] - tmp/k
     # c2 = c^2
     TS.sqr!(c2, c, k)
     return nothing
