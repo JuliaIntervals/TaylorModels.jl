@@ -36,8 +36,6 @@ for TM in tupleTMs
         end
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
         setindex!(a::$TM{T,S}, x::Array{T,1}, c::Colon) where {T<:Number, S} = a[c] .= x
-        setindex!(a::$TM{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S}, n::Int) where {N,T,S} =
-            setindex!(a.pol.coeffs, deepcopy(x), n+1)
 
         iscontained(a, tm::$TM) = in_interval(a, centered_dom(tm))
         iscontained(a::Interval, tm::$TM) = issubset_interval(a, centered_dom(tm))
@@ -46,8 +44,22 @@ end
 iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
 iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) =
     all(issubset_interval.(a, centered_dom(tm)))
-setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S}, n::Int) where {N,T,S} =
-    setindex!(a.coeffs, deepcopy(x), n+1)
+setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
+    n::Int) where {N,T,S} = setindex!(a.pol.coeffs, deepcopy(x), n+1)
+setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
+    n::Int) where {N,T,S} = setindex!(a.coeffs, deepcopy(x), n+1)
+# function setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
+#         n::Int) where {N,T,S}
+#     for i in eachindex(a.coeffs[n+1].pol)
+#         a.coeffs[n+1].pol.coeffs[i+1] = x.pol.coeffs[i+1]
+#     end
+#     a.coeffs[n+1].rem = x.rem
+#     for i in eachindex(a.coeffs[n+1].x0)
+#         a.coeffs[n+1].x0[i] = x.x0[i]
+#         a.coeffs[n+1].domain[i] = x.domain[i]
+#     end
+#     return a.coeffs[n+1]
+# end
 
 
 """
@@ -57,8 +69,9 @@ setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S}, n::Int) where
 Create the interval box [-1, 1]^N as a SVector, with elements of type T. If N is omitted,
 it corresponds to `get_numvars()`.
 """
-symmetric_box(N::Int, T::Type{S} = Float64) where {S<:IA.NumTypes} =
-    fill(interval(-one(T), one(T)), SVector{N})
+symmetric_box(N::Int) = fill(interval(-1.0, 1.0), SVector{N})
+symmetric_box(N::Int, ::Type{S}) where {S<:IA.NumTypes} =
+    fill(interval(-one(S), one(S)), SVector{N})
 symmetric_box(::Type{T}) where {T<:IA.NumTypes} = symmetric_box(get_numvars(), T)
 
 
@@ -129,7 +142,7 @@ end
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
     order ≥ get_order(a) && return zero(aux[1])
-    res = deepcopy(a)
+    res = TaylorN(a.coeffs[:], a.order)
     res[0:order] .= zero(res[0])
     return res(aux)
 end
