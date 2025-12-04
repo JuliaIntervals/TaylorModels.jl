@@ -44,22 +44,15 @@ end
 iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
 iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) =
     all(issubset_interval.(a, centered_dom(tm)))
+# setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
+#     n::Int) where {N,T,S} = setindex!(a.pol.coeffs, deepcopy(x), n+1)
+# setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
+#     n::Int) where {N,T,S} = setindex!(a.coeffs, deepcopy(x), n+1)
 setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
-    n::Int) where {N,T,S} = setindex!(a.pol.coeffs, deepcopy(x), n+1)
+    n::Int) where {N,T,S} = a.pol[n] = x
 setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
-    n::Int) where {N,T,S} = setindex!(a.coeffs, deepcopy(x), n+1)
-# function setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
-#         n::Int) where {N,T,S}
-#     for i in eachindex(a.coeffs[n+1].pol)
-#         a.coeffs[n+1].pol.coeffs[i+1] = x.pol.coeffs[i+1]
-#     end
-#     a.coeffs[n+1].rem = x.rem
-#     for i in eachindex(a.coeffs[n+1].x0)
-#         a.coeffs[n+1].x0[i] = x.x0[i]
-#         a.coeffs[n+1].domain[i] = x.domain[i]
-#     end
-#     return a.coeffs[n+1]
-# end
+    n::Int) where {N,T,S} = setindex!(a.coeffs,
+    TaylorModelN(TaylorN(x.pol.coeffs[:], x.pol.order), x.rem, x.x0[:], x.dom[:]), n+1)
 
 
 """
