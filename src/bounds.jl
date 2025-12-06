@@ -342,7 +342,8 @@ function quadratic_fast_bounder(fT::TaylorModel1)
     hi = sup(P(cent_dom))
     bound_qfb = interval(inf(bound_qfb), hi) + remainder(fT)
 
-    return intersect_interval(bound_qfb, bound_tm)
+    # return intersect_interval(bound_qfb, bound_tm)
+    return _intersect_reminders((bound_qfb, bound_tm))
 end
 
 """
