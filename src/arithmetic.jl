@@ -158,8 +158,34 @@ for TM in tupleTMs
             n > 0 && return Base.power_by_squaring(a, n)
             return rpa(x->x^n, a)
         end
+
+        function Base.power_by_squaring(x::$TM, p::Integer)
+            @assert p ≥ 0
+            (p == 0) && return one(x)
+            (p == 1) && return $TM(
+                Taylor1(x.pol.coeffs[:], x.pol.order), x.rem, x.x0, x.dom)
+            (p == 2) && return TS.square(x)
+            (p == 3) && return x*TS.square(x)
+            t = trailing_zeros(p) + 1
+            p >>= t
+            while (t -= 1) > 0
+                x = TS.square(x)
+            end
+            y = x
+            while p > 0
+                t = trailing_zeros(p) + 1
+                p >>= t
+                while (t -= 1) ≥ 0
+                    x = TS.square(x)
+                end
+                y *= x
+            end
+            return y
+        end
+
     end
 end
+
 
 # Remainder of the product: checks the three (algebraically equivalent) forms
 # to evaluate the remainder, and chooses the best (cf. Bunger 2020)
@@ -477,7 +503,59 @@ function ^(a::TaylorModelN{N,T,S}, n::Integer) where {N,T,S}
     return rpa(x->x^n, a)
 end
 
+function Base.power_by_squaring(x::TaylorModelN, p::Integer)
+    @assert p ≥ 0
+    (p == 0) && return one(x)
+    (p == 1) && return TaylorModelN(
+        Taylor1(x.pol.coeffs[:], x.pol.order), x.rem, x.x0[:], x.dom[:])
+    (p == 2) && return TS.square(x)
+    (p == 3) && return x*TS.square(x)
+    t = trailing_zeros(p) + 1
+    p >>= t
+    while (t -= 1) > 0
+        x = TS.square(x)
+    end
+    y = x
+    while p > 0
+        t = trailing_zeros(p) + 1
+        p >>= t
+        while (t -= 1) ≥ 0
+            x = TS.square(x)
+        end
+        y *= x
+    end
+    return y
+end
+
 # Operations involving TaylorModel1{TaylorModelN}
+for f in (:+, :-)
+    @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S},S},
+            b::TaylorModel1{TaylorModelN{N,R1,S1},S1}) where {N,R,S,R1,S1}
+        a, b = fixorder(a,b)
+        c = Taylor1(zero(a[0])+zero(b[0]), get_order(a))
+        for i in eachindex(a)
+            c[i] = ($f)(a[i], b[i])
+        end
+        return TaylorModel1(c, ($f)(a.rem, b.rem), expansion_point(a), domain(a))
+    end
+    @eval function ($f)(b::T, a::TaylorModel1{TaylorModelN{N,R,S}}) where
+            {N,R,S,T<:NumberNotSeries}
+        c = Taylor1(zero(($f)(b, a[0])), get_order(a))
+        for i in eachindex(a)
+            c[i] = ($f)(b, a[i])
+        end
+        return TaylorModel1(c, ($f)(zero(interval(b)),a.rem), expansion_point(a), domain(a))
+    end
+    @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S}}, b::T) where
+            {N,R,S,T<:NumberNotSeries}
+        c = Taylor1(zero(($f)(a[0]), b), get_order(a))
+        for i in eachindex(a)
+            c[i] = ($f)(a[i], b)
+        end
+        return TaylorModel1(c, ($f)(a.rem), expansion_point(a), domain(a))
+    end
+end
+
 function *(a::TaylorModel1{TaylorModelN{N,T,S},S}, b::TaylorModelN{N,T,S}) where {N,T,S}
     res = polynomial(a)*b
     return TaylorModel1(res, remainder(a), expansion_point(a), domain(a))

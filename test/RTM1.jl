@@ -226,7 +226,7 @@ end
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
         @test issubset_interval( interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
-            ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)), remainder(tma)*(ii-ξ0)^(order+1))
+            ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)), remainder(tma)*(ii-ξ0)^interval(order+1))
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -248,7 +248,8 @@ end
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
         @test issubset_interval(interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
-                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)), remainder(tma)*(ii-ξ0)^(order+1))
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)),
+                        remainder(tma)*(ii-ξ0)^interval(order+1))
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -267,7 +268,8 @@ end
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
         @test issubset_interval(interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
-                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)), remainder(tma)*(ii-ξ0)^(order+1))
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)),
+                        remainder(tma)*(ii-ξ0)^interval(order+1))
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -286,7 +288,8 @@ end
         ξ0 = mid(xx, α_mid)
         tmc = fp_rpa(tma)
         @test issubset_interval(interval(ftest(inf(ii))-tmc.pol(inf(ii)-ξ0),
-                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)), remainder(tma)*(ii-ξ0)^(order+1))
+                        ftest(sup(ii))-tmc.pol(sup(ii)-ξ0)),
+                        remainder(tma)*(ii-ξ0)^interval(order+1))
         for ind = 1:_num_tests
             @test check_containment(ftest, tma)
         end
@@ -481,7 +484,7 @@ end
         use_show_default(false)
         @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com, true) + " *
             "Interval{Float64}(3.0, 3.0, com, true) t + Interval{Float64}(3.0, 3.0, com, true) t² + " *
-            "Interval{Float64}(1.0, 1.0, com, true) t³ + Interval{Float64}(0.0, 0.0, com, false) t⁴"
+            "Interval{Float64}(1.0, 1.0, com, true) t³ + Interval{Float64}(0.0, 0.0, com, true) t⁴"
         @test string(exp(tm)) == " Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) + " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) t + " *
             "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true) t² + " *
