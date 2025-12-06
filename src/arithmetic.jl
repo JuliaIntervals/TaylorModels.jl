@@ -172,9 +172,7 @@ function remainder_product(a, b, aux, Δnegl)
     Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
     Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
     Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ2)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ2, Δ))
 end
 function remainder_product(a::TaylorModel1{TaylorN{T}, S},
         b::TaylorModel1{TaylorN{T}, S},
@@ -189,9 +187,7 @@ function remainder_product(a::TaylorModel1{TaylorN{T}, S},
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem
     Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem) * b_rem
     Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ2)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ2, Δ))
 end
 function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
         b::TaylorModel1{TaylorModelN{N,T,S},S}, aux, Δnegl) where {N,T,S}
@@ -209,15 +205,13 @@ end
 function remainder_product(a, b, aux, Δnegl, order)
     Δa = a.pol(aux)
     Δb = b.pol(aux)
-    V = aux^(order+1)
+    V = aux^interval(order+1)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
     Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem * V) * b_rem
     Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem * V) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ2)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ2, Δ))
 end
 function remainder_product(a::RTaylorModel1{TaylorN{T},S},
         b::RTaylorModel1{TaylorN{T},S},
@@ -227,26 +221,22 @@ function remainder_product(a::RTaylorModel1{TaylorN{T},S},
     auxQ = symmetric_box(S)
     Δa = a.pol(aux)(auxQ)
     Δb = b.pol(aux)(auxQ)
-    V = aux^(order+1)
+    V = aux^interval(order+1)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl(auxQ) + Δb * a_rem + Δa * b_rem + a_rem * b_rem * V
     Δ1 = Δnegl(auxQ) + Δb * a_rem + (Δa + a_rem * V) * b_rem
     Δ2 = Δnegl(auxQ) + Δa * b_rem + (Δb + b_rem * V) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ2)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ2, Δ))
 end
 
 # TaylorModel1
 function remainder_square(a, aux, Δnegl)
     Δa = a.pol(aux)
     a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^2
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2)
     Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ))
 end
 function remainder_square(a::TaylorModel1{TaylorN{T}, S},
         auxT, Δnegl) where {T, S}
@@ -255,17 +245,15 @@ function remainder_square(a::TaylorModel1{TaylorN{T}, S},
     auxQ = symmetric_box(S)
     Δa = a.pol(auxT)(auxQ)
     a_rem = remainder(a)
-    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^2
+    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^interval(2)
     Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ))
 end
 function remainder_square(a::TaylorModel1{TaylorModelN{N,T,S},S},
         aux, Δnegl) where {N,T,S}
     Δa = a.pol(aux)
     a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^2
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2)
     # Evaluate at the TMN centered domain
     auxN = centered_dom(a[0])
     return Δ(auxN)
@@ -273,13 +261,11 @@ end
 # RTaylorModel1
 function remainder_square(a, aux, Δnegl, order)
     Δa = a.pol(aux)
-    V = aux^(order+1)
+    V = aux^interval(order+1)
     a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a.rem + a.rem^2 * V
+    Δ = Δnegl + interval(2) * Δa * a.rem + a.rem^interval(2) * V
     Δ1 = Δnegl + (interval(2) * Δa + a_rem * V) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ))
 end
 function remainder_square(a::RTaylorModel1{TaylorN{T},S},
         aux, Δnegl, order) where {T, S}
@@ -287,13 +273,18 @@ function remainder_square(a::RTaylorModel1{TaylorN{T},S},
     # to bound the TaylorN part
     auxQ = symmetric_box(S)
     Δa = a.pol(aux)(auxQ)
-    V = aux^(order+1)
+    V = aux^interval(order+1)
     a_rem = remainder(a)
-    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^2 * V
+    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^interval(2) * V
     Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem * V) * a_rem
-    Δ1 = intersect_interval(Δ1, Δ)
-    isequal_interval(Δ, Δ1) && return Δ
-    return Δ1
+    return _intersect_reminders((Δ1, Δ))
+end
+
+function _intersect_reminders(Δs::NTuple{N,Interval{T}}) where{N,T}
+    Δaux = intersect_interval(Δs...)
+    rems = (Δs..., Δaux)
+    _, i = findmin(diam, rems)
+    return rems[i]
 end
 
 
@@ -344,7 +335,7 @@ function truncate_taylormodel(a::RTaylorModel1, m::Integer)
     bpol = Taylor1(copy(apol_coeffs))
     aux = centered_dom(a)
     Δnegl = bound_truncation(RTaylorModel1, bpol, aux, m)
-    Δ = Δnegl + remainder(a) * (aux)^(order-m)
+    Δ = Δnegl + remainder(a) * aux^interval(order-m)
     return RTaylorModel1( apol, Δ, expansion_point(a), domain(a) )
 end
 
@@ -354,6 +345,7 @@ zero(a::TaylorModelN) = TaylorModelN(zero(a.pol), zero(remainder(a)),
     expansion_point(a), domain(a))
 one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
     expansion_point(a), domain(a))
+zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), a.order)
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
 
@@ -380,8 +372,8 @@ for op in (:+, :-)
         $(op)(a::TaylorModelN, b::T) where {T<:NumberNotSeries} =
             TaylorModelN($(op)(a.pol, b), remainder(a), expansion_point(a), domain(a))
 
-        $(op)(b::T, a::TaylorModelN) where {T<:NumberNotSeries} = TaylorModelN($(
-            op)(b, a.pol), $(op)(remainder(a)), expansion_point(a), domain(a))
+        $(op)(b::T, a::TaylorModelN) where {T<:NumberNotSeries} =
+            TaylorModelN($(op)(b, a.pol), $(op)(remainder(a)), expansion_point(a), domain(a))
     end
 end
 
@@ -400,12 +392,12 @@ function *(a::TaylorModelN, b::TaylorModelN)
     order = get_order(res)
 
     # Remaing terms of the product
-    # vv = Array{HomogeneousPolynomial{TS.numtype(res)}}(undef, rnegl_order-order)
-    suma = Array{promote_type(TS.numtype(res),
-                    TS.numtype(domain(a)))}(undef, rnegl_order-order)
+    R = TS.numtype(res)
+    D = TS.numtype(domain(a))
+    z = zero(R)
+    suma = Vector{promote_type(R,D)}(undef, rnegl_order-order)
     for k in order+1:rnegl_order
-        # vv[k-order] = HomogeneousPolynomial(zero(TS.numtype(res)), k)
-        tmp = HomogeneousPolynomial(zero(TS.numtype(res)), k)
+        tmp = HomogeneousPolynomial(z, k)
         @inbounds for i = 0:k
             (i > a_order || k-i > b_order) && continue
             TS.mul!(tmp, a.pol[i], b.pol[k-i])
