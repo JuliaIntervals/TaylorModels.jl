@@ -132,11 +132,18 @@ end
 # TaylorModel1
 function remainder_product(a::TaylorModel1{T,S}, b::TaylorModel1{T,S},
         order::Int) where {T<:NumberNotSeries,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, b, order)
-    # Remainder of the neglected terms
     aux = centered_dom(a)
-    Δnegl = rnegl(aux)
+    if iseven(order)
+        # Remaining terms of the product as a Taylor1 pol
+        rnegl = _neglected_polynomial(a, b, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux)
+    else
+        # Remaining terms of the product as a factored Taylor1 pol
+        rnegl = _neglected_polynomial_factored(a, b, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux) * aux^interval(order+1)
+    end
     # Remainder of product
     Δa = a.pol(aux)
     Δb = b.pol(aux)
@@ -149,11 +156,18 @@ function remainder_product(a::TaylorModel1{T,S}, b::TaylorModel1{T,S},
 end
 function remainder_product(a::TaylorModel1{TaylorN{T},S},
         b::TaylorModel1{TaylorN{T},S}, order::Int) where {T,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, b, order)
-    # Remainder of the neglected terms
     auxT = centered_dom(a)
-    Δnegl = rnegl(auxT)
+    if iseven(order)
+        # Remaining terms of the product as a Taylor1 pol
+        rnegl = _neglected_polynomial(a, b, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(auxT)
+    else
+        # Remaining terms of the product as a factored Taylor1 pol
+        rnegl = _neglected_polynomial_factored(a, b, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(auxT) * auxT^interval(order+1)
+    end
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
     auxQ = symmetric_box(S)
@@ -169,11 +183,18 @@ function remainder_product(a::TaylorModel1{TaylorN{T},S},
 end
 function remainder_product(a::TaylorModel1{TaylorModelN{N,T,S},S},
         b::TaylorModel1{TaylorModelN{N,T,S},S}, order::Int) where {N,T,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, b, order)
-    # Remainder of the neglected terms
     aux = centered_dom(a)
-    Δnegl = rnegl(aux)
+    if iseven(order)
+        # Remaining terms of the product as a Taylor1 pol
+        rnegl = _neglected_polynomial(a, b, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux)
+    else
+        # Remaining terms of the product as a factored Taylor1 pol
+        rnegl = _neglected_polynomial_factored(a, b, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux) * aux^interval(order+1)
+    end
     #
     Δa = a.pol(aux)
     Δb = b.pol(aux)
@@ -189,7 +210,7 @@ end
 function remainder_product(a::RTaylorModel1{T,S}, b::RTaylorModel1{T,S},
         order::Int) where {T<:NumberNotSeries,S}
     # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, b, order)
+    rnegl = _neglected_polynomial_factored(a, b, order)
     # Remainder of the neglected terms
     aux = centered_dom(a)
     Δnegl = rnegl(aux)
@@ -207,7 +228,7 @@ end
 function remainder_product(a::RTaylorModel1{TaylorN{T},S},
         b::RTaylorModel1{TaylorN{T},S}, order::Int) where {T,S}
     # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, b, order)
+    rnegl = _neglected_polynomial_factored(a, b, order)
     # Remainder of the neglected terms
     aux = centered_dom(a)
     Δnegl = rnegl(aux)
@@ -225,7 +246,108 @@ function remainder_product(a::RTaylorModel1{TaylorN{T},S},
     return _intersect_reminders((Δ1, Δ2, Δ))
 end
 
-# Neglected polynomial for the product
+# TaylorModel1
+function remainder_square(a::TaylorModel1{T,S}, order::Int) where
+        {T<:NumberNotSeries,S}
+    aux = centered_dom(a)
+    if iseven(order)
+        # Remaining terms of the product as a Taylor1 pol
+        rnegl = _neglected_polynomial(a, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux)
+    else
+        # Remaining terms of the product as a factored Taylor1 pol
+        rnegl = _neglected_polynomial_factored(a, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux) * aux^interval(order+1)
+    end
+    Δa = a.pol(aux)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2)
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+function remainder_square(a::TaylorModel1{TaylorN{T}, S},
+        order::Int) where {T<:NumberNotSeries,S}
+    auxT = centered_dom(a)
+    if iseven(order)
+        # Remaining terms of the product as a Taylor1 pol
+        rnegl = _neglected_polynomial(a, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(auxT)
+    else
+        # Remaining terms of the product as a factored Taylor1 pol
+        rnegl = _neglected_polynomial_factored(a, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(auxT) * auxT^interval(order+1)
+    end
+    #
+    # An N-dimensional symmetrical IntervalBox is assumed
+    # to bound the TaylorN part
+    auxQ = symmetric_box(S)
+    Δa = a.pol(auxT)(auxQ)
+    a_rem = remainder(a)
+    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^interval(2)
+    Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+function remainder_square(a::TaylorModel1{TaylorModelN{N,T,S},S},
+        order::Int) where {N,T<:NumberNotSeries,S}
+    aux = centered_dom(a)
+    if iseven(order)
+        # Remaining terms of the product as a Taylor1 pol
+        rnegl = _neglected_polynomial(a, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux)
+    else
+        # Remaining terms of the product as a factored Taylor1 pol
+        rnegl = _neglected_polynomial_factored(a, order)
+        # Remainder of the neglected terms
+        Δnegl = rnegl(aux) * aux^interval(order+1)
+    end
+    #
+    Δa = a.pol(aux)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2)
+    # Evaluate at the TMN centered domain
+    auxN = centered_dom(a[0])
+    return Δ(auxN)
+end
+# RTaylorModel1
+function remainder_square(a::RTaylorModel1{T,S}, order::Int) where
+        {T<:NumberNotSeries,S}
+    # Remaining terms of the product as a Taylor1 pol
+    rnegl = _neglected_polynomial_factored(a, order)
+    # Remainder of the neglected terms
+    aux = centered_dom(a)
+    Δnegl = rnegl(aux)
+    #
+    Δa = a.pol(aux)
+    V = aux^interval(order+1)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a.rem + a.rem^interval(2) * V
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem * V) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+function remainder_square(a::RTaylorModel1{TaylorN{T},S}, order::Int) where
+        {T<:NumberNotSeries,S}
+    # Remaining terms of the product as a Taylor1 pol
+    rnegl = _neglected_polynomial_factored(a, order)
+    # Remainder of the neglected terms
+    aux = centered_dom(a)
+    Δnegl = rnegl(aux)
+    # An N-dimensional symmetrical IntervalBox is assumed
+    # to bound the TaylorN part
+    auxQ = symmetric_box(S)
+    Δa = a.pol(aux)(auxQ)
+    V = aux^interval(order+1)
+    a_rem = remainder(a)
+    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^interval(2) * V
+    Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem * V) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+
+# Neglected polynomial for the product and square
 function _neglected_polynomial(a::TaylorModel1{T,S}, b::TaylorModel1{T,S},
         order::Int) where {T,S}
     a_order = a.pol.order
@@ -244,25 +366,6 @@ function _neglected_polynomial(a::TaylorModel1{T,S}, b::TaylorModel1{T,S},
     end
     return rnegl
 end
-function _neglected_polynomial(a::RTaylorModel1{T,S}, b::RTaylorModel1{T,S},
-        order::Int) where {T,S}
-    a_order = a.pol.order
-    b_order = b.pol.order
-    rnegl_order = a_order + b_order
-    # Remaining terms of the product as reduced Taylor1 (factored polynomial)
-    z = zero(a.pol[0])
-    rnegl = Taylor1(z, rnegl_order-order)
-    for k in order+1:rnegl_order
-        tmp = z
-        @inbounds for i = 0:k
-            (i > a_order || k-i > b_order) && continue
-            tmp += a.pol[i] * b.pol[k-i]
-        end
-        rnegl[k-order-1] = tmp
-    end
-    return rnegl
-end
-# Neglected polynomial for the square
 function _neglected_polynomial(a::TaylorModel1{T,S}, order::Int) where {T,S}
     z = zero(a.pol[0])
     rnegl = Taylor1(z, 2*order)
@@ -276,106 +379,45 @@ function _neglected_polynomial(a::TaylorModel1{T,S}, order::Int) where {T,S}
     end
     return rnegl
 end
-function _neglected_polynomial(a::RTaylorModel1{T,S}, order::Int) where {T,S}
-    z = zero(a.pol[0])
-    rnegl = Taylor1(z, order)
-    for k in order+1:2*order
-        tmp = z
-        @inbounds for i = 0:k
-            (i > order || k-i > order) && continue
-            tmp += a.pol[i] * a.pol[k-i]
+for TM in tupleTMs
+    @eval function _neglected_polynomial_factored(a::$TM{T,S}, b::$TM{T,S},
+            order::Int) where {T,S}
+        a_order = a.pol.order
+        b_order = b.pol.order
+        rnegl_order = a_order + b_order
+        # Remaining terms of the product as reduced Taylor1 (factored polynomial)
+        z = zero(a.pol[0])
+        rnegl = Taylor1(z, rnegl_order-order)
+        for k in order+1:rnegl_order
+            l = k-order-1
+            tmp = z
+            @inbounds for i = 0:k
+                (i > a_order || k-i > b_order) && continue
+                tmp += a.pol[i] * b.pol[k-i]
+            end
+            rnegl[l] = tmp
         end
-        rnegl[k-order-1] = tmp
+        return rnegl
     end
-    return rnegl
-end
-
-
-
-# TaylorModel1
-function remainder_square(a::TaylorModel1{T,S}, order::Int) where
-        {T<:NumberNotSeries,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, order)
-    # Remainder of the neglected terms
-    aux = centered_dom(a)
-    Δnegl = rnegl(aux)
-    #
-    Δa = a.pol(aux)
-    a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2)
-    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
-    return _intersect_reminders((Δ1, Δ))
-end
-function remainder_square(a::TaylorModel1{TaylorN{T}, S},
-        order::Int) where {T<:NumberNotSeries,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, order)
-    # Remainder of the neglected terms
-    auxT = centered_dom(a)
-    Δnegl = rnegl(auxT)
-    #
-    # An N-dimensional symmetrical IntervalBox is assumed
-    # to bound the TaylorN part
-    auxQ = symmetric_box(S)
-    Δa = a.pol(auxT)(auxQ)
-    a_rem = remainder(a)
-    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^interval(2)
-    Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem) * a_rem
-    return _intersect_reminders((Δ1, Δ))
-end
-function remainder_square(a::TaylorModel1{TaylorModelN{N,T,S},S},
-        order::Int) where {N,T<:NumberNotSeries,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, order)
-    # Remainder of the neglected terms
-    aux = centered_dom(a)
-    Δnegl = rnegl(aux)
-    #
-    Δa = a.pol(aux)
-    a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2)
-    # Evaluate at the TMN centered domain
-    auxN = centered_dom(a[0])
-    return Δ(auxN)
-end
-# RTaylorModel1
-function remainder_square(a::RTaylorModel1{T,S}, order::Int) where
-        {T<:NumberNotSeries,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, order)
-    # Remainder of the neglected terms
-    aux = centered_dom(a)
-    Δnegl = rnegl(aux)
-    #
-    Δa = a.pol(aux)
-    V = aux^interval(order+1)
-    a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a.rem + a.rem^interval(2) * V
-    Δ1 = Δnegl + (interval(2) * Δa + a_rem * V) * a_rem
-    return _intersect_reminders((Δ1, Δ))
-end
-function remainder_square(a::RTaylorModel1{TaylorN{T},S}, order::Int) where
-        {T<:NumberNotSeries,S}
-    # Remaining terms of the product as a Taylor1 pol
-    rnegl = _neglected_polynomial(a, order)
-    # Remainder of the neglected terms
-    aux = centered_dom(a)
-    Δnegl = rnegl(aux)
-    # An N-dimensional symmetrical IntervalBox is assumed
-    # to bound the TaylorN part
-    auxQ = symmetric_box(S)
-    Δa = a.pol(aux)(auxQ)
-    V = aux^interval(order+1)
-    a_rem = remainder(a)
-    Δ = Δnegl(auxQ) + interval(2) * Δa * a_rem + a_rem^interval(2) * V
-    Δ1 = Δnegl(auxQ) + (interval(2) * Δa + a_rem * V) * a_rem
-    return _intersect_reminders((Δ1, Δ))
+    @eval function _neglected_polynomial_factored(a::$TM{T,S},
+            order::Int) where {T,S}
+        # Remaining terms of the product as reduced Taylor1 (factored polynomial)
+        z = zero(a.pol[0])
+        rnegl = Taylor1(z, order)
+        for k in order+1:2*order
+            tmp = z
+            @inbounds for i = 0:k
+                (i > order || k-i > order) && continue
+                tmp += a.pol[i] * a.pol[k-i]
+            end
+            rnegl[k-order-1] = tmp
+        end
+        return rnegl
+    end
 end
 
 function _intersect_reminders(Δs::NTuple{N,Interval{T}}) where{N,T}
-    Δaux = intersect_interval(Δs...)
-    rems = (Δs..., Δaux)
+    rems = (Δs..., intersect_interval(Δs...))
     _, i = findmin(diam, rems)
     return rems[i]
 end

@@ -144,7 +144,7 @@ end
         @test a - b == aa - bb
         res1 = a * b
         res2 = aa * bb
-        @test res1 == TaylorModel1(Taylor1([1.0, 2]), interval(-2, 9), x0, y1)
+        @test res1 == TaylorModel1(Taylor1([1.0, 2]), interval(-1, 9), x0, y1)
         @test res2 == TaylorModel1(Taylor1([1.0, 2]), interval(-3, 9), x0, y1)
         res1 = a / b
         res2 = aa / bb
