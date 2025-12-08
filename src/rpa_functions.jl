@@ -330,3 +330,6 @@ for fn in fnlist
     end
     @eval $fn(tm::TaylorModelN) = rpa($fn, tm)
 end
+Base.sincos(tm::TaylorModel1) = (rpa(sin, tm), rpa(cos, tm))
+Base.sincos(tm::RTaylorModel1) = (rpa(sin, tm), rpa(cos, tm))
+Base.sincos(tm::TaylorModelN) = (rpa(sin, tm), rpa(cos, tm))
