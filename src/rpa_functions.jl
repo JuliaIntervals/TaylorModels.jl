@@ -185,8 +185,8 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<
     I = domain(tmf)
 
     # Range of tmf including remainder (Δf)
-    # range_tmf = bound_taylor1(f_pol, I-x0) + Δf
-    range_tmf = f_pol(I-x0) + Δf  # TaylorModelN
+    # range_tmf = bound_taylor1(f_pol, centered_dom(tmf)) + Δf
+    range_tmf = tmf(centered_dom(tmf))# + Δf  # TaylorModelN
     interval_range_tmf = range_tmf(centered_dom(range_tmf))
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf

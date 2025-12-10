@@ -486,10 +486,10 @@ end
 
 
 # Same as above, for TaylorModelN
-zero(a::TaylorModelN) = TaylorModelN(zero(a.pol), zero(remainder(a)),
-    expansion_point(a), domain(a))
-one(a::TaylorModelN) = TaylorModelN(one(a.pol), zero(remainder(a)),
-    expansion_point(a), domain(a))
+zero(a::TaylorModelN) = TaylorModelN(TaylorN(zero(a.pol[0]), a.pol.order),
+    zero(remainder(a)), expansion_point(a), domain(a))
+one(a::TaylorModelN) = TaylorModelN(TaylorN(one(a.pol[0]), a.pol.order),
+    zero(remainder(a)), expansion_point(a), domain(a))
 zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), a.order)
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
@@ -688,7 +688,7 @@ for f in (:+, :-)
     end
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S}}, b::T) where
             {N,R,S,T<:NumberNotSeries}
-        c = Taylor1(zero(($f)(a[0]), b), get_order(a))
+        c = Taylor1(zero(($f)(a[0], b)), get_order(a))
         for i in eachindex(a)
             c[i] = ($f)(a[i], b)
         end
