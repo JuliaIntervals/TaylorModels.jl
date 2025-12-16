@@ -426,7 +426,7 @@ for TM in tupleTMs
     end
 end
 
-function _intersect_reminders(Δs::NTuple{N,Interval{T}}) where{N,T}
+function _intersect_reminders(Δs::NTuple{N,Interval{T}}) where {N,T}
     rems = (Δs..., intersect_interval(Δs...))
     _, i = findmin(diam, rems)
     return rems[i]
