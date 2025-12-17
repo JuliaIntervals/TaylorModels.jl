@@ -174,9 +174,9 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
             for iq in eachindex(x[i].coeffs[it].coeffs)
                 for hq in eachindex(x[i].coeffs[it].coeffs[iq].coeffs)
                     x1N[i].pol.coeffs[it].pol.coeffs[iq].coeffs[hq] =
-                        copy(x[i].coeffs[it].coeffs[iq].coeffs[hq])
-                    xTM1v[i, 1].pol.coeffs[it].pol.coeffs[iq].coeffs[hq] =
-                        copy(x[i].coeffs[it].coeffs[iq].coeffs[hq])
+                        x[i].coeffs[it].coeffs[iq].coeffs[hq]
+                    xTM1v[i,1].pol.coeffs[it].pol.coeffs[iq].coeffs[hq] =
+                        x[i].coeffs[it].coeffs[iq].coeffs[hq]
                 end
             end
         end

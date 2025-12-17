@@ -41,14 +41,11 @@ function _abs_rems!(vTMN, x0New, x1N, δt, symIbox, ind)
     tmn = evaluate(x1N[ind], δt)
     x0New[ind] = evaluate(tmn, symIbox)
     vTMN[ind] = fp_rpa(tmn)
-    # x1 = vTMN[ind](symIbox)
-    # @assert issubset_interval(x0New[ind], x1)
     Δ = remainder(vTMN[ind])
-    #
     # Absorb remainder shifts
     vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
-    vTMN[ind].pol.coeffs[2].coeffs[ind] += copysign(radius(Δ), vTMN[ind].pol[1].coeffs[ind])
-    # vTMN[ind].rem = zero(Δ)
+    vTMN[ind].pol.coeffs[2].coeffs[ind] +=
+        copysign(radius(Δ), vTMN[ind].pol[1].coeffs[ind])
     return nothing
 end
 
@@ -136,26 +133,32 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
         for ind in eachindex(x)
             _abs_rems!(vTMN, x0New, x1N, δt, symIbox, ind)
             xTM1v[ind, nsteps] = deepcopy(x1N[ind])
-            # xTM1v[ind, nsteps] = TaylorModel1(Taylor1(x1N[ind].pol.coeffs[:]),
-            #     x1N[ind].rem, x1N[ind].x0, x1N[ind].dom)
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
             #
             # Update initial state
             if dof == 1
+                # No issue with the wrapping effect in 1-d
                 normalize_taylorNs!(vTN, x0New, orderQ)
                 TI.init_expansions!(x, dx, vTN, orderT)
             else
-                x[ind] = Taylor1(polynomial(vTMN[ind]), orderT)
-                # for ordT in eachindex(x1N[ind].pol.coeffs)
-                #     for ordQ in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs)
-                #         for h in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
-                #             x[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
-                #             dx[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
-                #             ordT != 0 && continue
-                #             x[ind].coeffs[0].coeffs[ordQ].coeffs[h] = copy(vTMN[ind].pol[ordQ].coeffs[h])
-                #         end
-                #     end
-                # end
+                # x[ind] = Taylor1(polynomial(vTMN[ind]), orderT)
+                x1N[ind].rem = vTMN[ind].rem
+                for ordT in eachindex(x1N[ind].pol.coeffs)
+                    for ordQ in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs)
+                        for h in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+                            x[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
+                            # dx[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
+                        end
+                    end
+                end
+                # Constant coeff
+                for ordQ in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs)
+                    for h in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs[ordQ].coeffs)
+                        x[ind].coeffs[1].coeffs[ordQ].coeffs[h] =
+                            vTMN[ind].pol.coeffs[ordQ].coeffs[h]
+                        dx[ind].coeffs[1].coeffs[ordQ].coeffs[h] = zz
+                    end
+                end
             end
         end
         # Update time
@@ -243,19 +246,17 @@ function _validation3(f!, t::Taylor1{T},
         z1N.dom = δtI
         # Reuse memory
         for i in eachindex(x1N)
-            x1N[i].pol.coeffs[:] .= TaylorModelN.(deepcopy(x[i].coeffs[:]), z, (zbox,), (symIbox,))
-            # x1N[i].pol.coeffs[:] .= TaylorModelN.(x[i].coeffs[:], z, (zbox,), (symIbox,)) # old
-            # for ordT in eachindex(x1N[i].pol.coeffs)
-            #     for ordQ in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs)
-            #         for h in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
-            #             x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
-            #                 copy(x[i].coeffs[ordT].coeffs[ordQ].coeffs[h])
-            #         end
-            #     end
-            #     x1N[i].pol.coeffs[ordT].rem = z
-            #     x1N[i].pol.coeffs[ordT].x0  = zbox
-            #     x1N[i].pol.coeffs[ordT].dom = symIbox
-            # end
+            for ordT in eachindex(x1N[i].pol.coeffs)
+                for ordQ in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs)
+                    for h in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+                        x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
+                            x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
+                    end
+                end
+                # x1N[i].pol.coeffs[ordT].rem = z
+                # x1N[i].pol.coeffs[ordT].x0  = zbox
+                # x1N[i].pol.coeffs[ordT].dom = symIbox
+            end
             x1N[i].rem = rem_old[i]
             x1N[i].x0 = 0.0
             x1N[i].dom = δtI
@@ -270,22 +271,6 @@ function _validation3(f!, t::Taylor1{T},
             rem1[i] = z
             rem2[i] = z
         end
-        # for i in eachindex(x)
-        #     x1N[i].pol.coeffs[:] .= TaylorModelN.(x[i].coeffs[:], z, (zbox,), (symIbox,))
-        #     # x1N[i].rem = z
-        #     x1N[i].x0 = 0.0
-        #     x1N[i].dom = δtI
-        #     dx1N[i].pol = z1N.pol
-        #     dx1N[i].rem = z1N.rem
-        #     dx1N[i].x0 = x1N[i].x0
-        #     dx1N[i].dom = δtI
-        #     x2N[i].pol = z1N.pol
-        #     x2N[i].rem = z1N.rem
-        #     x2N[i].x0 = x1N[i].x0
-        #     x2N[i].dom = δtI
-        #     rem1[i] = z
-        #     rem2[i] = z
-        # end
         for _ in 1:50
             rem1 .= total_remainder.(x1N)
             picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)

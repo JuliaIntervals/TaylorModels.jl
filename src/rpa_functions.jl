@@ -254,21 +254,16 @@ for TM in tupleTMs
 
         function fp_rpa(tm::$TM{Interval{T},T}) where {T}
             fT = polynomial(tm)
-            Δ = remainder(tm)
-            x0 = expansion_point(tm)
-            I = domain(tm)
             order = get_order(tm)
-            # ξ0 = mid(x0, α_mid)
 
             b = Taylor1(Interval{T}, order)
             t = Taylor1(T, order)
-            @inbounds for ind=order:-1:0
+            @inbounds for ind in eachindex(fT)
                 t[ind] = mid(fT[ind]) # mid(fT[ind], α_mid)
                 b[ind] = fT[ind] - interval(t[ind])
             end
-            δ = b(I-x0)
-            Δ = Δ + δ
-            return $TM(t, Δ, x0, I)
+            Δ = remainder(tm) + b(centered_dom(tm))
+            return $TM(t, Δ, tm.x0, tm.dom)
         end
     end
 end
@@ -277,14 +272,14 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
         {S<:Real, T<:TS.NumberNotSeries}
     fT = polynomial(tm)
     Δ = remainder(tm)
-    x0 = expansion_point(tm)
-    I = domain(tm)
+    # x0 = expansion_point(tm)
+    # I = domain(tm)
     order = get_order(fT[0])
     N = get_numvars(fT[0])
     D = symmetric_box(N)
 
     b = zero(fT)
-    t = Taylor1(TaylorN([HomogeneousPolynomial(zeros(T,N))], order), get_order(fT))
+    t = Taylor1(TaylorN([zeros(HomogeneousPolynomial{T},order)], order), get_order(fT))
     for ind in eachindex(fT)
         for homPol in eachindex(fT[ind])
             for jind in eachindex(fT[ind][homPol])
@@ -293,8 +288,8 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
             end
         end
     end
-    rem = Δ + b(I-x0)(D)
-    return TaylorModel1(t, rem, x0, I)
+    rem = Δ + b(centered_dom(tm))(D)
+    return TaylorModel1(t, rem, tm.x0, tm.dom)
 end
 
 
