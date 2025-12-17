@@ -80,8 +80,9 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
 
     # Integration
     nsteps = 1
+    VV = Val(parse_eqs)
     while t0 * sign_tstep < tf * sign_tstep
-        δt = TI.taylorstep!(Val(parse_eqs), f!, t, x, dx, xaux, abstol, params, rv)
+        δt = TI.taylorstep!(VV, f!, t, x, dx, xaux, abstol, params, rv)
         f!(dx, x, params, t)
 
         δt = min(δt, sign_tstep*(tf-t0))
@@ -105,7 +106,7 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
         # Flowpipe
         @. begin
             rem = remainder(xTM1)
-            xTMN = fp_rpa(TaylorModelN(copy(evaluate(xTM1, domt)), rem, (zB,), (S,)))
+            xTMN = TaylorModelN(copy(evaluate(xTM1, domt)), rem, (zB,), (S,))
         end
         xv[nsteps] = evaluate(xTMN, S)
 
@@ -113,8 +114,7 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
         @inbounds for i in eachindex(x)
             aux_pol = evaluate(xTM1[i], δt) #δtI
             # rem[i] = remainder(xTM1[i])
-            xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), rem[i], zB, S))
-            # xTMN[i] = fp_rpa(TaylorModelN(deepcopy(aux_pol), 0 .. 0, zB, S))
+            xTMN[i] = TaylorModelN(deepcopy(aux_pol), rem[i], zB, S)
 
             # Absorb remainder
             j = 0
@@ -125,7 +125,7 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
                 rem[i] = remainder(xTMN[i])
             end
 
-            x[i] = Taylor1(polynomial(xTMN[i]), orderT)
+            x[i] = Taylor1(polynomial(fp_rpa(xTMN[i])), orderT)
             xTM1v[i, nsteps] = xTM1[i]
         end
 
@@ -192,11 +192,12 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     # time step
     bool_red = true
     # for nchecks = 1:numchecks
+    VV = Val(true)
     while bool_red
 
         # Try to prove existence and uniqueness up to validatesteps
         nsteps = 0
-        E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box, Val(true)) # 0-th iteration
+        E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box, VV) # 0-th iteration
         @. xTM1K = TaylorModel1(polv, E′, zI, domT)
         while nsteps < validatesteps
             E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box)

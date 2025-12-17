@@ -3,7 +3,8 @@
 const _DEF_MINABSTOL = 1.0e-50
 
 
-function validated_integ(f!, X0::AbstractVector{Interval{U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
+function validated_integ(f!, X0::AbstractVector{Interval{U}},
+        t0::T, tmax::T, orderQ::Int, orderT::Int,
         abstol::T, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
@@ -17,7 +18,8 @@ function validated_integ(f!, X0::AbstractVector{Interval{U}}, t0::T, tmax::T, or
         maxsteps, adaptive, minabstol, absorb, check_property)
 end
 
-function validated_integ(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
+function validated_integ(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}},
+        t0::T, tmax::T, orderQ::Int, orderT::Int,
         abstol::T, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
@@ -32,7 +34,8 @@ function validated_integ(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tma
 end
 
 
-function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T, cacheVI::VectorCacheVI, params,
+function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T,
+        cacheVI::VectorCacheVI, params,
         maxsteps::Int, adaptive::Bool, minabstol::T,
         absorb::Bool, check_property::F) where {T<:Real,F}
 
@@ -46,8 +49,8 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T, cacheVI::VectorCac
     orderT = get_order(t)
     zt = zero(t0)
     zI = zero(Interval{T})
-    S  = Vector(symmetric_box(dof, T))
-    zB = zero(S)
+    symIbox = symmetric_box(dof, T)
+    zbox = zero(symIbox)
     @inbounds xv[1] = q0
     @inbounds tv[1] = t0
 
@@ -55,13 +58,14 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T, cacheVI::VectorCac
     nsteps = 1
     local _success # if true, the validation step succeeded
     red_abstol = abstol
+    VV = Val(parse_eqs)
     while sign_tstep*t0 < sign_tstep*tmax
         # Validated step of the integration
-        (_success, δt, red_abstol) = validated_step!(Val(parse_eqs), f!,
+        (_success, δt, red_abstol) = validated_step!(VV, f!,
                     t, x, dx, tI, xI, dxI, xaux, xauxI, rv, rvI,
                     t0, tmax, sign_tstep,
                     xTMN, rem,
-                    zB, S, orderT, red_abstol, params,
+                    zbox, symIbox, orderT, red_abstol, params,
                     adaptive, minabstol, absorb, check_property)
         δtI = interval(zt, sign_tstep*δt)
 
@@ -71,13 +75,13 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T, cacheVI::VectorCac
             xTM1v[ind, nsteps] = TaylorModel1(deepcopy(x[ind]), rem[ind], zI, δtI) # deepcopy is needed!
             x[ind] = Taylor1(evaluate(x[ind], δt), orderT)
             # dx = Taylor1(zero(constant_term(x)), orderT)
-            xI[ind] = Taylor1(evaluate(xTMN[ind], S), orderT+1)
+            xI[ind] = Taylor1(evaluate(xTMN[ind], symIbox), orderT+1)
             # dxI = xI
         end
 
         # New initial conditions and time, and output vectors
         @inbounds tv[nsteps] = t0
-        xv[nsteps] = evaluate(xTMN, S)       # Vector{Interval}
+        xv[nsteps] = copy.(constant_term.(xI[:]))       # Vector{Interval}
         t0 += δt
         @inbounds t[0] = t0
         @inbounds tI[0] = t0
@@ -119,8 +123,8 @@ function validated_step!(vB::Val{B}, f!,
         xaux::Vector{Taylor1{TaylorN{T}}}, xauxI::Vector{Taylor1{Interval{T}}},
         rv::TI.RetAlloc{Taylor1{TaylorN{T}}}, rvI::TI.RetAlloc{Taylor1{Interval{T}}},
         t0::T, tmax::T, sign_tstep::Int,
-        xTMN::Vector{TaylorModelN{N,T,T}}, rem::Vector{Interval{T}},
-        zbox::Vector{Interval{T}}, symIbox::Vector{Interval{T}},
+        xTMN::Vector{TaylorModelN{N,Interval{T},T}}, rem::Vector{Interval{T}},
+        zbox::AbstractVector{Interval{T}}, symIbox::AbstractVector{Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::F) where {N,B,T,F}
@@ -146,8 +150,8 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         dx::Vector{Taylor1{TaylorN{T}}}, xI::Vector{Taylor1{Interval{T}}},
         dxI::Vector{Taylor1{Interval{T}}},
         δt, sign_tstep::Int,
-        xTMN::Vector{TaylorModelN{N,T,T}}, rem::Vector{Interval{T}},
-        zbox::Vector{Interval{T}}, symIbox::Vector{Interval{T}},
+        xTMN::Vector{TaylorModelN{N,Interval{T},T}}, rem::Vector{Interval{T}},
+        zbox::AbstractVector{Interval{T}}, symIbox::AbstractVector{Interval{T}},
         orderT::Int, abstol::T, params,
         adaptive::Bool, minabstol::T, absorb::Bool,
         check_property::Function=(t, x)->true) where {N,T}
@@ -189,7 +193,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
             for i in eachindex(x)
-                xTMN[i] = fp_rpa( TaylorModelN(x[i](δtI), rem[i], SVector{N}(zbox), SVector{N}(symIbox)) )
+                xTMN[i] = TaylorModelN(x[i](δtI), rem[i], SVector{N}(zbox), SVector{N}(symIbox))
 
                 # If remainder is still too big, do it again
                 j = 0
@@ -240,10 +244,10 @@ checking that the solution satisfies the criteria for existence and uniqueness.
 function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
-        δI::Vector{Interval{T}}, δtI::Interval{T}, params) where {T}
+        δI::AbstractVector{Interval{T}}, δtI::Interval{T}, params) where {T}
 
     orderT = get_order(dx[1])
-    aux = δtI^(orderT+1)
+    aux = δtI^interval(orderT+1)
     N = length(x)
     Δx  = [xI[i][orderT+1] for i in eachindex(xI)] * aux
     Δdx = [dxI[i][orderT+1] for i in eachindex(xI)] * aux
@@ -371,21 +375,6 @@ end
 
 
 """
-    iscontractive(Δ, Δx)
-
-Checks if `Δ .⊂ Δx` is satisfied. If ``Δ ⊆ Δx` is satisfied, it returns
-`true` if all cases where `==` holds corresponds to the zero `Interval`.
-"""
-function iscontractive(Δ::Interval{T}, Δx::Interval{T}) where {T}
-    (isinterior(Δ, Δx) || (isequal_interval(Δ, Δx) &&
-        isequal_interval(Δ, zero(Δ)))) && return true
-    return false
-end
-iscontractive(Δ::Vector{Interval{T}}, Δx::Vector{Interval{T}}) where {T} =
-    all(iscontractive.(Δ[:], Δx[:]))
-
-
-"""
     picard_remainder!(f!, t, x, dx, xxI, dxxI, δI, δt, Δx, Δ0, params)
 
 Return the remainder of Picard operator
@@ -394,7 +383,7 @@ function picard_remainder!(f!::Function, t::Taylor1{T},
     x::Vector{Taylor1{TaylorN{T}}}, dx::Vector{Taylor1{TaylorN{T}}},
     xxI::Vector{Taylor1{TaylorN{Interval{T}}}},
     dxxI::Vector{Taylor1{TaylorN{Interval{T}}}},
-    δI::Vector{Interval{T}}, δt::Interval{T},
+    δI::AbstractVector{Interval{T}}, δt::Interval{T},
     Δx::Vector{Interval{T}}, Δ0::Vector{Interval{T}}, params) where {T}
 
     # Extend `x` and `dx` to have interval coefficients
@@ -455,7 +444,7 @@ Ref: Xin Chen, Erika Abraham, and Sriram Sankaranarayanan,
 Systems", in Real Time Systems Symposium (RTSS), pp. 183-192 (2012),
 IEEE Press.
 """
-function absorb_remainder(a::TaylorModelN{T,T}) where {T}
+function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     Δ = remainder(a)
     orderQ = get_order(a)
     δ = symmetric_box(T)
