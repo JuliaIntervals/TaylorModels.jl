@@ -37,6 +37,22 @@ function picard_lindelof!(f!,
 end
 
 
+function _abs_rems!(vTMN, x0New, x1N, δt, symIbox, ind)
+    tmn = evaluate(x1N[ind], δt)
+    x0New[ind] = evaluate(tmn, symIbox)
+    vTMN[ind] = fp_rpa(tmn)
+    # x1 = vTMN[ind](symIbox)
+    # @assert issubset_interval(x0New[ind], x1)
+    Δ = remainder(vTMN[ind])
+    #
+    # Absorb remainder shifts
+    vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
+    vTMN[ind].pol.coeffs[2].coeffs[ind] += copysign(radius(Δ), vTMN[ind].pol[1].coeffs[ind])
+    # vTMN[ind].rem = zero(Δ)
+    return nothing
+end
+
+
 function validated_integ3(f!,
         X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
         orderQ::Int, orderT::Int, abstol::T, params=nothing;
@@ -77,23 +93,19 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
 
     # Unpack caches
     @unpack tv, xv, xaux, t, x, dx, rv,
-            t1N, x1N, dx1N, x2N, z1N, zN, uN, vTN,
-            xTMN, xTM1v, rem, parse_eqs = cacheVI
+            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN,
+            xTM1v, x0New, rem1, rem2, parse_eqs = cacheVI
 
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
     dof = length(q0)
     orderT = get_order(t)
+    orderQ = get_order(x[1][0])
     symIbox = symmetric_box(dof, T)
-    zbox = zero(symIbox)
+    zbox = zero(q0)
     @inbounds xv[1] = q0
     @inbounds tv[1] = t0
-
-    xI = Array{ Taylor1{Interval{T}}}(undef, dof)
-
-    # Other initial stuff
-    xNaux = fp_rpa.(evaluate.(x1N, 0.0))
-    rem2 = zero(rem)
+    zz = zero(x[1][0][0][1])
 
     # Integration
     nsteps = 1
@@ -103,36 +115,53 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
     while sign_tstep*t0 < sign_tstep*tmax
         # Polynomial approx and time step
         δt = validated_step3!(VV, f!,
-            t, x, dx, xaux, rv, #tI, xI, dxI, xauxI, rvI,
+            t, x, dx, xaux, rv,
             t0, tmax, sign_tstep,
             red_abstol, params)
 
         # Validated step of the integration
         (_success, δt, reduced_abstol) = _validation3(
-            f!, t, x, #dx, xI, dxI,
-            t1N, x1N, dx1N, x2N, z1N, zN, uN,
+            f!, t, x,
+            t1N, x1N, dx1N, x2N, z1N,
             δt, sign_tstep,
-            xTMN, rem, rem2, zbox, symIbox,
+            rem1, rem2, zbox, symIbox,
             orderT, abstol, params,
             adaptive, minabstol, absorb, check_property)
 
-        # Save different objects
+        # Output
         nsteps += 1
+        cdom = centered_dom(x1N[1])
+        tv[nsteps] = t0
+        xv[nsteps] = copy(zbox)
         for ind in eachindex(x)
-            # xTM1v[ind, nsteps] = deepcopy(x1N[ind])
-            xTM1v[ind, nsteps] = TaylorModel1(Taylor1(x1N[ind].pol.coeffs[:]),
-                x1N[ind].rem, x1N[ind].x0, x1N[ind].dom)
-            xNaux[ind] = fp_rpa(evaluate(x1N[ind], δt))
-            xI[ind] = Taylor1(evaluate(xTMN[ind], symIbox), orderT+1)
+            _abs_rems!(vTMN, x0New, x1N, δt, symIbox, ind)
+            xTM1v[ind, nsteps] = deepcopy(x1N[ind])
+            # xTM1v[ind, nsteps] = TaylorModel1(Taylor1(x1N[ind].pol.coeffs[:]),
+            #     x1N[ind].rem, x1N[ind].x0, x1N[ind].dom)
+            xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
+            #
+            # Update initial state
+            if dof == 1
+                normalize_taylorNs!(vTN, x0New, orderQ)
+                TI.init_expansions!(x, dx, vTN, orderT)
+            else
+                x[ind] = Taylor1(polynomial(vTMN[ind]), orderT)
+                # for ordT in eachindex(x1N[ind].pol.coeffs)
+                #     for ordQ in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs)
+                #         for h in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+                #             x[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
+                #             dx[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
+                #             ordT != 0 && continue
+                #             x[ind].coeffs[0].coeffs[ordQ].coeffs[h] = copy(vTMN[ind].pol[ordQ].coeffs[h])
+                #         end
+                #     end
+                # end
+            end
         end
-        normalize_taylorNs!(vTN, evaluate.(xNaux, Ref(symIbox)), get_order(xNaux[1]))
-        TI.init_expansions!(x, dx, vTN, orderT)
-
-        # New initial conditions and time, and output vectors
-        @inbounds tv[nsteps] = t0
-        xv[nsteps] = copy.(constant_term.(xI[:]))       # Vector{Interval}
+        # Update time
         t0 += δt
-        @inbounds t[0] = t0
+        t[0] = t0
+        t1N.pol[0].pol[0][1] = t0
 
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
@@ -174,7 +203,7 @@ function validated_step3!(vB::Val{B}, f!,
         abstol::T, params,) where {B,T}
     # One step integration (non-validated)
     δt = TI.taylorstep!(vB, f!, t, x, dx, xaux, abstol, params, rv)
-    f!(dx, x, params, t)  # Update last t coeff `dx[:][orderT]`
+    # f!(dx, x, params, t)  # Update last t coeff `dx[:][orderT]`
     # Step size
     δt = min(δt, sign_tstep*(tmax-t0))
     δt = sign_tstep * δt
@@ -189,10 +218,7 @@ function _validation3(f!, t::Taylor1{T},
         dx1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         x2N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         z1N::TaylorModel1{TaylorModelN{N,T,T},T},
-        zN::TaylorModelN{N,T,T},
-        uN::TaylorModelN{N,T,T},
         δt, sign_tstep::Int,
-        xTMN::Vector{TaylorModelN{N,Interval{T},T}},
         rem1::Vector{Interval{T}},
         rem2::Vector{Interval{T}},
         zbox::AbstractVector{Interval{T}},
@@ -207,7 +233,7 @@ function _validation3(f!, t::Taylor1{T},
     local δtI
     reduced_abstol = abstol
     local issatisfied = false
-    # rem_old = copy(rem1)
+    rem_old = copy(remainder.(x1N[:]))
 
     while bool_red
         # Verify Picard contraction
@@ -216,9 +242,21 @@ function _validation3(f!, t::Taylor1{T},
         t1N.dom = δtI
         z1N.dom = δtI
         # Reuse memory
-        for i in eachindex(x)
-            x1N[i].pol.coeffs[:] .= TaylorModelN.(x[i].coeffs[:], z, (zbox,), (symIbox,))
-            x1N[i].rem = z
+        for i in eachindex(x1N)
+            x1N[i].pol.coeffs[:] .= TaylorModelN.(deepcopy(x[i].coeffs[:]), z, (zbox,), (symIbox,))
+            # x1N[i].pol.coeffs[:] .= TaylorModelN.(x[i].coeffs[:], z, (zbox,), (symIbox,)) # old
+            # for ordT in eachindex(x1N[i].pol.coeffs)
+            #     for ordQ in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs)
+            #         for h in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+            #             x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
+            #                 copy(x[i].coeffs[ordT].coeffs[ordQ].coeffs[h])
+            #         end
+            #     end
+            #     x1N[i].pol.coeffs[ordT].rem = z
+            #     x1N[i].pol.coeffs[ordT].x0  = zbox
+            #     x1N[i].pol.coeffs[ordT].dom = symIbox
+            # end
+            x1N[i].rem = rem_old[i]
             x1N[i].x0 = 0.0
             x1N[i].dom = δtI
             dx1N[i].pol = z1N.pol
@@ -232,7 +270,23 @@ function _validation3(f!, t::Taylor1{T},
             rem1[i] = z
             rem2[i] = z
         end
-        for _ in 1:100
+        # for i in eachindex(x)
+        #     x1N[i].pol.coeffs[:] .= TaylorModelN.(x[i].coeffs[:], z, (zbox,), (symIbox,))
+        #     # x1N[i].rem = z
+        #     x1N[i].x0 = 0.0
+        #     x1N[i].dom = δtI
+        #     dx1N[i].pol = z1N.pol
+        #     dx1N[i].rem = z1N.rem
+        #     dx1N[i].x0 = x1N[i].x0
+        #     dx1N[i].dom = δtI
+        #     x2N[i].pol = z1N.pol
+        #     x2N[i].rem = z1N.rem
+        #     x2N[i].x0 = x1N[i].x0
+        #     x2N[i].dom = δtI
+        #     rem1[i] = z
+        #     rem2[i] = z
+        # end
+        for _ in 1:50
             rem1 .= total_remainder.(x1N)
             picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
             rem2 .= total_remainder.(x2N)
@@ -247,14 +301,14 @@ function _validation3(f!, t::Taylor1{T},
             end
         end
         _success = iscontractive(rem2, rem1)
-        @assert iscontractive(remainder.(x2N), remainder.(x1N))
+        # @assert iscontractive(remainder.(x2N), remainder.(x1N))
         rem1 .= remainder.(x1N)
 
         # Shrink stepsize δt if adaptive is true and _success is false
         if !_success
-            if adaptive
+            if @show(adaptive)
                 bool_red = reduced_abstol > minabstol
-                if @show(bool_red, δt)
+                if bool_red
                     reduced_abstol = reduced_abstol/10
                     δt = δt / 2 #* 0.1^(1/orderT)
                     continue
@@ -268,7 +322,7 @@ function _validation3(f!, t::Taylor1{T},
             end
         end
 
-        xTMN .= evaluate.(x1N, δtI)
+        # xTMN .= evaluate.(x1N, δtI)
 
         # TO BE UPDATED
         # # Test if `check_property` is satisfied; if not, half the integration time.

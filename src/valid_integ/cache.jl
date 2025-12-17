@@ -120,6 +120,7 @@ struct VectorCacheVI3{
     vTN::VTN
     vTMN::VTMN
     xTM1v::XTM1V
+    x0New::REM
     rem1::REM
     rem2::REM
     parse_eqs::PARSE_EQS
@@ -156,11 +157,13 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
     x2N = Array{TT}(undef, dof)
     xTM1v = Array{TT}(undef, dof, maxsteps+1)
     vTMN = Vector{TaylorModelN{dof,T,U}}(undef, dof)
+    x0New = Vector{Interval{T}}(undef, dof)
     rem1   = Array{Interval{T}}(undef, dof)
     rem2   = Array{Interval{T}}(undef, dof)
     for i in eachindex(x1N)
         dx1N[i] = deepcopy(z1N)
         x2N[i]  = deepcopy(z1N)
+        x0New[i] = zI
         rem1[i] = zI
         rem2[i] = zI
         # x1N[i] = TaylorModel1(deepcopy(x[i]), zI, 0.0, zI)
@@ -187,7 +190,7 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
             Array{Taylor1{TaylorN{U}}}(undef, dof), #xaux
             t, x, dx, rv,
             t1N, x1N, dx1N, x2N, z1N, vTN, vTMN,
-            xTM1v, rem1, rem2,
+            xTM1v, x0New, rem1, rem2,
             parse_eqsX)
 
     return cacheVI
