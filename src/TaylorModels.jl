@@ -27,7 +27,8 @@ import TaylorSeries: integrate, get_order, evaluate, pretty_print,
 
 import LinearAlgebra: norm
 
-export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
+export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol,
+    TaylorModel1!, RTaylorModel1!, TaylorModelN!
 
 export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
     rpa, fp_rpa, bound_remainder, centered_dom, symmetric_box,

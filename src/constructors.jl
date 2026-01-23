@@ -34,14 +34,6 @@ for TM in tupleTMs
         $(TM)(pol::Taylor1{T}, rem::Interval{S}, x0,
             dom::Interval{S}) where {T,S} = $(TM){T,S}(pol, rem, interval(x0), dom)
 
-        # Constructor just chainging the remainder
-        # $(TM)(u::$(TM){T,S}, Δ::Interval{S}) where {T,S} =
-        #     $(TM){T,S}(u.pol, Δ, expansion_point(u), domain(u))
-        function $(TM)(u::$(TM){T,S}, Δ::Interval{S}) where {T,S}
-            u.rem = Δ
-            return u
-        end
-
         # Short-cut for independent variable
         $(TM)(ord::Integer, x0, dom::Interval) =
             $(TM)(x0 + Taylor1(eltype(x0), ord), zero(dom), interval(x0), dom)
@@ -65,6 +57,12 @@ for TM in tupleTMs
         @inline centered_dom(tm::$TM) = domain(tm) - expansion_point(tm)
     end
 end
+
+# Constructor just chainging the remainder
+TaylorModel1!(u::TaylorModel1{T,S}, Δ::Interval{S}) where {T,S} =
+    setproperty!(u, :rem, Δ)
+RTaylorModel1!(u::RTaylorModel1{T,S}, Δ::Interval{S}) where {T,S} =
+    setproperty!(u, :rem, Δ)
 
 
 @doc doc"""
@@ -152,13 +150,6 @@ TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::SVector{N,Interval{S}},
         dom::SVector{N,Interval{S}}) where {N,T<:NumberNotSeries,S<:Real} =
     TaylorModelN{N,T,S}(pol, rem, x0, dom)
 
-# Constructor for just changing the remainder
-# TaylorModelN(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
-#     TaylorModelN{N,T,S}(u.pol, Δ, expansion_point(u), domain(u))
-function TaylorModelN(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S}
-    u.rem = Δ
-    return u
-end
 # Short-cut for independent variable
 TaylorModelN(nv::Integer, ord::Integer, x0::AbstractVector{Interval{T}},
         dom::AbstractVector{Interval{T}}) where {T} =
@@ -172,13 +163,18 @@ TaylorModelN(a::T, ord::Integer, x0::AbstractVector{<:Interval{T}},
         dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
 
+# Constructor for just changing the remainder
+TaylorModelN!(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
+    setproperty!(u, :rem, Δ)
+
+
 # Functions to retrieve the order and remainder
 @inline get_order(tm::TaylorModelN) = get_order(tm.pol)
 @inline remainder(tm::TaylorModelN) = tm.rem
 @inline polynomial(tm::TaylorModelN) = tm.pol
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
-@inline get_numvars(tm::TaylorModelN{N,T,S}) where {N,T,S} = N
+@inline get_numvars(::TaylorModelN{N,T,S}) where {N,T,S} = N
 # Centered domain
 @inline centered_dom(tm::TaylorModelN) = domain(tm) .- expansion_point(tm)
 
