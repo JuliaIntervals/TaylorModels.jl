@@ -48,8 +48,11 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
     zI = zero(Interval{U})
     S  = symmetric_box(dof, U)
     zB = zero(S)
+    # Initialize Taylor1{TaylorN} expansions explicitly
     q0 = Array{TaylorN{U}}(undef, dof)
-    normalize_taylorNs!(q0, x0, orderQ)
+    @inbounds for ind in eachindex(q0)
+        q0[ind] = mid(x0[ind]) + TaylorN(ind, order=orderQ) * radius(x0[ind])
+    end
 
     # Initialize the vector of Taylor1{TaylorN{U}} expansions
     t, x, dx = TI.init_expansions(t0, q0, orderT)
@@ -136,9 +139,12 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
     zbox = zero(symIbox)
     vTN = Array{TaylorN{U}}(undef, dof)
 
-    # Initialize the vector of Taylor1{TaylorN{U}} expansions
-    normalize_taylorNs!(vTN, x0, orderQ)
+    # Initialize the vector of Taylor1{TaylorN{U}} expansions explicitly
+    @inbounds for ind in eachindex(vTN)
+        vTN[ind] = mid(x0[ind]) + TaylorN(ind, order=orderQ) * radius(x0[ind])
+    end
     t, x, dx = TI.init_expansions(t0, vTN, orderT)
+
     # Determine if specialized jetcoeffs! method exists/works
     parse_eqsX, rv = TI._determine_parsing!(parse_eqs, f!, t, x, dx, params)
     if parse_eqsX

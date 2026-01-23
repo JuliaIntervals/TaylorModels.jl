@@ -34,11 +34,17 @@ iscontractive(Δ::AbstractVector{Interval{T}}, Δx::AbstractVector{Interval{T}})
     {T} = all(iscontractive.(Δ[:], Δx[:]))
 
 
-function normalize_taylorNs!(q0::Vector{TaylorN{T}}, x0::Vector{Interval{T}},
-        orderQ::Int) where {T}
+"""
+    normalize_taylorNs!
+
+Convert the `x0::Vector{Interval{T}}` to a `q0::Vector{TaylorN{T}}` inplace. Evaluating
+each component of `q0` in the `interval(-1,1)` yields the corresponding component
+of `x0`.
+"""
+function normalize_taylorNs!(q0::Vector{TaylorN{T}}, x0::Vector{Interval{T}}) where {T}
     @inbounds for ind in eachindex(q0)
-        mx0 = mid(x0[ind])
-        q0[ind] = mx0 + TaylorN(ind, order=orderQ) * radius(x0[ind])
+        q0[ind][0][1] = mid(x0[ind])
+        q0[ind][1][ind] = radius(x0[ind])
     end
     return q0
 end
