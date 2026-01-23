@@ -131,3 +131,22 @@ function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, v::AbstractVector) wh
     end
     return TaylorModel1(suma, remainder(tm), expansion_point(tm), domain(tm))
 end
+function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T) where {N,T,S}
+    aux = tm[0].pol
+    return __evaluate!(tm, dx, aux)
+end
+function __evaluate!(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T,
+        aux::TaylorN{T}) where {N,T,S}
+    z = zero(dx)
+    pol = tm[end].pol*z # TaylorN
+    rem = tm[end].rem*z # Interval
+    @inbounds for k in reverse(eachindex(tm))
+        rem = rem*dx + tm[k].rem
+        for j in eachindex(pol)
+            TS.zero!(aux, j)
+            TS.mul!(aux, dx, pol, j)
+            TS.add!(pol, aux, tm[k].pol, j)
+        end
+    end
+    return TaylorModelN(pol, rem + tm.rem, tm[0].x0, tm[0].dom) :: TaylorModelN{N,T,S}
+end
