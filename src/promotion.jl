@@ -106,35 +106,3 @@ function Base.convert(::Type{TaylorModel1{TaylorModelN{N,T,S}, S}}, tm::TaylorMo
     pol = Taylor1(TaylorModelN.(tm[:], z, Ref(zSB), Ref(symIbox)), order)
     return TaylorModel1(pol, remainder(tm), expansion_point(tm), domain(tm))
 end
-
-"""
-    total_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S})
-
-Computes de total reminder of a `TaylorModel1{TaylorModelN}` by
-computing the polynomial associated to the `TaylorModelN` reminders,
-evaluated in the centered domain, and adding the remainder of the
-`TaylorModel1`.
-"""
-function total_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
-    order = get_order(tm)
-    polI = Taylor1(zero(remainder(tm[0])), order)
-    for k in eachindex(polynomial(tm))
-        polI[k] = remainder(tm[k])
-    end
-    return polI(centered_dom(tm))+remainder(tm)
-end
-
-"""
-    shift_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S})
-
-Returns a `TaylorModel1{TaylorModelN}` with null remainder for
-the `TaylorModelN` part, and the total remainder in the `TaylorModel1`.
-"""
-function shift_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
-    rem = total_remainder(tm)
-    z = interval(0.0)
-    for k in eachindex(polynomial(tm))
-        tm[k] = TaylorModelN(tm[k], z)
-    end
-    return TaylorModel1(tm, rem)
-end
