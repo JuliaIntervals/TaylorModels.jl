@@ -56,6 +56,7 @@ end
 
     @testset "TaylorModel1 constructors" begin
         tv = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1 = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TaylorModel1(5, x0, ii0)
         @test tv == TaylorModel1(5, ii0)
@@ -63,9 +64,11 @@ end
         @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test TaylorModel1(5, 0.7, ii1) == TaylorModel1(5, interval(0.7), ii1)
 
-        @test TaylorModel1(tv, ii0) == TaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
-        @test TaylorModel1(5, x0, ii0) == TaylorModel1(tv, x0)
-        @test TaylorModel1(5, ii0) == TaylorModel1(tv, x0)
+        TaylorModel1!(tv1, ii0)
+        @test tv1 == TaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
+        TaylorModel1!(tv1, x0)
+        @test TaylorModel1(5, x0, ii0) == tv1
+        @test TaylorModel1(5, ii0) == tv
 
         @test isa(tv, AbstractSeries)
         @test TaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}

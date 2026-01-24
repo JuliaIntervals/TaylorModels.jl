@@ -30,6 +30,7 @@ end
 
     @testset "RTaylorModel1 constructors" begin
         tv = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1 = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == RTaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == RTaylorModel1(5, x0, ii0)
         @test tv == RTaylorModel1(5, ii0)
@@ -37,9 +38,11 @@ end
         @test RTaylorModel1(x1, 5, x0, ii0) == RTaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test RTaylorModel1(5, 0.7, ii1) == RTaylorModel1(5, interval(0.7), ii1)
 
-        @test RTaylorModel1(tv, ii0) == RTaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
-        @test RTaylorModel1(5, x0, ii0) == RTaylorModel1(tv, x0)
-        @test RTaylorModel1(5, ii0) == RTaylorModel1(tv, x0)
+        RTaylorModel1!(tv1, ii0)
+        @test tv1 == RTaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
+        RTaylorModel1!(tv1, x0)
+        @test RTaylorModel1(5, x0, ii0) == tv1
+        @test RTaylorModel1(5, ii0) == tv
 
         @test isa(tv, AbstractSeries)
         @test RTaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
