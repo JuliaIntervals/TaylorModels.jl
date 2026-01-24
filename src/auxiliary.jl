@@ -141,21 +141,6 @@ function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{
 end
 
 
-# TMSol utilities
-@inline firstindex(a::TMSol) = firstindex(a.time)
-@inline lastindex(a::TMSol)  = lastindex(a.time)
-@inline Base.length(a::TMSol) = length(a.time)
-@inline Base.iterate(a::TMSol, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
-@inline Base.eachindex(a::TMSol) = firstindex(a):lastindex(a)
-
-getindex(a::TMSol, n::Integer) = getindex(get_xTM(a),:,n)
-getindex(a::TMSol, u::UnitRange) = getindex(get_xTM(a),:,u)
-getindex(a::TMSol, c::Colon) = getindex(get_xTM(a),:,c)
-getindex(a::TMSol, n::Integer, m::Integer) = getindex(get_xTM(a),m,n)
-getindex(a::TMSol, u::UnitRange, m::Integer) = getindex(get_xTM(a),m,u)
-getindex(a::TMSol, c::Colon, m::Integer) = getindex(get_xTM(a),m,c)
-
-
 """
     pol_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) :: TaylorModel1{Interval{S},S}
 
