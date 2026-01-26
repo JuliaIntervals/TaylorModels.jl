@@ -106,7 +106,7 @@ end
 struct VectorCacheVI3{
         TV,XV,
         XAUX,TT,X,RV,
-        TM1TMN,VTM1TMN,VTN,VTMN,
+        TM1TMN,VTM1TMN,VTN,VTMN,TN,
         XTM1V,REM,PARSE_EQS} <: TI.AbstractVectorCache
     tv::TV
     xv::XV
@@ -122,6 +122,7 @@ struct VectorCacheVI3{
     z1N::TM1TMN
     vTN::VTN
     vTMN::VTMN
+    auxN::TN
     xTM1v::XTM1V
     x0New::REM
     rem1::REM
@@ -144,6 +145,7 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
         vTN[ind] = mid(x0[ind]) + TaylorN(ind, order=orderQ) * radius(x0[ind])
     end
     t, x, dx = TI.init_expansions(t0, vTN, orderT)
+    auxN = zero(vTN[1])
 
     # Determine if specialized jetcoeffs! method exists/works
     parse_eqsX, rv = TI._determine_parsing!(parse_eqs, f!, t, x, dx, params)
@@ -195,7 +197,7 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
             Vector{Vector{Interval{U}}}(undef, maxsteps + 1), #xv
             Array{Taylor1{TaylorN{U}}}(undef, dof), #xaux
             t, x, dx, rv,
-            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN,
+            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
             xTM1v, x0New, rem1, rem2,
             parse_eqsX)
 

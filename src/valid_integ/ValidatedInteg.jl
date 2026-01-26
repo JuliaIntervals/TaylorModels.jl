@@ -9,18 +9,22 @@ using LinearAlgebra: cond, mul!
 using Parameters
 using StaticArrays
 
+export TMSol, TMSol3, flowpipe, get_xTM
 export shrink_wrapping!, absorb_remainder
 export validated_integ, validated_integ2, validated_integ3
 export iscontractive, picard_lindelof, picard_lindelof!
+export mince_in_time
 
 const TI = TaylorIntegration
 const IA = IntervalArithmetic
 const IANumTypes = IA.NumTypes
 
 include("cache.jl")
+include("TMSol.jl")
 include("validated_integ.jl")
 include("validated_integ2.jl")
 include("validated_integ3.jl")
+include("recipe.jl")
 
 
 """

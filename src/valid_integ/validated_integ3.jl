@@ -37,15 +37,30 @@ function picard_lindelof!(f!,
 end
 
 
-function _abs_rems!(vTMN, x0New, x1N, δt, symIbox, ind)
-    tmn = evaluate(x1N[ind], δt)
-    x0New[ind] = evaluate(tmn, symIbox)
-    vTMN[ind] = fp_rpa(tmn)
+function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}, x0New, x1N, auxN,
+        δt, symIbox, ind) where {N,T,S}
+    vTMN[ind] = TaylorModels.__evaluate!(x1N[ind], δt, auxN)
+    x0New[ind] = evaluate(vTMN[ind], symIbox)
+    cdom = domain(vTMN[ind])
     Δ = remainder(vTMN[ind])
-    # Absorb remainder shifts
+    # old remainder of constant and linear parts with remainder
+    aI = vTMN[ind].pol.coeffs[1].coeffs[1] +
+        sum(vTMN[ind].pol.coeffs[2].coeffs)*cdom[1] + Δ
+    radN = radius(Δ)/N
+    # Shifts
     vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
-    vTMN[ind].pol.coeffs[2].coeffs[ind] +=
-        copysign(radius(Δ), vTMN[ind].pol[1].coeffs[ind])
+    for k in eachindex(vTMN[ind].pol.coeffs[2].coeffs)
+        vTMN[ind].pol.coeffs[2].coeffs[k] +=
+            copysign.(radN, vTMN[ind].pol[1].coeffs[k])
+    end
+    # new remainder constant and linear parts (without Δ, a priori absorbed)
+    bI = vTMN[ind].pol.coeffs[1].coeffs[1] +
+    sum(vTMN[ind].pol.coeffs[2].coeffs)*cdom[1]
+    # Compute the new remainder
+    r_lo = copysign(inf(aI)-inf(bI), -1)
+    r_hi = copysign(sup(aI)-sup(bI), 1)
+    Δ = interval(r_lo, r_hi)
+    setproperty!(vTMN[ind], :rem, Δ)
     return nothing
 end
 
@@ -90,7 +105,7 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
 
     # Unpack caches
     @unpack tv, xv, xaux, t, x, dx, rv,
-            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN,
+            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
             xTM1v, x0New, rem1, rem2, parse_eqs = cacheVI
 
     # Initial conditions
@@ -131,14 +146,13 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
         tv[nsteps] = t0
         xv[nsteps] = copy(zbox)
         for ind in eachindex(x)
-            _abs_rems!(vTMN, x0New, x1N, δt, symIbox, ind)
             xTM1v[ind, nsteps] = deepcopy(x1N[ind])
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
-            #
+            _abs_rems!(vTMN, x0New, x1N, auxN, δt, symIbox, ind)
             # Update initial state
             if dof == 1
                 # No issue with the wrapping effect in 1-d
-                normalize_taylorNs!(vTN, x0New, orderQ)
+                normalize_taylorNs!(vTN, x0New)
                 TI.init_expansions!(x, dx, vTN, orderT)
             else
                 # x[ind] = Taylor1(polynomial(vTMN[ind]), orderT)
@@ -189,7 +203,7 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
 
     end
 
-    return TMSol(view(tv,1:nsteps), view(xv,1:nsteps,), view(xTM1v,:,1:nsteps))
+    return TMSol3(tv[1:nsteps], xv[1:nsteps], xTM1v[:,1:nsteps])
 end
 
 
@@ -253,9 +267,6 @@ function _validation3(f!, t::Taylor1{T},
                             x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
                     end
                 end
-                # x1N[i].pol.coeffs[ordT].rem = z
-                # x1N[i].pol.coeffs[ordT].x0  = zbox
-                # x1N[i].pol.coeffs[ordT].dom = symIbox
             end
             x1N[i].rem = rem_old[i]
             x1N[i].x0 = 0.0
@@ -272,17 +283,13 @@ function _validation3(f!, t::Taylor1{T},
             rem2[i] = z
         end
         for _ in 1:50
-            rem1 .= total_remainder.(x1N)
+            rem1 .= remainder.(x1N)
             picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
             rem2 .= total_remainder.(x2N)
             iscontractive(rem2, rem1) && break
             # x1N .= TaylorModel1.(x1N, 1.1 .* rem2)
-            # # x1N .= TaylorModel1.(x2N, 1.1 .* remainder.(x2N))
             for i in eachindex(x1N)
-                # x1N[i] = TaylorModel1(x1N[i], 1.1 * rem2[i])
                 x1N[i].rem = 1.1 * rem2[i]
-                # x1N[i].pol = copy(x1N[i].pol)
-                # x1N[i].rem = 1.1 * remainder(x2N[i])
             end
         end
         _success = iscontractive(rem2, rem1)
