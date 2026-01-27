@@ -64,13 +64,25 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}) where {N,T,S}
     integ_pol = integrate(a.pol, c0)
     δ = centered_dom(a)
-
     # Remainder bound after integrating
     Δ = bound_integration(a, δ)
     ΔN = Δ(centered_dom(a[0]))
-
     return TaylorModel1( integ_pol, ΔN, expansion_point(a), domain(a) )
 end
+function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
+        a::TaylorModel1{TaylorModelN{N,T,S},S}, δI) where {N,T,S}
+    res.pol = integrate(a.pol)
+    res.rem = bound_integration(a, centered_dom(a), δI)
+    return nothing
+end
+function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
+        a::TaylorModel1{TaylorModelN{N,T,S},S},
+        c0::TaylorModelN{N,T,S}, δI) where {N,T,S}
+    integrate!(res, a, δI)
+    res[0] += c0
+    return nothing
+end
+
 
 function integrate(fT::TaylorModelN, which=1)
     p̂ = integrate(fT.pol, which)

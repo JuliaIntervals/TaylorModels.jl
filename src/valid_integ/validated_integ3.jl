@@ -31,7 +31,7 @@ function picard_lindelof!(f!,
     dom = domain(x1N[1][0])
     f!(dx1N, x1N, params, t1N)
     @inbounds for ind in eachindex(x1N)
-        x2N[ind] = integrate(dx1N[ind], x1N[ind][0], dom)
+        TaylorModels.integrate!(x2N[ind], dx1N[ind], x1N[ind].pol[0], dom)
     end
     return nothing
 end
@@ -55,7 +55,7 @@ function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}, x0New, x1N, auxN,
     end
     # new remainder constant and linear parts (without Δ, a priori absorbed)
     bI = vTMN[ind].pol.coeffs[1].coeffs[1] +
-    sum(vTMN[ind].pol.coeffs[2].coeffs)*cdom[1]
+        sum(vTMN[ind].pol.coeffs[2].coeffs)*cdom[1]
     # Compute the new remainder
     r_lo = copysign(inf(aI)-inf(bI), -1)
     r_hi = copysign(sup(aI)-sup(bI), 1)
@@ -286,7 +286,15 @@ function _validation3(f!, t::Taylor1{T},
             rem1 .= remainder.(x1N)
             picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
             rem2 .= total_remainder.(x2N)
-            iscontractive(rem2, rem1) && break
+            if iscontractive(rem2, rem1)
+                for i in eachindex(x1N)
+                    x1N[i].rem = rem2[i]
+                end
+                # rem1 .= remainder.(x1N)
+                # picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
+                # rem2 .= total_remainder.(x2N)
+                break
+            end
             # x1N .= TaylorModel1.(x1N, 1.1 .* rem2)
             for i in eachindex(x1N)
                 x1N[i].rem = 1.1 * rem2[i]
@@ -298,7 +306,7 @@ function _validation3(f!, t::Taylor1{T},
 
         # Shrink stepsize δt if adaptive is true and _success is false
         if !_success
-            if @show(adaptive)
+            if adaptive
                 bool_red = reduced_abstol > minabstol
                 if bool_red
                     reduced_abstol = reduced_abstol/10
