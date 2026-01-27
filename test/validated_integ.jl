@@ -29,10 +29,15 @@ function test_integ(fexact, t0, qTM, q0, δq0, n=0)
     qq = evaluate.(evaluate.(qTM, Ref(normalized_box)), δtI)
     # Box computed from the exact solution must be within q
     bb = all(issubset_interval.(fexact(t0+δtI, q0 .+ q0ξB), q))
-    # Display details if bb is false
-    bb || @show(t0, domt, remainder.(qTM),
-            δt, δtI, q0ξ, q0ξB, q, qq,
-            fexact(t0+δtI, q0 .+ q0ξB), n)
+    # Display details and `@test_broken` if bb is false
+    if bb
+        @test bb
+    else
+        # @show(t0, domt, remainder.(qTM),
+        #     δt, δtI, q0ξ, q0ξB, q, qq,
+        #     fexact(t0+δtI, q0 .+ q0ξB), n)
+        @test_broken bb;
+    end
     return bb
 end
 
@@ -76,7 +81,7 @@ end
             Random.seed!(1)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
@@ -95,10 +100,10 @@ end
             @test sol2[1,2] == X0tm[2]
 
             # Tests for TaylorModels.mince_in_time
-            domT = TaylorModels.mince_in_time(sol)
+            domT = mince_in_time(sol)
             @test isequal_interval(domT, expansion_point(sol) .+ domain(sol))
-            timesdiv = TaylorModels.mince_in_time(sol, var=0, timediv=2)
-            fpdiv = TaylorModels.mince_in_time(sol, var=1, timediv=2)
+            timesdiv = mince_in_time(sol, var=0, timediv=2)
+            fpdiv = mince_in_time(sol, var=1, timediv=2)
             @test issubset_interval(timesdiv[3], domT[2])
             @test isequal_interval(hull(timesdiv[1],timesdiv[2]), domT[1])
             @test issubset_interval(fpdiv[3], qv[2][1])
@@ -120,7 +125,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
@@ -153,7 +158,7 @@ end
             Random.seed!(1)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
@@ -172,10 +177,10 @@ end
             @test sol2[1,2] == X0tm[2]
 
             # Tests for TaylorModels.mince_in_time
-            domT = TaylorModels.mince_in_time(sol)
+            domT = mince_in_time(sol)
             @test isequal_interval(domT, expansion_point(sol) .+ domain(sol))
-            timesdiv = TaylorModels.mince_in_time(sol, var=0, timediv=2)
-            fpdiv = TaylorModels.mince_in_time(sol, var=1, timediv=2)
+            timesdiv = mince_in_time(sol, var=0, timediv=2)
+            fpdiv = mince_in_time(sol, var=1, timediv=2)
             @test issubset_interval(timesdiv[3], domT[2])
             @test isequal_interval(hull(timesdiv[1],timesdiv[2]), domT[1])
             @test issubset_interval(fpdiv[3], qv[2][1])
@@ -201,7 +206,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
             end
 
             solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -237,7 +242,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
             end
         end
 
@@ -254,7 +259,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                @test test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
             end
 
             solf = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -296,49 +301,49 @@ end
         X0 = q0 .+ δq0
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
-        # @testset "Forward integration 1" begin
-        #     sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
-        #     tTM, qv, qTM = getfield.((sol,), 1:3)
-        #     @test length(qv) == size(qTM, 2) == length(tTM)
-        #     @test domain(sol,1) == zero(δq0[1])
-        #     @test all(isbounded.(remainder.(qTM)))
+        @testset "Forward integration 1" begin
+            sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
+            @test length(qv) == size(qTM, 2) == length(tTM)
+            @test domain(sol,1) == zero(δq0[1])
+            @test all(isbounded.(remainder.(qTM)))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
-        #     end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
+            end
 
-        #     solf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
-        #         adaptive=false)
-        #     tTMf, qvf, qTMf = getfield.((solf,), 1:3)
+            solf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
+                adaptive=false)
+            tTMf, qvf, qTMf = getfield.((solf,), 1:3)
 
-        #     @test length(qvf) == length(qv)
-        #     @test all(qTMf .== qTM)
+            @test length(qvf) == length(qv)
+            @test all(qTMf .== qTM)
 
-        #     # initializaton with a Taylor model
-        #     X0tm = copy(qTM[:, 1])
-        #     sol2 = validated_integ(x_square!, X0tm, tini, tend, orderQ, orderT, abstol)
-        #     tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
-        #     @test qTM == qTM2
-        # end
+            # initializaton with a Taylor model
+            X0tm = copy(qTM[:, 1])
+            sol2 = validated_integ(x_square!, X0tm, tini, tend, orderQ, orderT, abstol)
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
+            @test qTM == qTM2
+        end
 
-        # @testset "Forward integration 2" begin
-        #     sol = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol)
-        #     tTM, qv, qTM = getfield.((sol,), 1:3)
-        #     @test isequal_interval(domain(sol,1), zI)
+        @testset "Forward integration 2" begin
+            sol = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            tTM, qv, qTM = getfield.((sol,), 1:3)
+            @test isequal_interval(domain(sol,1), zI)
 
-        #     @test length(qv) == size(qTM, 2) == length(tTM)
-        #     @test all(isbounded.(remainder.(qTM)))
+            @test length(qv) == size(qTM, 2) == length(tTM)
+            @test all(isbounded.(remainder.(qTM)))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
-        #     end
-        # end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
+            end
+        end
 
         @testset "Forward integration 3" begin
             sol = validated_integ3(x_square!, X0, tini, tend, orderQ, orderT, abstol)
@@ -351,7 +356,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
             end
 
             solf = validated_integ3(x_square!, X0, tini, tend, orderQ, orderT, abstol,
@@ -385,44 +390,44 @@ end
         X0 = q0 .+ δq0
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
-        # @testset "Forward integration 1" begin
-        #     sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-        #         parse_eqs=false,
-        #         maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
-        #     tTM, qv, qTM = getfield.((sol1,), 1:3)
-        #     @test isequal_interval(domain(sol1,1), zI)
-        #     @test all(isbounded.(remainder.(qTM)))
-        #     sol2 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-        #         parse_eqs=true,
-        #         maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
-        #     tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
-        #     @test isequal_interval(domain(sol2,1), zI)
-        #     @test all(isbounded.(remainder.(qTM2)))
-        #     @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
+        @testset "Forward integration 1" begin
+            sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+                parse_eqs=false,
+                maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
+            tTM, qv, qTM = getfield.((sol1,), 1:3)
+            @test isequal_interval(domain(sol1,1), zI)
+            @test all(isbounded.(remainder.(qTM)))
+            sol2 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+                parse_eqs=true,
+                maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
+            @test isequal_interval(domain(sol2,1), zI)
+            @test all(isbounded.(remainder.(qTM2)))
+            @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
-        #     end
-        # end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
+            end
+        end
 
-        # @testset "Forward integration 2" begin
-        #     sol2 = validated_integ2(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-        #         maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
-        #         validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
-        #     tTM, qv, qTM = getfield.((sol2,), 1:3)
-        #     @test isequal_interval(domain(sol2,1), zI)
-        #     @test all(isbounded.(remainder.(qTM)))
+        @testset "Forward integration 2" begin
+            sol2 = validated_integ2(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+                maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
+                validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
+            tTM, qv, qTM = getfield.((sol2,), 1:3)
+            @test isequal_interval(domain(sol2,1), zI)
+            @test all(isbounded.(remainder.(qTM)))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
-        #     end
-        # end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+            end
+        end
 
         @testset "Forward integration 3" begin
             sol1 = validated_integ3(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
@@ -443,7 +448,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
             end
         end
 
@@ -465,44 +470,44 @@ end
         X0 = q0 .+ δq0
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
-        # @testset "Forward integration 1" begin
-        #     sol1 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
-        #         parse_eqs=false,
-        #         maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
-        #     tTM, qv, qTM = getfield.((sol1,), 1:3)
-        #     @test isequal_interval(domain(sol1,1), zI)
-        #     @test all(isbounded.(remainder.(qTM)))
-        #     sol2 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
-        #         parse_eqs=true,
-        #         maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
-        #     tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
-        #     @test isequal_interval(domain(sol2,1), zI)
-        #     # @test_broken all(isbounded.(remainder.(qTM2)))
-        #     @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
+        @testset "Forward integration 1" begin
+            sol1 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
+                parse_eqs=false,
+                maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
+            tTM, qv, qTM = getfield.((sol1,), 1:3)
+            @test isequal_interval(domain(sol1,1), zI)
+            # @test_broken all(isbounded.(remainder.(qTM)))
+            sol2 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
+                parse_eqs=true,
+                maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
+            @test isequal_interval(domain(sol2,1), zI)
+            # @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
-        #     end
-        # end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
+            end
+        end
 
-        # @testset "Forward integration 2" begin
-        #     sol2 = validated_integ2(ff!, X0, tini, tend, orderQ, orderT, abstol,
-        #         maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
-        #         validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
-        #     tTM, qv, qTM = getfield.((sol2,), 1:3)
-        #     @test isequal_interval(domain(sol2,1), zI)
-        #     @test all(isbounded.(remainder.(qTM)))
+        @testset "Forward integration 2" begin
+            sol2 = validated_integ2(ff!, X0, tini, tend, orderQ, orderT, abstol,
+                maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
+                validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
+            tTM, qv, qTM = getfield.((sol2,), 1:3)
+            @test isequal_interval(domain(sol2,1), zI)
+            @test all(isbounded.(remainder.(qTM)))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
-        #     end
-        # end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+            end
+        end
 
         @testset "Forward integration 3" begin
             sol1 = validated_integ3(ff!, X0, tini, tend, orderQ, orderT, abstol,
@@ -523,7 +528,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
             end
         end
     end
@@ -548,31 +553,31 @@ end
         X0 = q0 .+ δq0
         ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
 
-        # @testset "Forward integration 1" begin
-        #     sol1 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
-        #         parse_eqs=false,
-        #         maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
-        #     tTM, qv, qTM = getfield.((sol1,), 1:3)
-        #     @test isequal_interval(domain(sol1,1), zI)
-        #     @test all(isbounded.(remainder.(qTM)))
-        #     sol2 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
-        #         parse_eqs=true,
-        #         maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
-        #     tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
-        #     @test isequal_interval(domain(sol2,1), zI)
-        #     # @test_broken all(isbounded.(remainder.(qTM2)))
-        #     @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
+        @testset "Forward integration 1" begin
+            sol1 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
+                parse_eqs=false,
+                maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
+            tTM, qv, qTM = getfield.((sol1,), 1:3)
+            @test isequal_interval(domain(sol1,1), zI)
+            @test all(isbounded.(remainder.(qTM)))
+            sol2 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
+                parse_eqs=true,
+                maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
+            tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
+            @test isequal_interval(domain(sol2,1), zI)
+            # @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
-        #     Random.seed!(1)
-        #     end_idx = lastindex(tTM)
-        #     for it = 1:_num_tests
-        #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
-        #     end
-        # end
+            Random.seed!(1)
+            end_idx = lastindex(tTM)
+            for it = 1:_num_tests
+                n = rand(1:end_idx)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
+            end
+        end
 
         # @testset "Forward integration 2" begin
-        #     sol2 = validated_integ2(ff!, X0, tini, tend, orderQ, orderT, abstol,
+        #     sol2 = validated_integ2(cost!, X0, tini, tend, orderQ, orderT, abstol,
         #         maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
         #         validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
         #     tTM, qv, qTM = getfield.((sol2,), 1:3)
@@ -583,7 +588,7 @@ end
         #     end_idx = lastindex(tTM)
         #     for it = 1:_num_tests
         #         n = rand(1:end_idx)
-        #         @test test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+        #         test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
         #     end
         # end
 
@@ -606,7 +611,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                @test test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
             end
         end
     end
