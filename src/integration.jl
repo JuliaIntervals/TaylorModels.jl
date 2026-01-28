@@ -79,7 +79,7 @@ function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
         a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}, δI) where {N,T,S}
     integrate!(res, a, δI)
-    res[0] += c0
+    res.pol[0] = c0
     return nothing
 end
 

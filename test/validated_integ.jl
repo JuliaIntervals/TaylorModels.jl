@@ -402,7 +402,7 @@ end
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
-            @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(isbounded.(remainder.(qTM2)))
             @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
             Random.seed!(1)
@@ -476,13 +476,13 @@ end
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
-            # @test_broken all(isbounded.(remainder.(qTM)))
+            @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
                 parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
-            # @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(isbounded.(remainder.(qTM2)))
             @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
             Random.seed!(1)
@@ -521,7 +521,7 @@ end
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
-            # @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(isbounded.(remainder.(qTM2)))
             @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
             Random.seed!(1)
@@ -565,7 +565,7 @@ end
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
-            # @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(isbounded.(remainder.(qTM2)))
             @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
             Random.seed!(1)
@@ -604,7 +604,7 @@ end
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
-            # @test_broken all(isbounded.(remainder.(qTM2)))
+            @test all(isbounded.(remainder.(qTM2)))
             @test all(polynomial.(sol1[:]) .== polynomial.(sol2[:]))
 
             Random.seed!(1)

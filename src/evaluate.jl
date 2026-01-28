@@ -132,7 +132,7 @@ function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, v::AbstractVector) wh
     return TaylorModel1(suma, remainder(tm), expansion_point(tm), domain(tm))
 end
 function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T) where {N,T,S}
-    aux = tm[0].pol
+    aux = zero(tm[0].pol)
     return __evaluate!(tm, dx, aux)
 end
 function __evaluate!(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T,
