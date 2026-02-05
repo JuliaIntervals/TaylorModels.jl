@@ -10,7 +10,7 @@ using Aqua
     for unbound_args in ua
         @show unbound_args
     end
-    @test_broken length(ua) == 0
+    @test length(ua) == 0
 
     # See: https://github.com/SciML/OrdinaryDiffEq.jl/issues/1750
     # Test that we're not introducing method ambiguities across deps
@@ -29,7 +29,7 @@ end
     Aqua.test_deps_compat(TaylorModels)
     Aqua.test_stale_deps(TaylorModels)
     Aqua.test_piracies(TaylorModels)
-    Aqua.test_unbound_args(TaylorModels; broken=true)
+    Aqua.test_unbound_args(TaylorModels)
     Aqua.test_project_extras(TaylorModels)
     Aqua.test_persistent_tasks(TaylorModels)
 end
