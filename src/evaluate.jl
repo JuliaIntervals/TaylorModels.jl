@@ -150,3 +150,20 @@ function __evaluate!(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T,
     end
     return TaylorModelN(pol, rem + tm.rem, tm[0].x0, tm[0].dom) :: TaylorModelN{N,T,S}
 end
+function __evaluate!(tmn::TaylorModelN{N,T,S},
+        tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T, aux::TaylorN{T}) where {N,T,S}
+    z = zero(dx)
+    pol = polynomial(tm[end]) * z
+    rem = remainder(tm[end]) * z
+    @inbounds for k in reverse(eachindex(tm))
+        rem = rem*dx + tm[k].rem
+        for j in eachindex(pol)
+            TS.zero!(aux, j)
+            TS.mul!(aux, dx, pol, j)
+            TS.add!(pol, aux, tm[k].pol, j)
+        end
+    end
+    tmn.pol = pol
+    tmn.rem = rem + tm.rem
+    return nothing
+end
