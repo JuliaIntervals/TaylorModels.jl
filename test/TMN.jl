@@ -265,6 +265,23 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
         b0 = [interval(0.5, 0.5), interval(0.5, 0.5)]
         xm = TaylorModelN(1, _order, b0, ib0)
         ym = TaylorModelN(2, _order, b0, ib0)
+        xm.rem = interval(-0.25,0.25)
+
+        f = (x, y) -> x
+        ∫fdx = (x, y) -> x^2/2
+        ∫fdy = (x, y) -> x * y
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = sample.(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = xtest .- b0
+            @test in_interval(∫fdx(xtest...) - ∫fdx(cx...), ∫fTdx(aux))
+            @test in_interval(∫fdy(xtest...) - ∫fdy(cy...), ∫fTdy(aux))
+        end
 
         f = (x, y) -> cos(x)
         ∫fdx = (x, y) -> sin(x)

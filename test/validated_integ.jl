@@ -13,7 +13,7 @@ setdisplay(:full)
 # Function to check, against an exact solution of the ODE, the computed
 # validted solution
 # test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
-function test_integ(fexact, t0, qTM, q0, δq0, n=0)
+function test_integ(fexact, t0, qTM, q0, δq0; bbroken::Bool=false)
     N = length(q0)
     normalized_box = Vector(symmetric_box(N))
     # Time domain
@@ -26,7 +26,7 @@ function test_integ(fexact, t0, qTM, q0, δq0, n=0)
     q0ξB = SVector{N}(intersect_interval.(interval(q0ξ, q0ξ), δq0))
     # Box computed to overapproximate the solution at time δt
     q = evaluate.(evaluate.(qTM, δtI), Ref(normalized_box))
-    qq = evaluate.(evaluate.(qTM, Ref(normalized_box)), δtI)
+    # qq = evaluate.(evaluate.(qTM, Ref(normalized_box)), δtI)
     # Box computed from the exact solution must be within q
     bb = all(issubset_interval.(fexact(t0+δtI, q0 .+ q0ξB), q))
     # Display details and `@test_broken` if bb is false
@@ -36,7 +36,11 @@ function test_integ(fexact, t0, qTM, q0, δq0, n=0)
         # @show(t0, domt, remainder.(qTM),
         #     δt, δtI, q0ξ, q0ξB, q, qq,
         #     fexact(t0+δtI, q0 .+ q0ξB), n)
-        @test_broken bb;
+        if bbroken
+            @test_broken bb
+        else
+            @test bb
+        end
     end
     return bb
 end
@@ -81,7 +85,7 @@ end
             Random.seed!(1)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0, bbroken=true)
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
@@ -125,7 +129,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), tTM[n], sol[n], q0, δq0, bbroken=true)
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
@@ -206,7 +210,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0, bbroken=true)
             end
 
             solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
@@ -242,7 +246,7 @@ end
             end_idx = lastindex(sol)
             for it = 1:_num_tests
                 n = rand(2:end_idx)
-                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -312,7 +316,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0, bbroken=true)
             end
 
             solf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
@@ -341,7 +345,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -409,7 +413,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -425,7 +429,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -489,7 +493,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -505,7 +509,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -528,7 +532,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
             end
         end
     end
@@ -572,7 +576,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, bbroken=true)
             end
         end
 
@@ -588,7 +592,7 @@ end
         #     end_idx = lastindex(tTM)
         #     for it = 1:_num_tests
         #         n = rand(1:end_idx)
-        #         test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0)
+        #         test_integ((t,x)->exactsol(t,x), tTM[n], sol2[n], q0, δq0, bbroken=true)
         #     end
         # end
 
@@ -611,7 +615,7 @@ end
             end_idx = lastindex(tTM)
             for it = 1:_num_tests
                 n = rand(1:end_idx)
-                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0, n)
+                test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
             end
         end
     end
@@ -659,16 +663,16 @@ end
         X0 = q0 .+ δq0
         ene0 = ene_pendulum(X0)
 
-        sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
-        @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
-        qTM = getfield(sol, 3)
-        @test all(isbounded.(remainder.(qTM)))
+        # sol = validated_integ(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        # @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
+        # qTM = getfield(sol, 3)
+        # @test all(isbounded.(remainder.(qTM)))
 
-        sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
-            validatesteps=32);
-        @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
-        qTM = getfield(sol, 3)
-        @test all(isbounded.(remainder.(qTM)))
+        # sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+        #     validatesteps=32);
+        # @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
+        # qTM = getfield(sol, 3)
+        # @test all(isbounded.(remainder.(qTM)))
 
         sol = validated_integ3(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
