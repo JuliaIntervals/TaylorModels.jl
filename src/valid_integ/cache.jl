@@ -127,11 +127,12 @@ struct VectorCacheVI3{
     x0New::REM
     rem1::REM
     rem2::REM
+    rem0::REM
     parse_eqs::PARSE_EQS
 end
 
-function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
-        maxsteps::Int, orderT::Int, orderQ::Int, f!::F, params = nothing;
+function init_cache_VI3(f!::F, t0::T, x0::Array{Interval{U},1},
+        maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
         parse_eqs::Bool = true) where {U,T,F}
 
     dof = length(x0)
@@ -166,14 +167,16 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
     xTM1v = Array{TT}(undef, dof, maxsteps+1)
     vTMN = Vector{TaylorModelN{dof,T,U}}(undef, dof)
     x0New = Vector{Interval{T}}(undef, dof)
-    rem1   = Array{Interval{T}}(undef, dof)
-    rem2   = Array{Interval{T}}(undef, dof)
+    rem1 = Array{Interval{T}}(undef, dof)
+    rem2 = Array{Interval{T}}(undef, dof)
+    rem0 = Array{Interval{T}}(undef, dof)
     for i in eachindex(x1N)
         dx1N[i] = deepcopy(z1N)
         x2N[i]  = deepcopy(z1N)
         x0New[i] = zI
         rem1[i] = zI
         rem2[i] = zI
+        rem0[i] = zI
         # x1N[i] = TaylorModel1(deepcopy(x[i]), zI, 0.0, zI)
         # xTM1v[i, 1] = deepcopy(x1N[i])
         x1N[i] = deepcopy(z1N)
@@ -198,18 +201,19 @@ function init_cache_VI3(t0::T, x0::Array{Interval{U},1},
             Array{Taylor1{TaylorN{U}}}(undef, dof), #xaux
             t, x, dx, rv,
             t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
-            xTM1v, x0New, rem1, rem2,
+            xTM1v, x0New, rem1, rem2, rem0,
             parse_eqsX)
 
     return cacheVI
 end
-function init_cache_VI3(t0::T, xTM::Array{TaylorModel1{TaylorModelN{N,T,U},U},1},
-        maxsteps::Int, orderT::Int, orderQ::Int, f!::F, params = nothing;
+function init_cache_VI3(f!::F, t0::T,
+        xTM::Array{TaylorModel1{TaylorModelN{N,T,U},U},1},
+        maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
         parse_eqs::Bool = true) where {N,U,T,F}
     dof = length(xTM)
-    symIbox  = symmetric_box(dof, U)
+    symIbox = symmetric_box(dof, U)
     # Initialize the vector of Taylor1{TaylorN} expansions
-    x0 = evaluate(evaluate.(polynomial.(xTM)), Vector(symIbox))
-    return init_cache_VI3(t0, x0, maxsteps, orderT, orderQ, f!, params;
+    x0 = evaluate(evaluate.(xTM, xTM[1].x0), symIbox)
+    return init_cache_VI3(f!, t0, x0, maxsteps, orderT, orderQ, params;
         parse_eqs = parse_eqs)
 end
