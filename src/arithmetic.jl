@@ -230,7 +230,7 @@ function remainder_product(a::RTaylorModel1{T,S}, b::RTaylorModel1{T,S},
     V = aux^interval(order+1)
     a_rem = remainder(a)
     b_rem = remainder(b)
-    Δ = Δnegl + Δb * a.rem + Δa * b.rem + a.rem * b.rem * V
+    Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem * V
     Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem * V) * b_rem
     Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem * V) * a_rem
     return _intersect_reminders((Δ1, Δ2, Δ))
@@ -335,7 +335,7 @@ function remainder_square(a::RTaylorModel1{T,S}, order::Int) where
     Δa = a.pol(aux)
     V = aux^interval(order+1)
     a_rem = remainder(a)
-    Δ = Δnegl + interval(2) * Δa * a.rem + a.rem^interval(2) * V
+    Δ = Δnegl + interval(2) * Δa * a_rem + a_rem^interval(2) * V
     Δ1 = Δnegl + (interval(2) * Δa + a_rem * V) * a_rem
     return _intersect_reminders((Δ1, Δ))
 end
@@ -676,7 +676,8 @@ for f in (:+, :-)
         for i in eachindex(a)
             c[i] = ($f)(a[i], b[i])
         end
-        return TaylorModel1(c, ($f)(a.rem, b.rem), expansion_point(a), domain(a))
+        return TaylorModel1(c, ($f)(remainder(a), remainder(b)),
+            expansion_point(a), domain(a))
     end
     @eval function ($f)(b::T, a::TaylorModel1{TaylorModelN{N,R,S}}) where
             {N,R,S,T<:NumberNotSeries}
@@ -684,7 +685,7 @@ for f in (:+, :-)
         for i in eachindex(a)
             c[i] = ($f)(b, a[i])
         end
-        return TaylorModel1(c, ($f)(zero(interval(b)),a.rem), expansion_point(a), domain(a))
+        return TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
     end
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S}}, b::T) where
             {N,R,S,T<:NumberNotSeries}
@@ -692,7 +693,7 @@ for f in (:+, :-)
         for i in eachindex(a)
             c[i] = ($f)(a[i], b)
         end
-        return TaylorModel1(c, ($f)(a.rem), expansion_point(a), domain(a))
+        return TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
     end
 end
 

@@ -39,7 +39,7 @@ for TM in tupleTMs
             {T<:NumberNotSeries,S,R}
         @assert length(a) == get_numvars()
         pol = tm.pol(a)
-        return $TM(pol, tm.rem, one(pol[0])*tm.x0, tm.dom)
+        return $TM(pol, tm.rem, tm.x0, tm.dom)
     end
 
     # _evaluate corresponds to composition: substitute tmf into tmg
@@ -138,17 +138,18 @@ end
 function __evaluate!(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T,
         aux::TaylorN{T}) where {N,T,S}
     z = zero(dx)
-    pol = tm[end].pol*z # TaylorN
-    rem = tm[end].rem*z # Interval
+    pol = tm[end].pol * z # TaylorN
+    rem = remainder(tm[end]) * z # Interval
     @inbounds for k in reverse(eachindex(tm))
-        rem = rem*dx + tm[k].rem
+        rem = rem*dx + remainder(tm[k])
         for j in eachindex(pol)
             TS.zero!(aux, j)
             TS.mul!(aux, dx, pol, j)
             TS.add!(pol, aux, tm[k].pol, j)
         end
     end
-    return TaylorModelN(pol, rem + tm.rem, tm[0].x0, tm[0].dom) :: TaylorModelN{N,T,S}
+    return TaylorModelN(pol, rem + remainder(tm),
+        tm[0].x0, tm[0].dom) :: TaylorModelN{N,T,S}
 end
 function __evaluate!(tmn::TaylorModelN{N,T,S},
         tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T, aux::TaylorN{T}) where {N,T,S}
@@ -156,14 +157,19 @@ function __evaluate!(tmn::TaylorModelN{N,T,S},
     pol = polynomial(tm[end]) * z
     rem = remainder(tm[end]) * z
     @inbounds for k in reverse(eachindex(tm))
-        rem = rem*dx + tm[k].rem
+        rem = rem*dx + remainder(tm[k])
         for j in eachindex(pol)
             TS.zero!(aux, j)
             TS.mul!(aux, dx, pol, j)
             TS.add!(pol, aux, tm[k].pol, j)
         end
     end
-    tmn.pol = pol
-    tmn.rem = rem + tm.rem
+    # Return results in tmn
+    for ordQ in eachindex(tmn.pol.coeffs)
+        for h in eachindex(tmn.pol.coeffs[ordQ].coeffs)
+            tmn.pol.coeffs[ordQ].coeffs[h] = pol.coeffs[ordQ].coeffs[h]
+        end
+    end
+    tmn.rem = rem + remainder(tm)
     return nothing
 end

@@ -257,7 +257,7 @@ end
             @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(sup(ii)+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(ii+interval(1))
 
         order = 3
         ii = ii0
@@ -277,7 +277,7 @@ end
             @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(sup(ii)+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(ii+interval(1))
 
         order = 2
         ii = ii1
@@ -297,7 +297,7 @@ end
             @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(sup(ii)+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(ii+interval(1))
 
         order = 5
         ii = ii1
@@ -316,7 +316,7 @@ end
             @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(sup(ii)+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(ii+interval(1))
 
         # Example of Makino's thesis (page 98 and fig 4.2)
         order = 8
@@ -331,7 +331,7 @@ end
             @test check_containment(ftest, tma)
         end
         @test_throws AssertionError tmb(sup(ii)+1.0)
-        @test_throws AssertionError tmb(ii+Interval(1))
+        @test_throws AssertionError tmb(ii+interval(1))
     end
 
     @testset "RPAs with polynomial Taylor1{TaylorN{T}}" begin
