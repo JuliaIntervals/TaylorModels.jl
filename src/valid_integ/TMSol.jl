@@ -29,32 +29,31 @@ end
 
 
 """
-    TMSol3{N,T,V1,V2,M}
+    TMSol3{N,T<:Real,U<:IANumTypes}
 
 Structure containing the solution of a validated integration (method
 `validated_integ3`).
 
 # Fields
-    `time :: AbstractVector{T}`: Vector containing the expansion time of the
+    `time :: Vector{T}`: Vector containing the expansion time of the
     `TaylorModel1` solutions
 
-    `fp   :: AbstractVector{Vector{Interval{T}}}`: Vector of interval vectors
+    `fp   :: Vector{Vector{Interval{T}}}`: Vector of interval vectors
     representing the flowpipe
 
-    `xTMv :: AbstractMatrix{TaylorModel1{TaylorModelN{N,T,T},T}}`: Matrix whose
+    `xTMv :: Matrix{TaylorModel1{TaylorModelN{N,T,T},T}}`: Matrix whose
     entry `xTMv[i,t]` represents the `TaylorModel1` of the i-th dependent variable,
     obtained at time time[t].
 """
-struct TMSol3{N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{Vector{Interval{T}}},
-        M<:AbstractMatrix{TaylorModel1{TaylorModelN{N,T,T},T}}}
-    time :: V1
-    fp   :: V2
-    xTM  :: M
-    function TMSol3(time::V1, fp::V2, xTM::M) where
-            {N,T<:Real,V1<:AbstractVector{T},V2<:AbstractVector{Vector{Interval{T}}},
-            M<:AbstractMatrix{TaylorModel1{TaylorModelN{N,T,T},T}}}
+
+struct TMSol3{N,T<:Real,U<:IANumTypes}
+    time :: Vector{T}
+    fp   :: Vector{Vector{Interval{U}}}
+    xTM  :: Matrix{TaylorModel1{TaylorModelN{N,T,U},U}}
+    function TMSol3(time::Vector{T}, fp::Vector{Vector{Interval{U}}},
+            xTM::Matrix{TaylorModel1{TaylorModelN{N,T,U},U}}) where {N,T,U}
         @assert length(time) == length(fp) == size(xTM,2)
-        return new{N,T,V1,V2,M}(time, fp, xTM)
+        return new{N,T,U}(time, fp, xTM)
     end
 end
 

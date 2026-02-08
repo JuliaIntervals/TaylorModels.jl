@@ -103,43 +103,46 @@ function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
                 f!, params; parse_eqs = parse_eqs)
 end
 
-struct VectorCacheVI3{
-        TV,XV,
-        XAUX,TT,X,RV,
-        TM1TMN,VTM1TMN,VTN,VTMN,TN,
-        XTM1V,REM,PARSE_EQS} <: TI.AbstractVectorCache
-    tv::TV
-    xv::XV
-    xaux::XAUX
-    t::TT
-    x::X
-    dx::X
-    rv::RV
-    t1N::TM1TMN
-    x1N::VTM1TMN
-    dx1N::VTM1TMN
-    x2N::VTM1TMN
-    z1N::TM1TMN
-    vTN::VTN
-    vTMN::VTMN
-    auxN::TN
-    xTM1v::XTM1V
-    x0New::REM
-    rem1::REM
-    rem2::REM
-    rem0::REM
-    parse_eqs::PARSE_EQS
+struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
+    tv::Vector{T}
+    xv::Vector{Vector{Interval{U}}}
+    xaux::Vector{Taylor1{TaylorN{T}}}
+    t::Taylor1{T}
+    x::Vector{Taylor1{TaylorN{T}}}
+    dx::Vector{Taylor1{TaylorN{T}}}
+    rv::TI.RetAlloc{Taylor1{TaylorN{T}}}
+    t1N::TaylorModel1{TaylorModelN{N,T,U}}
+    x1N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
+    dx1N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
+    x2N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
+    z1N::TaylorModel1{TaylorModelN{N,T,U}}
+    vTN::Vector{TaylorN{T}}
+    vTMN::Vector{TaylorModelN{N,T,U}}
+    auxN::TaylorN{T}
+    xTM1v::Matrix{TaylorModel1{TaylorModelN{N,T,U},U}}
+    x0New::Vector{Interval{U}}
+    rem1::Vector{Interval{U}}
+    rem2::Vector{Interval{U}}
+    rem0::Vector{Interval{U}}
+    parse_eqs::Bool
 end
 
-function init_cache_VI3(f!::F, t0::T, x0::Array{Interval{U},1},
+init_cache_VI3(f!::F, t0::T, x0::Array{Interval{U},1},
         maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
-        parse_eqs::Bool = true) where {U,T,F}
+        parse_eqs::Bool = true) where {U,T,F} =
+    init_cache_VI3(f!, t0, SVector(x0...),
+        maxsteps, orderT, orderQ, params;
+        parse_eqs = parse_eqs)
 
-    dof = length(x0)
+function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
+        maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
+        parse_eqs::Bool = true) where {N,U,T,F}
+    # N = length(x0)
+    @assert N == length(x0)
     zI = zero(Interval{U})
-    symIbox = symmetric_box(dof, U)
+    symIbox = symmetric_box(N, U)
     zbox = zero(symIbox)
-    vTN = Array{TaylorN{U}}(undef, dof)
+    vTN = Array{TaylorN{U}}(undef, N)
 
     # Initialize the vector of Taylor1{TaylorN{U}} expansions explicitly
     @inbounds for ind in eachindex(vTN)
@@ -160,16 +163,16 @@ function init_cache_VI3(f!::F, t0::T, x0::Array{Interval{U},1},
     t1N = TaylorModel1(Taylor1([zN, uN], orderT), zI, 0.0, zI)
     z1N = zero(t1N)
 
-    TT = TaylorModel1{TaylorModelN{dof,T,U}, U}
-    x1N = Array{TT}(undef, dof)
-    dx1N = Array{TT}(undef, dof)
-    x2N = Array{TT}(undef, dof)
-    xTM1v = Array{TT}(undef, dof, maxsteps+1)
-    vTMN = Vector{TaylorModelN{dof,T,U}}(undef, dof)
-    x0New = Vector{Interval{T}}(undef, dof)
-    rem1 = Array{Interval{T}}(undef, dof)
-    rem2 = Array{Interval{T}}(undef, dof)
-    rem0 = Array{Interval{T}}(undef, dof)
+    TT = TaylorModel1{TaylorModelN{N,T,U}, U}
+    x1N = Array{TT}(undef, N)
+    dx1N = Array{TT}(undef, N)
+    x2N = Array{TT}(undef, N)
+    xTM1v = Array{TT}(undef, N, maxsteps+1)
+    vTMN = Vector{TaylorModelN{N,T,U}}(undef, N)
+    x0New = Vector{Interval{T}}(undef, N)
+    rem1 = Array{Interval{T}}(undef, N)
+    rem2 = Array{Interval{T}}(undef, N)
+    rem0 = Array{Interval{T}}(undef, N)
     for i in eachindex(x1N)
         dx1N[i] = deepcopy(z1N)
         x2N[i]  = deepcopy(z1N)
@@ -195,25 +198,23 @@ function init_cache_VI3(f!::F, t0::T, x0::Array{Interval{U},1},
     end
 
     # Initialize cache
-    cacheVI = VectorCacheVI3(
+    return VectorCacheVI3{N,T,U}(
             Array{T}(undef, maxsteps + 1), #tv
             Vector{Vector{Interval{U}}}(undef, maxsteps + 1), #xv
-            Array{Taylor1{TaylorN{U}}}(undef, dof), #xaux
+            Array{Taylor1{TaylorN{U}}}(undef, N), #xaux
             t, x, dx, rv,
             t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
             xTM1v, x0New, rem1, rem2, rem0,
             parse_eqsX)
-
-    return cacheVI
 end
+
 function init_cache_VI3(f!::F, t0::T,
         xTM::Array{TaylorModel1{TaylorModelN{N,T,U},U},1},
         maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
         parse_eqs::Bool = true) where {N,U,T,F}
-    dof = length(xTM)
-    symIbox = symmetric_box(dof, U)
+
     # Initialize the vector of Taylor1{TaylorN} expansions
-    x0 = evaluate(evaluate.(xTM, xTM[1].x0), symIbox)
-    return init_cache_VI3(f!, t0, x0, maxsteps, orderT, orderQ, params;
+    x0 = evaluate(evaluate.(xTM, xTM[1].x0), domain(xTM[1].pol[0]))
+    return init_cache_VI3(f!, t0, SVector(x0...), maxsteps, orderT, orderQ, params;
         parse_eqs = parse_eqs)
 end
