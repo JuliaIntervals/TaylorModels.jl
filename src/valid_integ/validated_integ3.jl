@@ -38,81 +38,105 @@ end
 
 
 function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}, x0New, x1N, auxN,
-        δt, symIbox, ind) where {N,T,S}
-    vTMN[ind] = TaylorModels.__evaluate!(x1N[ind], δt, auxN)
-    x0New[ind] = evaluate(vTMN[ind], symIbox)
-    cdom = domain(vTMN[ind])
-    Δ = remainder(vTMN[ind])
-    # old remainder of constant and linear parts with remainder
-    aI = vTMN[ind].pol.coeffs[1].coeffs[1] +
-        sum(vTMN[ind].pol.coeffs[2].coeffs)*cdom[1] + Δ
-    radN = radius(Δ)/N
-    # Shifts
-    vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
-    for k in eachindex(vTMN[ind].pol.coeffs[2].coeffs)
-        vTMN[ind].pol.coeffs[2].coeffs[k] +=
-            copysign.(radN, vTMN[ind].pol[1].coeffs[k])
+        δt, symIbox) where {N,T,S}
+    for ind in eachindex(vTMN)
+        # Evaluate at δt (new TMN initial condition with remainder)
+        TaylorModels.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
+        x0New[ind] = evaluate(vTMN[ind], symIbox)
+        Δ = remainder(vTMN[ind])
+        radN = radius(Δ)/N
+        # Old remainder of constant and linear parts and remainder
+        aI = vTMN[ind].pol.coeffs[1].coeffs[1] +
+            sum(vTMN[ind].pol.coeffs[2].coeffs)*symIbox[1] + Δ
+        # Shifts to absorb remainders
+        vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
+        for k in eachindex(vTMN[ind].pol.coeffs[2].coeffs)
+            vTMN[ind].pol.coeffs[2].coeffs[k] += radN
+        end
+        # New remainder of constant and linear parts (without Δ, a priori absorbed)
+        bI = vTMN[ind].pol.coeffs[1].coeffs[1] +
+            sum(vTMN[ind].pol.coeffs[2].coeffs) * symIbox[1]
+        # Compute the new remainder
+        r_lo = copysign(inf(aI)-inf(bI), -1)
+        r_hi = copysign(sup(aI)-sup(bI), 1)
+        # Store new remainder in TMN init condition
+        vTMN[ind].rem = interval(r_lo, r_hi)
     end
-    # new remainder constant and linear parts (without Δ, a priori absorbed)
-    bI = vTMN[ind].pol.coeffs[1].coeffs[1] +
-        sum(vTMN[ind].pol.coeffs[2].coeffs)*cdom[1]
-    # Compute the new remainder
-    r_lo = copysign(inf(aI)-inf(bI), -1)
-    r_hi = copysign(sup(aI)-sup(bI), 1)
-    Δ = interval(r_lo, r_hi)
-    setproperty!(vTMN[ind], :rem, Δ)
     return nothing
 end
 
 
 function validated_integ3(f!,
         X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
-        orderQ::Int, orderT::Int, abstol::T, params=nothing;
-        maxsteps::Int=2000, parse_eqs::Bool=true,
-        adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
-        check_property::F=(t, x)->true) where {T<:Real, U, F}
+        orderQ::Int, orderT::Int, abstol::T, params = nothing;
+        maxsteps::Int = 2000, parse_eqs::Bool = true,
+        adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
+        absorb::Bool = false, check_property::F = Returns(true)
+        ) where {T<:Real, U<:IANumTypes, F}
 
     # Initialize cache
-    vX0 = Vector(X0)
-    cacheVI = init_cache_VI3(t0, vX0, maxsteps, orderT, orderQ, f!, params;
-        parse_eqs) :: VectorCacheVI3
+    return validated_integ3(f!, SVector(X0...), t0, tmax,
+        orderQ, orderT, abstol, params;
+        maxsteps = maxsteps, parse_eqs = parse_eqs,
+        adaptive = adaptive, minabstol = minabstol,
+        absorb = absorb, check_property = check_property)
 
-    return _validated_integ3!(f!, vX0, t0, tmax, abstol, cacheVI, params,
-        maxsteps, adaptive, minabstol, absorb, check_property)
 end
 
 function validated_integ3(f!,
-        X0::Vector{TaylorModel1{TaylorModelN{N,T,U}, U}}, t0::T, tmax::T,
-        orderQ::Int, orderT::Int, abstol::T, params=nothing;
-        maxsteps::Int=2000, parse_eqs::Bool=true,
-        adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
-        check_property::F=(t, x)->true) where {N, T<:Real, U, F}
+        X0::SVector{N,Interval{U}}, t0::T, tmax::T,
+        orderQ::Int, orderT::Int, abstol::T, params = nothing;
+        maxsteps::Int = 2000, parse_eqs::Bool = true,
+        adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
+        absorb::Bool = false, check_property::F = Returns(true)
+        ) where {N, T<:Real, U<:IANumTypes, F}
 
     # Initialize cache
-    cacheVI = init_cache_VI3(t0, X0, maxsteps, orderT, orderQ, f!, params;
+    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params;
+        parse_eqs)
+
+    return _validated_integ3!(f!, X0, t0, tmax, abstol, cacheVI, params,
+        maxsteps, adaptive, minabstol,
+        # absorb, check_property
+        )
+end
+
+function validated_integ3(f!,
+        X0::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}}, t0::T, tmax::T,
+        orderQ::Int, orderT::Int, abstol::T, params=nothing;
+        maxsteps::Int=2000, parse_eqs::Bool=true,
+        adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL),
+        absorb::Bool=false, check_property::F=(t, x)->true
+        ) where {N, T<:Real, U, F}
+
+    # Initialize cache
+    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params;
         parse_eqs) :: VectorCacheVI3
-    q0 = evaluate(constant_term.(polynomial.(X0)), Vector(symmetric_box(length(X0),U)))
+    q0 = SVector(evaluate(evaluate.(X0, X0[1].x0), X0[1].pol[0].dom)...)
 
     return _validated_integ3!(f!, q0, t0, tmax, abstol, cacheVI, params,
-        maxsteps, adaptive, minabstol, absorb, check_property)
+        maxsteps, adaptive, minabstol, #absorb, check_property
+        )
 end
 
 
-function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
+function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
+        t0::T, tmax::T, abstol::T,
         cacheVI::VectorCacheVI3, params,
         maxsteps::Int, adaptive::Bool, minabstol::T,
-        absorb::Bool, check_property::F) where {T<:Real,F}
+        #absorb::Bool, check_property::F
+        ) where {N,T,U}
 
     # Unpack caches
     @unpack tv, xv, xaux, t, x, dx, rv,
             t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
-            xTM1v, x0New, rem1, rem2, parse_eqs = cacheVI
+            xTM1v, x0New, rem1, rem2, rem0, parse_eqs = cacheVI
 
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
     dof = length(q0)
     orderT = get_order(t)
-    orderQ = get_order(x[1][0])
+    # orderQ = get_order(x[1][0])
     symIbox = symmetric_box(dof, T)
     zbox = zero(q0)
     @inbounds xv[1] = q0
@@ -120,6 +144,7 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
     zz = zero(x[1][0][0][1])
 
     # Integration
+    local normb = false
     nsteps = 1
     local _success # if true, the validation step succeeded
     red_abstol = abstol
@@ -132,13 +157,15 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
             red_abstol, params)
 
         # Validated step of the integration
-        (_success, δt, reduced_abstol) = _validation3(
+        (_success, δt, red_abstol) = _validation3(
             f!, t, x,
-            t1N, x1N, dx1N, x2N, z1N,
+            t1N, x1N, dx1N, x2N, z1N, vTMN,
             δt, sign_tstep,
-            rem1, rem2, zbox, symIbox,
-            orderT, abstol, params,
-            adaptive, minabstol, absorb, check_property)
+            rem1, rem2, rem0, zbox,
+            # symIbox, orderT,
+            abstol, params,
+            adaptive, minabstol, # absorb, check_property
+            )
 
         # Output
         nsteps += 1
@@ -148,13 +175,18 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
         for ind in eachindex(x)
             xTM1v[ind, nsteps] = deepcopy(x1N[ind])
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
-            _abs_rems!(vTMN, x0New, x1N, auxN, δt, symIbox, ind)
-            # Update initial state
-            if dof == 1
-                # No issue with the wrapping effect in 1-d
-                normalize_taylorNs!(vTN, x0New)
-                TI.init_expansions!(x, dx, vTN, orderT)
-            else
+        end
+
+        # Absorb reminders in constant and linear terms (of new init cond)
+        _abs_rems!(vTMN, x0New, x1N, auxN, δt, symIbox)
+
+        # Update initial state
+        if normb && dof == 1
+            # No issue with the wrapping effect in 1-d
+            normalize_taylorNs!(vTN, x0New)
+            TI.init_expansions!(x, dx, vTN, orderT)
+        else
+            for ind in eachindex(x)
                 # x[ind] = Taylor1(polynomial(vTMN[ind]), orderT)
                 x1N[ind].rem = vTMN[ind].rem
                 for ordT in eachindex(x1N[ind].pol.coeffs)
@@ -175,6 +207,7 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
                 end
             end
         end
+
         # Update time
         t0 += δt
         t[0] = t0
@@ -200,10 +233,9 @@ function _validated_integ3!(f!, q0, t0::T, tmax::T, abstol::T,
             """)
             break
         end
-
     end
 
-    return TMSol3(tv[1:nsteps], xv[1:nsteps], xTM1v[:,1:nsteps])
+    return TMSol3(tv[1:nsteps], xv[1:nsteps], xTM1v[:, 1:nsteps])
 end
 
 
@@ -235,14 +267,18 @@ function _validation3(f!, t::Taylor1{T},
         dx1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         x2N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         z1N::TaylorModel1{TaylorModelN{N,T,T},T},
-        δt, sign_tstep::Int,
+        vTMN::Vector{TaylorModelN{N,T,T}},
+        δt::T, sign_tstep::Int,
         rem1::Vector{Interval{T}},
         rem2::Vector{Interval{T}},
+        rem0::Vector{Interval{T}},
         zbox::AbstractVector{Interval{T}},
-        symIbox::AbstractVector{Interval{T}},
-        orderT::Int, abstol::T, params,
-        adaptive::Bool, minabstol::T, absorb::Bool,
-        check_property::Function=(t, x)->true) where {N,T}
+        # symIbox::AbstractVector{Interval{T}}, orderT::Int,
+        abstol::T, params,
+        adaptive::Bool, minabstol::T,
+        # absorb::Bool,
+        # check_property::Function=(t, x)->true
+        ) where {N,T}
 
     #
     local _success = false
@@ -250,49 +286,51 @@ function _validation3(f!, t::Taylor1{T},
     local δtI
     reduced_abstol = abstol
     local issatisfied = false
-    rem_old = copy(remainder.(x1N[:]))
+    rem0 .= remainder.(vTMN) # Reminder in initial condition
+    z = zbox[1]
 
     while bool_red
-        # Verify Picard contraction
+        # Reuse memory
         δtI = sign_tstep * interval(0, sign_tstep*δt)
-        z = zbox[1]
         t1N.dom = δtI
         z1N.dom = δtI
-        # Reuse memory
         for i in eachindex(x1N)
             for ordT in eachindex(x1N[i].pol.coeffs)
                 for ordQ in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs)
                     for h in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
                         x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
                             x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
+                        dx1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
+                            z1N.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
+                        x2N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
+                            z1N.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
                     end
                 end
             end
-            x1N[i].rem = rem_old[i]
+            x1N[i].rem = z
             x1N[i].x0 = 0.0
             x1N[i].dom = δtI
-            dx1N[i].pol = z1N.pol
             dx1N[i].rem = z1N.rem
             dx1N[i].x0 = x1N[i].x0
             dx1N[i].dom = δtI
-            x2N[i].pol = z1N.pol
             x2N[i].rem = z1N.rem
             x2N[i].x0 = x1N[i].x0
             x2N[i].dom = δtI
             rem1[i] = z
             rem2[i] = z
+            # Include remainder of initial condition
+            x1N[i].pol.coeffs[1].rem = rem0[i]
         end
-        for _ in 1:50
-            rem1 .= remainder.(x1N)
+        # Verify Picard contraction
+        for ii in 1:50
+            rem1 .= remainder.(x1N) .+ rem0
             picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
             rem2 .= total_remainder.(x2N)
             if iscontractive(rem2, rem1)
+                # Use `rem2` as new remainder (contraction has been proven already)
                 for i in eachindex(x1N)
                     x1N[i].rem = rem2[i]
                 end
-                # rem1 .= remainder.(x1N)
-                # picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
-                # rem2 .= total_remainder.(x2N)
                 break
             end
             # x1N .= TaylorModel1.(x1N, 1.1 .* rem2)
@@ -300,9 +338,8 @@ function _validation3(f!, t::Taylor1{T},
                 x1N[i].rem = 1.1 * rem2[i]
             end
         end
-        _success = iscontractive(rem2, rem1)
-        # @assert iscontractive(remainder.(x2N), remainder.(x1N))
-        rem1 .= remainder.(x1N)
+        _success = iscontractive(rem2, rem1) && all(isbounded.(rem1))
+        rem1 .= total_remainder.(x1N)
 
         # Shrink stepsize δt if adaptive is true and _success is false
         if !_success
@@ -312,14 +349,13 @@ function _validation3(f!, t::Taylor1{T},
                     reduced_abstol = reduced_abstol/10
                     δt = δt / 2 #* 0.1^(1/orderT)
                     continue
-                else
-                    @warn("Minimum absolute tolerance reached: ",
-                        t[0], δt, reduced_abstol, rem1)
                 end
-            else
-                @warn("It cannot prove existence and unicity of the solution: ",
-                    t[0], δt, rem1, _success)
+                @warn("Minimum absolute tolerance reached: ",
+                    t[0], δt, reduced_abstol, rem1)
             end
+            @warn("It cannot prove existence and unicity of the solution: ",
+                t[0], δt, rem1, _success)
+            break
         end
 
         # xTMN .= evaluate.(x1N, δtI)
