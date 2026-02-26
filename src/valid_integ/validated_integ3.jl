@@ -322,7 +322,7 @@ function _validation3(f!, t::Taylor1{T},
             x1N[i].pol.coeffs[1].rem = rem0[i]
         end
         # Verify Picard contraction
-        for ii in 1:50
+        for _ in 1:50
             rem1 .= remainder.(x1N) .+ rem0
             picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
             rem2 .= total_remainder.(x2N)
@@ -335,6 +335,7 @@ function _validation3(f!, t::Taylor1{T},
             end
             # x1N .= TaylorModel1.(x1N, 1.1 .* rem2)
             for i in eachindex(x1N)
+                iscontractive(rem2[i], rem1[i]) && continue
                 x1N[i].rem = 1.1 * rem2[i]
             end
         end
