@@ -481,7 +481,7 @@ end
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
             "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true), " *
-            "Interval{Float64}(0.45304697140984085, 0.45304697140984096, com, true)], 3), " *
+            "Interval{Float64}(0.45304697140984085, 0.45304697140984096, com, true)]), " *
             "Interval{Float64}(0.10281598943126369, 0.1256036426541982, trv, true), " *
             "Interval{Float64}(1.0, 1.0, com, true), Interval{Float64}(0.5, 1.5, com, true))"
         use_show_default(false)

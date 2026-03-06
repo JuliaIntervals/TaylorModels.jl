@@ -31,20 +31,30 @@ function TS.pow!(c::Taylor1{TaylorModelN{N,T,S}},
 end
 
 function TS.sqr!(c::Taylor1{TaylorModelN{N,T,S}},
-        a::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
+        a::Taylor1{TaylorModelN{N,T,S}}, tmp::TaylorModelN{N,T,S},
+        k::Int) where {N,T,S}
     if k == 0
         c[0] = a[0]^2
         return nothing
     end
     kodd = k%2
     kend = (k - 2 + kodd) >> 1
-    tmp = zero(c[k])
+    TS.zero!(tmp.pol)
     for i = 0:kend
         tmp += a[i] * a[k-i]
     end
     c[k] = 2 * tmp
     kodd == 1 && return nothing
     c[k] += a[k>>1]^2
+    return nothing
+end
+
+function TS.sqr_orderzero!(c::Taylor1{TaylorModelN{N,T,S}},
+        a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S}
+    aux = zero(a[0])
+    @inbounds for ord in eachindex(c[0])
+        sqr!(c[0], a[0], aux, ord)
+    end
     return nothing
 end
 
@@ -132,7 +142,7 @@ function TS.tan!(c::Taylor1{TaylorModelN{N,T,S}},
     end
     c[k] = a[k] + tmp/k
     # c2 = c^2
-    TS.sqr!(c2, c, k)
+    TS.sqr!(c2, c, tmp, k)
     return nothing
 end
 
@@ -181,9 +191,9 @@ function TS.atan!(c::Taylor1{TaylorModelN{N,T,S}},
     for i in 1:k-1
         tmp += (k-i) * r[i] * c[k-i]
     end
-    # r = a^2
-    TS.sqr!(r, a, k)
     c[k] = (a[k] - tmp/k) / constant_term(r)
+    # r = a^2
+    TS.sqr!(r, a, tmp, k)
     return nothing
 end
 
@@ -222,6 +232,6 @@ function TS.tanh!(c::Taylor1{TaylorModelN{N,T,S}},
     end
     c[k] = a[k] - tmp/k
     # c2 = c^2
-    TS.sqr!(c2, c, k)
+    TS.sqr!(c2, c, tmp, k)
     return nothing
 end

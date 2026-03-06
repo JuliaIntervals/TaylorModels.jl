@@ -10,10 +10,10 @@ for TM in tupleTMs
 
         if $TM == TaylorModel1
             zero(a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} =
-                $TM(Taylor1(zero(a.pol[0]), a.pol.order), zero(remainder(a)),
+                $TM(Taylor1(zero(a.pol[0]), get_order(a.pol)), zero(remainder(a)),
                     expansion_point(a), domain(a))
             one(a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} =
-                $TM(Taylor1(one(a.pol[0]), a.pol.order), zero(remainder(a)),
+                $TM(Taylor1(one(a.pol[0]), get_order(a.pol)), zero(remainder(a)),
                     expansion_point(a), domain(a))
         end
 
@@ -112,7 +112,7 @@ for TM in tupleTMs
             @assert p ≥ 0
             (p == 0) && return one(x)
             (p == 1) && return $TM(
-                Taylor1(x.pol.coeffs[:], x.pol.order), x.rem, x.x0, x.dom)
+                Taylor1(x.pol.coeffs[:], get_order(x.pol)), x.rem, x.x0, x.dom)
             (p == 2) && return TS.square(x)
             (p == 3) && return x*TS.square(x)
             t = trailing_zeros(p) + 1
@@ -360,8 +360,8 @@ end
 # Neglected polynomial for the product and square
 function _neglected_polynomial(a::TaylorModel1{T,S}, b::TaylorModel1{T,S},
         order::Int) where {T,S}
-    a_order = a.pol.order
-    b_order = b.pol.order
+    a_order = get_order(a.pol)
+    b_order = get_order(b.pol)
     rnegl_order = a_order + b_order
     # Remaining terms of the product as reduced Taylor1
     z = zero(a.pol[0])
@@ -392,8 +392,8 @@ end
 for TM in tupleTMs
     @eval function _neglected_polynomial_factored(a::$TM{T,S}, b::$TM{T,S},
             order::Int) where {T,S}
-        a_order = a.pol.order
-        b_order = b.pol.order
+        a_order = get_order(a.pol)
+        b_order = get_order(b.pol)
         rnegl_order = a_order + b_order
         # Remaining terms of the product as reduced Taylor1 (factored polynomial)
         z = zero(a.pol[0])
@@ -486,11 +486,11 @@ end
 
 
 # Same as above, for TaylorModelN
-zero(a::TaylorModelN) = TaylorModelN(TaylorN(zero(a.pol[0]), a.pol.order),
+zero(a::TaylorModelN) = TaylorModelN(TaylorN(zero(a.pol[0]), get_order(a.pol)),
     zero(remainder(a)), expansion_point(a), domain(a))
-one(a::TaylorModelN) = TaylorModelN(TaylorN(one(a.pol[0]), a.pol.order),
+one(a::TaylorModelN) = TaylorModelN(TaylorN(one(a.pol[0]), get_order(a.pol)),
     zero(remainder(a)), expansion_point(a), domain(a))
-zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), a.order)
+zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), get_order(a))
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
 
@@ -554,8 +554,8 @@ end
 function _neglected_polynomial(a::TaylorModelN{N,T,S}, b::TaylorModelN{N,T,S},
         order::Int) where {N,T,S}
     # Remaining terms of the product
-    a_order = a.pol.order
-    b_order = b.pol.order
+    a_order = get_order(a.pol)
+    b_order = get_order(b.pol)
     rnegl_order = a_order + b_order
     aux = centered_dom(a)
     R = TS.numtype(a.pol[0]*b.pol[0])
@@ -647,7 +647,7 @@ function Base.power_by_squaring(x::TaylorModelN, p::Integer)
     @assert p ≥ 0
     (p == 0) && return one(x)
     (p == 1) && return TaylorModelN(
-        Taylor1(x.pol.coeffs[:], x.pol.order), x.rem, x.x0[:], x.dom[:])
+        Taylor1(x.pol.coeffs[:], get_order(x.pol)), x.rem, x.x0[:], x.dom[:])
     (p == 2) && return TS.square(x)
     (p == 3) && return x*TS.square(x)
     t = trailing_zeros(p) + 1
@@ -733,8 +733,8 @@ function TS.div!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}
     # ordfact, cdivfact = divfactorization(a, b)
     anz = findfirst(a)
     bnz = findfirst(b)
-    anz = anz ≥ 0 ? anz : a.order
-    bnz = bnz ≥ 0 ? bnz : a.order
+    anz = anz ≥ 0 ? anz : get_order(a)
+    bnz = bnz ≥ 0 ? bnz : get_order(a)
     ordfact = min(anz, bnz)
     # Is the polynomial factorizable?
     iszero(b[ordfact]) && throw( ArgumentError(
@@ -746,14 +746,14 @@ function TS.div!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}
         # TS.div!(c[0], a[ordfact], b[ordfact])
         return nothing
     end
-    imin = max(0, k+ordfact-b.order)
+    imin = max(0, k+ordfact-get_order(b))
     tmp = c[imin] * b[k+ordfact-imin]
     # TS.mul!(c[k], c[imin], b[k+ordfact-imin])
     for i = imin+1:k-1
         tmp += c[i] * b[k+ordfact-i]
         # TS.mul!(c[k], c[i], b[k+ordfact-i])
     end
-    if k+ordfact ≤ b.order
+    if k+ordfact ≤ get_order(b)
         tmp = (a[k+ordfact]-tmp)
         # for l in eachindex(c[k])
         #     TS.subst!(c[k], a[k+ordfact], c[k], l)

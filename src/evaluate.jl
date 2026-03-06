@@ -118,7 +118,7 @@ function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N,T<:Real, S<:R
     return suma
 end
 function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, v::AbstractVector{R}) where {N,T,S,R}
-    suma = Taylor1(zero(a[0])(v), a.order)
+    suma = Taylor1(zero(a[0])(v), get_order(a))
     for k in eachindex(a)
         suma[k] = a[k](v)
     end

@@ -19,11 +19,11 @@ function check_containment(ftest, xx::TaylorModelN{N,T,S}, tma::TaylorModelN{N,T
     return bb
 end
 
-const _order = 2
-const _order_max = 2*(_order+1)
-set_variables(Interval{Float64}, [:x, :y], order=_order_max)
-
 @testset "Tests for TaylorModelN " begin
+    local _order = 2
+    local _order_max = 2*(_order+1)
+    set_variables(Interval{Float64}, [:x, :y], order=_order_max)
+
     b0 = [interval(0.0), interval(0.0)]
     ib0 = [interval(-0.5, 0.5), interval(-0.5, 0.5)]
     b1 =  [interval(0.0), interval(1.0)]
@@ -390,7 +390,7 @@ set_variables(Interval{Float64}, [:x, :y], order=_order_max)
             "HomogeneousPolynomial{Interval{Float64}}" *
             "(Interval{Float64}[Interval{Float64}(0.0, 0.0, com, true), " *
             "Interval{Float64}(0.0, 0.0, com, true), " *
-            "Interval{Float64}(0.0, 0.0, com, true)], 2)], 2), " *
+            "Interval{Float64}(0.0, 0.0, com, true)], 2)]), " *
             "Interval{Float64}(0.0, 0.0, com, true), " *
             "Interval{Float64}[Interval{Float64}(0.0, 0.0, com, true), " *
             "Interval{Float64}(1.0, 1.0, com, true)], " *

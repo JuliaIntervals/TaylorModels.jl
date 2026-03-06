@@ -51,7 +51,7 @@ setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
     n::Int) where {N,T,S} = a.pol[n] = x
 setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
         n::Int) where {N,T,S} = setindex!(a.coeffs,
-    TaylorModelN(TaylorN(x.pol.coeffs[:], x.pol.order), x.rem, x.x0[:], x.dom[:]),
+    TaylorModelN(TaylorN(x.pol.coeffs[:], get_order(x.pol)), x.rem, x.x0[:], x.dom[:]),
     n+1)
 
 
@@ -135,7 +135,7 @@ end
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
     order ≥ get_order(a) && return zero(aux[1])
-    res = TaylorN(a.coeffs[:], a.order)
+    res = TaylorN(a.coeffs[:], get_order(a))
     res[0:order] .= zero(res[0])
     return res(aux)
 end
