@@ -28,7 +28,7 @@ RecipesBase = "1"
 Reexport = "1"
 StaticArrays = "1.9"
 TaylorIntegration = "0.17, 0.18"
-TaylorSeries = "0.20"
+TaylorSeries = "0.20, 0.21"
 Test = "1"
 julia = "1.10"
 
