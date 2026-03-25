@@ -455,7 +455,7 @@ Ref: Xin Chen, Erika Abraham, and Sriram Sankaranarayanan,
 Systems", in Real Time Systems Symposium (RTSS), pp. 183-192 (2012),
 IEEE Press.
 """
-function absorb_remainder(a::TaylorModelN{T,T}) where {T}
+function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     Δ = remainder(a)
     orderQ = get_order(a)
     δ = symmetric_box(T)
