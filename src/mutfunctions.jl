@@ -51,10 +51,7 @@ end
 
 function TS.sqr_orderzero!(c::Taylor1{TaylorModelN{N,T,S}},
         a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S}
-    aux = zero(a[0])
-    @inbounds for ord in eachindex(c[0])
-        sqr!(c[0], a[0], aux, ord)
-    end
+    c[0] = a[0]^2
     return nothing
 end
 
