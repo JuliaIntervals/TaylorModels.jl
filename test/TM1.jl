@@ -515,7 +515,7 @@ end
             "(Taylor1{Interval{Float64}}(Interval{Float64}" *
             "[Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
-            "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true)], 2), " *
+            "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true)]), " *
             "Interval{Float64}(-0.05020487208677604, 0.06448109909211741, trv, true), " *
             "Interval{Float64}(1.0, 1.0, com, true), Interval{Float64}(0.5, 1.5, com, true))"
         use_show_default(false)

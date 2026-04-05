@@ -11,7 +11,7 @@ setdisplay(:full)
 # This is based on an example from Buenger, Numer Algor (2018) 78:1001–1017,
 # which shows the efectivity of shrink-wrapping
 @testset "Testing `shrink_wrapping` 1" begin
-    _order = 2
+    local _order = 2
     set_variables("x", numvars=1, order=2*_order)
     x0 = SVector{1}(interval(0))
     dom = symmetric_box(1, Float64)
