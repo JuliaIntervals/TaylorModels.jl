@@ -8,6 +8,9 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
         copy(f::$TM) = $TM(copy(f.pol), remainder(f), expansion_point(f), domain(f))
         @inline firstindex(a::$TM) = 0
         @inline lastindex(a::$TM) = get_order(a)
+        @inline Base.length(a::$TM) = get_order(a)+1
+        @inline Base.iterate(a::$TM, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
+        @inline Base.eachindex(a::$TM) = firstindex(a):lastindex(a)
 
         getindex(a::$TM, n::Integer) = getindex(polynomial(a), n)
         getindex(a::$TM, u::UnitRange) = getindex(polynomial(a), u)
@@ -42,7 +45,14 @@ for TM in tupleTMs
     end
 end
 iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
-iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = all(issubset_interval.(a, centered_dom(tm)))
+iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) =
+    all(issubset_interval.(a, centered_dom(tm)))
+setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
+    n::Int) where {N,T,S} = a.pol[n] = x
+setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
+        n::Int) where {N,T,S} = setindex!(a.coeffs,
+    TaylorModelN(TaylorN(x.pol.coeffs[:], get_order(x.pol)), x.rem, x.x0[:], x.dom[:]),
+    n+1)
 
 
 """
@@ -52,8 +62,9 @@ iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) = all(issubset_inte
 Create the interval box [-1, 1]^N as a SVector, with elements of type T. If N is omitted,
 it corresponds to `get_numvars()`.
 """
-symmetric_box(N::Int, T::Type{S} = Float64) where {S<:IA.NumTypes} =
-    fill(interval(-one(T), one(T)), SVector{N})
+symmetric_box(N::Int) = fill(interval(-1.0, 1.0), SVector{N})
+symmetric_box(N::Int, ::Type{S}) where {S<:IA.NumTypes} =
+    fill(interval(-one(S), one(S)), SVector{N})
 symmetric_box(::Type{T}) where {T<:IA.NumTypes} = symmetric_box(get_numvars(), T)
 
 
@@ -79,12 +90,13 @@ for TM in tupleTMs
 
         function bound_truncation(::Type{$TM}, a::Taylor1, aux::Interval,
                 order::Int)
-            order ≥ get_order(a) && return zero(aux)
+            order_a = get_order(a)
+            order ≥ order_a && return zero(aux)
             if $TM == TaylorModel1
                 res = Taylor1(copy(a.coeffs))
                 res[0:order] .= zero(res[0])
             else
-                res = Taylor1(copy(a.coeffs[order+2:end]), get_order(a)-order )
+                res = Taylor1(a.coeffs[order+2:end], order_a-order )
             end
             return res(aux)
         end
@@ -123,22 +135,66 @@ end
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
     order ≥ get_order(a) && return zero(aux[1])
-    res = deepcopy(a)
+    res = TaylorN(a.coeffs[:], get_order(a))
     res[0:order] .= zero(res[0])
     return res(aux)
 end
 
 
-# TMSol utilities
-@inline firstindex(a::TMSol) = firstindex(a.time)
-@inline lastindex(a::TMSol)  = lastindex(a.time)
-@inline Base.length(a::TMSol) = length(a.time)
-@inline Base.iterate(a::TMSol, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
-@inline Base.eachindex(a::TMSol) = firstindex(a):lastindex(a)
+"""
+    pol_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) :: TaylorModel1{Interval{S},S}
 
-getindex(a::TMSol, n::Integer) = getindex(get_xTM(a),:,n)
-getindex(a::TMSol, u::UnitRange) = getindex(get_xTM(a),:,u)
-getindex(a::TMSol, c::Colon) = getindex(get_xTM(a),:,c)
-getindex(a::TMSol, n::Integer, m::Integer) = getindex(get_xTM(a),m,n)
-getindex(a::TMSol, u::UnitRange, m::Integer) = getindex(get_xTM(a),m,u)
-getindex(a::TMSol, c::Colon, m::Integer) = getindex(get_xTM(a),m,c)
+TaylorModel1 formed by the TaylorModelN remainders.
+"""
+function pol_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
+    order = get_order(tm)
+    polI = Taylor1(zero(remainder(tm[0])), order)
+    for k in eachindex(tm)
+        polI[k] = remainder(tm[k])
+    end
+    return TaylorModel1(polI, remainder(tm), expansion_point(tm), domain(tm))
+end
+
+
+"""
+    total_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S})
+
+Computes de total reminder of a `TaylorModel1{TaylorModelN}` by
+computing the polynomial associated to the `TaylorModelN` reminders,
+evaluated in the centered domain, and adding the remainder of the
+`TaylorModel1`.
+"""
+total_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S} =
+    evaluate(pol_remainder(tm), centered_dom(tm))
+
+
+"""
+    shift_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S})
+
+Returns a `TaylorModel1{TaylorModelN}` with null remainder for
+the `TaylorModelN` part, and the total remainder in the `TaylorModel1`.
+"""
+function shift_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
+    rem = total_remainder(tm)
+    z = interval(0.0)
+    for k in eachindex(tm)
+        tm[k] = TaylorModelN(tm[k], z)
+    end
+    return TaylorModel1(tm, rem)
+end
+
+
+"""
+    pure_polynomial(tm)
+
+Return the pure polynomial part of a `tm::TaylorModel1{TaylorModelN{N,T,S},S}`
+as a `Taylor1{TaylorN{T}}`.
+"""
+function pure_polynomial(tm::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S}
+    order = get_order(tm)
+    vTN = Vector{TaylorN{T}}(undef, order+1)
+    for ind in eachindex(tm)
+        vTN[ind+1] = polynomial(tm[ind])
+    end
+    return Taylor1(vTN, order)
+end

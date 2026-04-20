@@ -1,6 +1,6 @@
 name = "TaylorModels"
 uuid = "314ce334-5f6e-57ae-acf6-00b6e903104a"
-version = "0.9.2"
+version = "0.10.0"
 repo = "https://github.com/JuliaIntervals/TaylorModels.jl.git"
 
 [deps]

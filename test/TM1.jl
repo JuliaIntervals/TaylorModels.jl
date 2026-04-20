@@ -56,6 +56,7 @@ end
 
     @testset "TaylorModel1 constructors" begin
         tv = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1 = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TaylorModel1(5, x0, ii0)
         @test tv == TaylorModel1(5, ii0)
@@ -63,9 +64,11 @@ end
         @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test TaylorModel1(5, 0.7, ii1) == TaylorModel1(5, interval(0.7), ii1)
 
-        @test TaylorModel1(tv, ii0) == TaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
-        @test TaylorModel1(5, x0, ii0) == TaylorModel1(tv, x0)
-        @test TaylorModel1(5, ii0) == TaylorModel1(tv, x0)
+        TaylorModel1!(tv1, ii0)
+        @test tv1 == TaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
+        TaylorModel1!(tv1, x0)
+        @test TaylorModel1(5, x0, ii0) == tv1
+        @test TaylorModel1(5, ii0) == tv
 
         @test isa(tv, AbstractSeries)
         @test TaylorModel1{Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
@@ -144,7 +147,7 @@ end
         @test a - b == aa - bb
         res1 = a * b
         res2 = aa * bb
-        @test res1 == TaylorModel1(Taylor1([1.0, 2]), interval(-2, 9), x0, y1)
+        @test res1 == TaylorModel1(Taylor1([1.0, 2]), interval(-1, 9), x0, y1)
         @test res2 == TaylorModel1(Taylor1([1.0, 2]), interval(-3, 9), x0, y1)
         res1 = a / b
         res2 = aa / bb
@@ -182,7 +185,7 @@ end
         fgTM1 = f(tm) / g(tm)
         @test isentire_interval(remainder(fgTM1))
 
-        fgTM1 = f(tm) * (g(tm))^2
+        fgTM1 = f(tm) * g(tm)^2
         hh = h(tm)
         @test_skip polynomial(fgTM1) ≈ polynomial(hh)
         @test isequal(remainder(fgTM1), remainder(hh))
@@ -522,7 +525,7 @@ end
         @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com, true) + " *
             "Interval{Float64}(3.0, 3.0, com, true) t + " *
             "Interval{Float64}(3.0, 3.0, com, true) t² + " *
-            "Interval{Float64}(-0.125, 0.125, trv, false)"
+            "Interval{Float64}(-0.125, 0.125, com, true)"
         @test string(exp(tm)) ==
             " Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) + " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) t + " *

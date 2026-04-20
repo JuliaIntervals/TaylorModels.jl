@@ -86,3 +86,23 @@ for TM in tupleTMs
     end
     # @eval promote(b::T, a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} = reverse( promote(a,b) )
 end
+
+
+function Base.convert(::Type{TaylorModel1{TaylorN{T}, S}}, tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
+    order = get_order(tm)
+    pol = Taylor1(zero(polynomial(tm[0])), order)
+    for k in eachindex(polynomial(tm))
+        pol[k] = polynomial(tm[k])
+    end
+    rem = total_remainder(tm)
+    return TaylorModel1(pol, rem, expansion_point(tm), domain(tm))
+end
+
+function Base.convert(::Type{TaylorModel1{TaylorModelN{N,T,S}, S}}, tm::TaylorModel1{TaylorN{T}, S}) where {N,T,S}
+    z = interval(zero(S))
+    symIbox = symmetric_box(S)
+    zSB = interval.(mid.(symIbox))
+    order = get_order(tm)
+    pol = Taylor1(TaylorModelN.(tm[:], z, Ref(zSB), Ref(symIbox)), order)
+    return TaylorModel1(pol, remainder(tm), expansion_point(tm), domain(tm))
+end

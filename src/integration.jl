@@ -12,8 +12,15 @@ for TM in tupleTMs
             Δ = bound_integration(a, centered_dom(a), cc0)
             return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
         end
+        function integrate(a::$(TM){TaylorModelN{N,T,S},S}, cc0) where {N,T,S}
+            integ_pol = integrate(polynomial(a))
+            Δ = bound_integration(a, centered_dom(a), cc0)
+            return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
+        end
         integrate(a::$(TM){T,S}, c0) where {T,S} = c0 + integrate(a)
         integrate(a::$(TM){TaylorN{T},S}, c0, δI) where {T,S} = c0 + integrate(a, δI)
+        integrate(a::$(TM){TaylorModelN{N,T,S},S}, c0::TaylorModelN{N,T,S}, δI) where {N,T,S} =
+            c0 + integrate(a, δI)
 
 
         @inline function bound_integration(a::$(TM){T,S}, δ::Interval{S}) where {T<:TS.NumberNotSeries,S}
@@ -38,6 +45,17 @@ for TM in tupleTMs
             end
             return Δ
         end
+        @inline function bound_integration(a::$(TM){TaylorModelN{N,T,S}, S}, δ::Interval{S}, δI) where {N,T,S}
+            order = get_order(a)
+            if $TM == TaylorModel1
+                aux = δ^interval(order) / interval(order+1)
+                Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
+            else
+                Δ = δ * remainder(a)
+                Δ = Δ/interval(order+2) + getcoeff(polynomial(a), order)(δI)/interval(order+1)
+            end
+            return Δ
+        end
     end
 end
 
@@ -46,13 +64,40 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}) where {N,T,S}
     integ_pol = integrate(a.pol, c0)
     δ = centered_dom(a)
-
     # Remainder bound after integrating
     Δ = bound_integration(a, δ)
     ΔN = Δ(centered_dom(a[0]))
-
     return TaylorModel1( integ_pol, ΔN, expansion_point(a), domain(a) )
 end
+function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
+        a::TaylorModel1{TaylorModelN{N,T,S},S}, δI) where {N,T,S}
+    integ_pol = integrate(a.pol)
+    res.rem = bound_integration(a, centered_dom(a), δI)
+    for ordT in eachindex(res.pol.coeffs)
+        for ordQ in eachindex(res.pol.coeffs[ordT].pol.coeffs)
+            for h in eachindex(res.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+                res.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
+                    integ_pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
+            end
+        end
+        res.pol.coeffs[ordT].rem = integ_pol.coeffs[ordT].rem
+    end
+    return nothing
+end
+function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
+        a::TaylorModel1{TaylorModelN{N,T,S},S},
+        c0::TaylorModelN{N,T,S}, δI) where {N,T,S}
+    integrate!(res, a, δI)
+    # Update integration constant constant term
+    for ordQ in eachindex(res.pol.coeffs[1].pol.coeffs)
+        for h in eachindex(res.pol.coeffs[1].pol.coeffs[ordQ].coeffs)
+            res.pol.coeffs[1].pol.coeffs[ordQ].coeffs[h] =
+                c0.pol.coeffs[ordQ].coeffs[h]
+        end
+    end
+    return nothing
+end
+
 
 function integrate(fT::TaylorModelN, which=1)
     p̂ = integrate(fT.pol, which)
@@ -119,22 +164,3 @@ to bound the integration. The remainder corresponds to
 ``Δ = δ * remainder(a)/(order+2) + getcoeff(polynomial(a), order)/(order+1)``.
 
 """ bound_integration
-
-
-function picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-    x_picard = similar(xTM1TMN)
-    picard_lindelof!(f!, dxTM1TMN, xTM1TMN, t, x_picard, params)
-    return x_picard
-end
-
-function picard_lindelof!(f!,
-        x_picard::Vector{TaylorModel1{T,S}},
-        dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN ::Vector{TaylorModel1{T,S}}, t, params) where {T,S}
-    f!(dxTM1TMN, xTM1TMN, params, t)
-    @inbounds for ind in eachindex(xTM1TMN)
-        x_picard[ind] = integrate(dxTM1TMN[ind], xTM1TMN[ind][0])
-    end
-    return x_picard
-end

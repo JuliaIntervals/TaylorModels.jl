@@ -7,6 +7,9 @@ using Aqua
     # https://github.com/JuliaLang/julia/issues/29393
     # Aqua.test_unbound_args(TaylorModels)
     ua = Aqua.detect_unbound_args_recursively(TaylorModels)
+    for unbound_args in ua
+        @show unbound_args
+    end
     @test length(ua) == 0
 
     # See: https://github.com/SciML/OrdinaryDiffEq.jl/issues/1750

@@ -165,7 +165,7 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
     return RTaylorModel1(tmres.pol, Δ, x0, I)
 end
 
-function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{S,T},T}) where {T<:Real, S<:Real}
+function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<:Real, S<:NumberNotSeries}
     _order = get_order(tmf)
 
     # # Avoid overestimations:
@@ -185,8 +185,8 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{S,T},T}) where {T<:Real
     I = domain(tmf)
 
     # Range of tmf including remainder (Δf)
-    # range_tmf = bound_taylor1(f_pol, I-x0) + Δf
-    range_tmf = f_pol(I-x0) + Δf  # TaylorModelN
+    # range_tmf = bound_taylor1(f_pol, centered_dom(tmf)) + Δf
+    range_tmf = tmf(centered_dom(tmf))# + Δf  # TaylorModelN
     interval_range_tmf = range_tmf(centered_dom(range_tmf))
 
     # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
@@ -250,25 +250,20 @@ if it is not an exactly representable value.
 
 for TM in tupleTMs
     @eval begin
-        fp_rpa(tm::$TM{T, T}) where {T<:TS.NumberNotSeries} = tm
+        fp_rpa(tm::$TM{T, T}) where {T<:NumberNotSeries} = tm
 
         function fp_rpa(tm::$TM{Interval{T},T}) where {T}
             fT = polynomial(tm)
-            Δ = remainder(tm)
-            x0 = expansion_point(tm)
-            I = domain(tm)
             order = get_order(tm)
-            # ξ0 = mid(x0, α_mid)
 
             b = Taylor1(Interval{T}, order)
             t = Taylor1(T, order)
-            @inbounds for ind=order:-1:0
+            @inbounds for ind in eachindex(fT)
                 t[ind] = mid(fT[ind]) # mid(fT[ind], α_mid)
                 b[ind] = fT[ind] - interval(t[ind])
             end
-            δ = b(I-x0)
-            Δ = Δ + δ
-            return $TM(t, Δ, x0, I)
+            Δ = remainder(tm) + b(centered_dom(tm))
+            return $TM(t, Δ, tm.x0, tm.dom)
         end
     end
 end
@@ -277,14 +272,14 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
         {S<:Real, T<:TS.NumberNotSeries}
     fT = polynomial(tm)
     Δ = remainder(tm)
-    x0 = expansion_point(tm)
-    I = domain(tm)
+    # x0 = expansion_point(tm)
+    # I = domain(tm)
     order = get_order(fT[0])
     N = get_numvars(fT[0])
     D = symmetric_box(N)
 
     b = zero(fT)
-    t = Taylor1(TaylorN([HomogeneousPolynomial(zeros(T,N))], order), get_order(fT))
+    t = Taylor1(TaylorN([zeros(HomogeneousPolynomial{T},order)], order), get_order(fT))
     for ind in eachindex(fT)
         for homPol in eachindex(fT[ind])
             for jind in eachindex(fT[ind][homPol])
@@ -293,8 +288,8 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
             end
         end
     end
-    rem = Δ + b(I-x0)(D)
-    return TaylorModel1(t, rem, x0, I)
+    rem = Δ + b(centered_dom(tm))(D)
+    return TaylorModel1(t, rem, tm.x0, tm.dom)
 end
 
 
@@ -330,3 +325,6 @@ for fn in fnlist
     end
     @eval $fn(tm::TaylorModelN) = rpa($fn, tm)
 end
+Base.sincos(tm::TaylorModel1) = (rpa(sin, tm), rpa(cos, tm))
+Base.sincos(tm::RTaylorModel1) = (rpa(sin, tm), rpa(cos, tm))
+Base.sincos(tm::TaylorModelN) = (rpa(sin, tm), rpa(cos, tm))

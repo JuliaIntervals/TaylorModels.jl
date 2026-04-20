@@ -43,9 +43,12 @@ end
         @test TaylorModelN( b1[1], 2, b0, ib0) ==
                 TaylorModelN(TaylorN(b1[1], _order), zi, b0, ib0)
 
-        @test TaylorModelN(xm, interval(-1,1)) == TaylorModelN(xT, interval(-1,1), b0, ib0)
-        @test TaylorModelN(1, _order, b0, ib0) == TaylorModelN(xm, zi)
-        @test TaylorModelN(2, _order, b0, ib0) == TaylorModelN(ym, zi)
+        xm1 = TaylorModelN{_order,Interval{Float64}, Float64}(xT, zi, b0, ib0)
+        TaylorModelN!(xm1, interval(-1,1))
+        @test xm1 == TaylorModelN(xT, interval(-1,1), b0, ib0)
+        TaylorModelN!(xm1, zi)
+        @test TaylorModelN(1, _order, b0, ib0) == xm1
+        @test TaylorModelN(2, _order, b0, ib0) == ym
 
         @test isa(xm, AbstractSeries)
         @test TaylorModelN{2,Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
@@ -120,7 +123,10 @@ end
         @test rpa(x->5+one(x), ym) == 5+one(ym)
         @test rpa(x->5*x, ym) == 5*ym
         remT = remainder(5*TaylorModel1(2, b1[1], ib1[1])^4)
-        @test rpa(x->5*x^4, xm) == TaylorModelN(zero(xT), remT, b1, ib1)
+        @test issubset_interval(
+            remainder(TaylorModelN(zero(xT), remT, b1, ib1)),
+            remainder(rpa(x->5*x^4, xm)))
+        @test 5*xm^4 == TaylorModelN(zero(xT), remT, b1, ib1)
         remT = 5 * (ib1[1]-b1[1])^2 * (2*(ib1[2]-b1[2])+(ib1[2]-b1[2])^2)
         @test rpa(x->5*x^2, xm*ym) == TaylorModelN( 5*xT^2, remT, b1, ib1)
 
@@ -259,6 +265,23 @@ end
         b0 = [interval(0.5, 0.5), interval(0.5, 0.5)]
         xm = TaylorModelN(1, _order, b0, ib0)
         ym = TaylorModelN(2, _order, b0, ib0)
+        xm.rem = interval(-0.25,0.25)
+
+        f = (x, y) -> x
+        ∫fdx = (x, y) -> x^2/2
+        ∫fdy = (x, y) -> x * y
+        fT = f(xm, ym)
+        ∫fTdx = integrate(fT, :x)
+        ∫fTdy = integrate(fT, :y)
+
+        for ind in 1:_num_tests
+            xtest = sample.(ib0)
+            cx = [mid(ib0[1]), xtest[2]]
+            cy = [xtest[1], mid(ib0[2])]
+            aux = xtest .- b0
+            @test in_interval(∫fdx(xtest...) - ∫fdx(cx...), ∫fTdx(aux))
+            @test in_interval(∫fdy(xtest...) - ∫fdy(cy...), ∫fTdy(aux))
+        end
 
         f = (x, y) -> cos(x)
         ∫fdx = (x, y) -> sin(x)

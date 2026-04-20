@@ -27,13 +27,16 @@ import TaylorSeries: integrate, get_order, evaluate, pretty_print,
 
 import LinearAlgebra: norm
 
-export TaylorModel1, RTaylorModel1, TaylorModelN, TMSol
+export TaylorModel1, RTaylorModel1, TaylorModelN, TM,
+    TaylorModel1!, RTaylorModel1!, TaylorModelN!
 
-export remainder, polynomial, domain, expansion_point, flowpipe, get_xTM,
-    rpa, fp_rpa, bound_remainder, centered_dom, symmetric_box
+export remainder, polynomial, domain, expansion_point,
+    rpa, fp_rpa, bound_remainder, centered_dom, symmetric_box,
+    total_remainder, shift_remainder
 
 export linear_dominated_bounder, quadratic_fast_bounder
 
+const TM = TaylorModels
 
 setdisplay(:full)
 
@@ -44,6 +47,7 @@ include("bounds.jl")
 include("evaluate.jl")
 include("arithmetic.jl")
 include("rpa_functions.jl")
+include("mutfunctions.jl")
 include("integration.jl")
 include("show.jl")
 include("valid_integ/ValidatedInteg.jl")
