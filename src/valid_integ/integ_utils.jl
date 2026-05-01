@@ -181,3 +181,33 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
 
     return TaylorModelN(bpol, rem, expansion_point(a), domain(a))
 end
+
+
+function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}, x1N, auxN, δt, symIbox) where {N,T,S}
+    for ind in eachindex(vTMN)
+        # Evaluate x1N at δt (new TMN initial condition with remainder)
+        TaylorModels.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
+        Δ = remainder(vTMN[ind])
+        radN = radius(Δ)/N
+        # Old remainder of constant and linear parts and remainder
+        aI = vTMN[ind].pol.coeffs[1].coeffs[1] +
+            sum(vTMN[ind].pol.coeffs[2].coeffs) * symIbox[1] + Δ
+        # New remainder of constant and linear parts (without Δ, a priori absorbed)
+        bI = vTMN[ind].pol.coeffs[1].coeffs[1] + mid(Δ) +
+            sum(vTMN[ind].pol.coeffs[2].coeffs .+ radN) * symIbox[1]
+        # Compute the new remainder
+        r_lo = copysign(inf(aI)-inf(bI), -1)
+        r_hi = copysign(sup(aI)-sup(bI), 1)
+        # Compare old and proposed new remainders; do nothing if new remainder is wider
+        if r_hi-r_lo < diam(Δ)
+            # Shifts to absorb remainders
+            vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
+            for k in eachindex(vTMN[ind].pol.coeffs[2].coeffs)
+                vTMN[ind].pol.coeffs[2].coeffs[k] += radN
+            end
+            # Store new remainder in TMN init condition
+            vTMN[ind].rem = interval(r_lo, r_hi)
+        end
+    end
+    return nothing
+end

@@ -37,35 +37,6 @@ function picard_lindelof!(f!,
 end
 
 
-function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}, x0New, x1N, auxN,
-        δt, symIbox) where {N,T,S}
-    for ind in eachindex(vTMN)
-        # Evaluate at δt (new TMN initial condition with remainder)
-        TaylorModels.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
-        x0New[ind] = evaluate(vTMN[ind], symIbox)
-        Δ = remainder(vTMN[ind])
-        radN = radius(Δ)/N
-        # Old remainder of constant and linear parts and remainder
-        aI = vTMN[ind].pol.coeffs[1].coeffs[1] +
-            sum(vTMN[ind].pol.coeffs[2].coeffs)*symIbox[1] + Δ
-        # Shifts to absorb remainders
-        vTMN[ind].pol.coeffs[1].coeffs[1] += mid(Δ)
-        for k in eachindex(vTMN[ind].pol.coeffs[2].coeffs)
-            vTMN[ind].pol.coeffs[2].coeffs[k] += radN
-        end
-        # New remainder of constant and linear parts (without Δ, a priori absorbed)
-        bI = vTMN[ind].pol.coeffs[1].coeffs[1] +
-            sum(vTMN[ind].pol.coeffs[2].coeffs) * symIbox[1]
-        # Compute the new remainder
-        r_lo = copysign(inf(aI)-inf(bI), -1)
-        r_hi = copysign(sup(aI)-sup(bI), 1)
-        # Store new remainder in TMN init condition
-        vTMN[ind].rem = interval(r_lo, r_hi)
-    end
-    return nothing
-end
-
-
 function validated_integ3(f!,
         X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
         orderQ::Int, orderT::Int, abstol::T, params = nothing;
@@ -73,14 +44,12 @@ function validated_integ3(f!,
         adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
         absorb::Bool = false, check_property::F = Returns(true)
         ) where {T<:Real, U<:IANumTypes, F}
-
     # Initialize cache
     return validated_integ3(f!, SVector(X0...), t0, tmax,
         orderQ, orderT, abstol, params;
         maxsteps = maxsteps, parse_eqs = parse_eqs,
         adaptive = adaptive, minabstol = minabstol,
         absorb = absorb, check_property = check_property)
-
 end
 
 function validated_integ3(f!,
@@ -90,11 +59,8 @@ function validated_integ3(f!,
         adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
         absorb::Bool = false, check_property::F = Returns(true)
         ) where {N, T<:Real, U<:IANumTypes, F}
-
     # Initialize cache
-    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params;
-        parse_eqs)
-
+    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params; parse_eqs)
     return _validated_integ3!(f!, X0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol,
         # absorb, check_property
@@ -108,12 +74,9 @@ function validated_integ3(f!,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL),
         absorb::Bool=false, check_property::F=(t, x)->true
         ) where {N, T<:Real, U, F}
-
     # Initialize cache
-    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params;
-        parse_eqs) :: VectorCacheVI3
+    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params; parse_eqs)
     q0 = SVector(evaluate(evaluate.(X0, X0[1].x0), X0[1].pol[0].dom)...)
-
     return _validated_integ3!(f!, q0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol, #absorb, check_property
         )
@@ -178,7 +141,7 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         end
 
         # Absorb reminders in constant and linear terms (of new init cond)
-        _abs_rems!(vTMN, x0New, x1N, auxN, δt, symIbox)
+        _abs_rems!(vTMN, x1N, auxN, δt, symIbox)
 
         # Update initial state
         if normb && dof == 1
