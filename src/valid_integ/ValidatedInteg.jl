@@ -5,8 +5,9 @@ module ValidatedInteg
 using TaylorModels
 using Reexport
 @reexport using TaylorIntegration
-using LinearAlgebra: cond, mul!
+using LinearAlgebra: I, cond, mul!, qr
 using Parameters
+import Parameters: @unpack
 using StaticArrays
 
 export TMSol, TMSol3, flowpipe, get_xTM
