@@ -69,14 +69,12 @@ end
 function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
     _order = get_order(tmf)
     @assert _order == get_order(tmg)
-
     tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order,
         expansion_point(tmf), domain(tmf))
     @inbounds for k = _order:-1:0
         tmres = tmres * tmf
         tmres = tmres + tmg.pol[k]
     end
-
     # Returned result does not include remainder of tmg
     return tmres
 end
@@ -95,12 +93,10 @@ end
 
 (tm::TaylorModelN{N,T,S})(a::AbstractVector{Interval{S}}) where {N,T,S} = evaluate(tm, a)
 
-function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R}
+function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R<:Real}
     @assert iscontained(a, tm)
-    _order = get_order(tm)
-
+    # _order = get_order(tm)
     Δ = remainder(tm)
-
     return tm.pol(a) + Δ
 end
 
@@ -135,6 +131,15 @@ function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T) where {N,T,S}
     aux = zero(tm[0].pol)
     return __evaluate!(tm, dx, aux)
 end
+
+function _evaluate(tm::TaylorModelN{N,T,S},
+        dx::AbstractVector{TaylorModelN{N,T,S}}) where {N,T,S}
+    @assert N == length(dx)
+    res = evaluate(polynomial(tm), dx)
+    res.rem += tm.rem
+    return res
+end
+
 function __evaluate!(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T,
         aux::TaylorN{T}) where {N,T,S}
     z = zero(dx)
