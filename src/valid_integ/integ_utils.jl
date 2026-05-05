@@ -183,18 +183,16 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
 end
 
 
-function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}, x1N, auxN, δt, symIbox) where {N,T,S}
+function _abs_rems!(vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
     for ind in eachindex(vTMN)
-        # Evaluate x1N at δt (new TMN initial condition with remainder)
-        TaylorModels.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
         Δ = remainder(vTMN[ind])
         radN = radius(Δ)/N
         # Old remainder of constant and linear parts and remainder
         aI = vTMN[ind].pol.coeffs[1].coeffs[1] +
-            sum(vTMN[ind].pol.coeffs[2].coeffs) * symIbox[1] + Δ
+            sum(vTMN[ind].pol.coeffs[2].coeffs) * vTMN[ind].dom[1] + Δ
         # New remainder of constant and linear parts (without Δ, a priori absorbed)
         bI = vTMN[ind].pol.coeffs[1].coeffs[1] + mid(Δ) +
-            sum(vTMN[ind].pol.coeffs[2].coeffs .+ radN) * symIbox[1]
+            sum(vTMN[ind].pol.coeffs[2].coeffs .+ radN) * vTMN[ind].dom[1]
         # Compute the new remainder
         r_lo = copysign(inf(aI)-inf(bI), -1)
         r_hi = copysign(sup(aI)-sup(bI), 1)
@@ -320,6 +318,32 @@ function qrprecondition!(
         rightTMN[ind].x0 = vTMN[ind].x0
         leftTMN[ind].dom = vTMN[ind].dom
         rightTMN[ind].dom = vTMN[ind].dom
+    end
+    return nothing
+end
+
+
+function _update_inicond!(x, dx, x1N, vTMN)
+    zz = zero(x[1][0][0][1])
+    for ind in eachindex(x)
+        x1N[ind].rem = vTMN[ind].rem # Store remainder
+        # Zero everything
+        for ordT in eachindex(x1N[ind].pol.coeffs)
+            for ordQ in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs)
+                for h in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+                    x[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
+                    # dx[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
+                end
+            end
+        end
+        # Update constant coeff (new initial condition)
+        for ordQ in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs)
+            for h in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs[ordQ].coeffs)
+                x[ind].coeffs[1].coeffs[ordQ].coeffs[h] =
+                    vTMN[ind].pol.coeffs[ordQ].coeffs[h]
+                dx[ind].coeffs[1].coeffs[ordQ].coeffs[h] = zz
+            end
+        end
     end
     return nothing
 end
