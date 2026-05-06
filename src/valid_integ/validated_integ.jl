@@ -75,13 +75,13 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T,
             xTM1v[ind, nsteps] = TaylorModel1(deepcopy(x[ind]), rem[ind], zI, δtI) # deepcopy is needed!
             x[ind] = Taylor1(evaluate(x[ind], δt), orderT)
             # dx = Taylor1(zero(constant_term(x)), orderT)
-            xI[ind] = Taylor1(evaluate(xTMN[ind], symIbox), orderT+1)
+            xI[ind] = Taylor1(evaluate(evaluate(x[ind], δt), symIbox), orderT+1)
             # dxI = xI
         end
 
         # New initial conditions and time, and output vectors
         @inbounds tv[nsteps] = t0
-        xv[nsteps] = copy.(constant_term.(xI[:]))       # Vector{Interval}
+        xv[nsteps] = evaluate.(xTMN, Ref(symIbox))
         t0 += δt
         @inbounds t[0] = t0
         @inbounds tI[0] = t0
