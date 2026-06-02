@@ -210,7 +210,7 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     #     range_g = (g(tmf.pol))(centered_dom(tmf)) + remainder(tmf)
     #     return TaylorModelN(range_g, _order, expansion_point(tmf), domain(tmf))
     # else
-    #     v = get_variables(T, _order)
+    #     v = variables(T, _order)
     #     any( tmf.pol .== v ) && _rpaar(g, expansion_point(tmf), domain(tmf), _order)
     # end
 

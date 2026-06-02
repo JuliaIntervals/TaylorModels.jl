@@ -372,7 +372,7 @@ function quadratic_fast_bounder(fT::TaylorModelN)
     if isposdef(mid.(H))
         P1 = -P[1].coeffs
         xn = H \ P1
-        x = get_variables()
+        x = variables()
         Qxn = 0.5 * (x - xn)' * H * (x - xn)
         bound_qfb = (P - Qxn)(dom - x0)
         hi = sup(P(dom - x0))
