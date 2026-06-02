@@ -16,7 +16,7 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
     @assert all(expansion_point.(xTMN) .== (x0,))
 
     # Vector of independent TaylorN variables
-    order = get_order(xTMN[1])
+    order = TS.order(xTMN[1])
     X = [TaylorN(T, i, order=order) for i in 1:N]
 
     # Remainder of original TaylorModelN and componentwise mag
@@ -152,7 +152,7 @@ IEEE Press.
 """
 function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     Δ = remainder(a)
-    orderQ = get_order(a)
+    orderQ = TS.order(a)
     δ = symmetric_box(T)
     aux = diam(Δ)/(2N)
     rem = zero(Δ)

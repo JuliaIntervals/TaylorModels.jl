@@ -44,7 +44,7 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
     # Set proper parameters for jet transport
     sign_tstep = copysign(1, tf - t0)
     dof = length(q0)
-    orderT = get_order(t)
+    orderT = TS.order(t)
     zt = zero(t0)
     zI = interval(zero(T))
     S  = symmetric_box(dof, T)
@@ -175,7 +175,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     zI = interval(zero(T))
     zt = zero(t[0])
     domT = sign_tstep * interval(zt, sign_tstep*δt)
-    orderT = get_order(t)
+    orderT = TS.order(t)
     @. begin
         polv = deepcopy.(x)
         xTM1K = TaylorModel1(polv, zI, zI, domT)

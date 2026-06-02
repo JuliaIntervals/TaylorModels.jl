@@ -130,7 +130,7 @@ the interval remainder (`rem`); the expansion point (`x0`), and the interval dom
 interest (`dom`). Getter functions are defined for each of these fields:
 
 ```@example range_bound_1d
-get_order(t)
+TS.order(t)
 ```
 
 ```@example range_bound_1d

@@ -46,7 +46,7 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T,
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
     dof = length(q0)
-    orderT = get_order(t)
+    orderT = TS.order(t)
     zt = zero(t0)
     zI = zero(Interval{T})
     symIbox = symmetric_box(dof, T)
@@ -246,7 +246,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
         δI::AbstractVector{Interval{T}}, δtI::Interval{T}, params) where {T}
 
-    orderT = get_order(dx[1])
+    orderT = TS.order(dx[1])
     aux = δtI^interval(orderT+1)
     N = length(x)
     Δx  = [xI[i][orderT+1] for i in eachindex(xI)] * aux
@@ -296,7 +296,7 @@ end
 #         xI::Vector{Taylor1{Interval{T}}}, dxI::Vector{Taylor1{Interval{T}}},
 #         δI::IntervalBox{N,T}, δtI::Interval{T}, params) where {N,T}
 
-#     orderT = get_order(dx[1])
+#     orderT = TS.order(dx[1])
 #     aux = δtI^(orderT+1)
 #     # Estimate of remainder for x(t) based on interval integration xI
 #     ΔxC = IntervalBox([xI[i][orderT+1] for i in eachindex(xI)])

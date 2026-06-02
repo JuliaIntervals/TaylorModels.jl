@@ -54,8 +54,8 @@ end
         # Test errors in construction
         @test_throws AssertionError RTaylorModel1(5, x1, ii0)
 
-        # Tests for get_order and remainder
-        @test get_order(tv) == 5
+        # Tests for order and remainder
+        @test TS.order(tv) == 5
         @test isequal_interval(remainder(tv), interval(0.0))
         @test polynomial(tv) == Taylor1(Interval{Float64},5)
         @test isequal_interval(domain(tv), ii0)
@@ -70,7 +70,7 @@ end
         a = RTaylorModel1(Taylor1([1.0, 1]), y0, x0, y1)
         b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), y0, x0, y1)
         aa, bb = TM.fixorder(a, b)
-        @test get_order(aa) == get_order(bb) == 1
+        @test TS.order(aa) == TS.order(bb) == 1
         @test isa(aa, RTaylorModel1) == isa(bb, RTaylorModel1) == true
         @test aa == a
         @test bb == RTaylorModel1(Taylor1([1.0, 1]), interval(-1, 2), x0, y1)
@@ -119,8 +119,8 @@ end
         a = RTaylorModel1(Taylor1([1.0, 1]), y0, x0, y1)
         b = RTaylorModel1(Taylor1([1.0, 1, 0, 1]), y0, x0, y1)
         aa, bb = TM.fixorder(a, b)
-        @test get_order(aa) == get_order(bb)
-        @test get_order(bb) == 1
+        @test TS.order(aa) == TS.order(bb)
+        @test TS.order(bb) == 1
         @test a + b == aa + bb
         @test a - b == aa - bb
         res1 = a * b

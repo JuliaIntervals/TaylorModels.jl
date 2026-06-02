@@ -77,8 +77,8 @@ end
         @test_throws AssertionError TaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0)
         @test_throws AssertionError TaylorModel1(5, x1, ii0)
 
-        # Tests for get_order, remainder, polynomial and domain
-        @test get_order(tv) == 5
+        # Tests for order, remainder, polynomial and domain
+        @test TS.order(tv) == 5
         @test isequal_interval(remainder(tv), interval(0.0))
         @test polynomial(tv) == Taylor1(Interval{Float64},5)
         @test isequal_interval(domain(tv), ii0)
@@ -93,7 +93,7 @@ end
         a = TaylorModel1(Taylor1([1.0, 1]), y0, x0, y1)
         b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), y0, x0, y1)
         aa, bb = TM.fixorder(a, b)
-        @test get_order(aa) == get_order(bb) == 1
+        @test TS.order(aa) == TS.order(bb) == 1
         @test isa(aa, TaylorModel1) == isa(bb, TaylorModel1) == true
         @test aa == a
         @test bb == TaylorModel1(Taylor1([1.0, 1, 0]), interval(-1, 2), x0, y1)
@@ -141,8 +141,8 @@ end
         a = TaylorModel1(Taylor1([1.0, 1]), y0, x0, y1)
         b = TaylorModel1(Taylor1([1.0, 1, 0, 1]), y0, x0, y1)
         aa, bb = TM.fixorder(a, b)
-        @test get_order(aa) == get_order(bb)
-        @test get_order(bb) == 1
+        @test TS.order(aa) == TS.order(bb)
+        @test TS.order(bb) == 1
         @test a + b == aa + bb
         @test a - b == aa - bb
         res1 = a * b
@@ -221,13 +221,13 @@ end
         t8 = Taylor1([qaux, one(qaux)], 2*orderT)
         tm8 = TaylorModel1(deepcopy(t8), x0, x00, dom)
         tm4, _ = TaylorSeries.fixorder(tm8, tm)
-        @test get_order(tm4) == get_order(tm)
+        @test TS.order(tm4) == TS.order(tm)
         @test polynomial(tm4) == polynomial(tm)
         #
         exp_tm = exp(tm)
         exp_tm8 = exp(tm8)
         exp_tm4, _ = TaylorSeries.fixorder(exp_tm8, tm)
-        @test get_order(exp_tm4) == get_order(exp_tm)
+        @test TS.order(exp_tm4) == TS.order(exp_tm)
         @test polynomial(exp_tm4) == polynomial(exp_tm)
         for ind = 1:_num_tests
             xξ = sample(dom)-x00

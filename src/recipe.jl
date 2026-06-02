@@ -26,7 +26,7 @@ end
     fT = polynomial(ffp)
     Δ = remainder(ffp)
     ξ0 = expansion_point(ffp)
-    order = get_order(f)+1
+    order = TS.order(f)+1
 
     seriesalpha --> 0.5
     seriestype := :shape

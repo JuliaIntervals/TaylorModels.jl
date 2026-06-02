@@ -98,8 +98,8 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
     dof = length(q0)
-    orderT = get_order(t)
-    # orderQ = get_order(x[1][0])
+    orderT = TS.order(t)
+    # orderQ = TS.order(x[1][0])
     symIbox = symmetric_box(dof, T)
     zbox = zero(q0)
     @inbounds xv[1] = q0
