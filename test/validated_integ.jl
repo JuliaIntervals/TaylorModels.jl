@@ -68,7 +68,7 @@ end
         abstol = 1e-20
         orderQ = 2
         orderT = 4
-        ξ = set_variables("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
+        ξ = variables!("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0))
 
         @testset "Forward integration 1" begin
             sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
@@ -303,7 +303,7 @@ end
         q0 = [2.]
         δq0 = 0.0625 * normalized_box
         X0 = q0 .+ δq0
-        ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
+        ξ = variables!("ξₓ", numvars=1, order=2*orderQ)
 
         @testset "Forward integration 1" begin
             sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
@@ -392,7 +392,7 @@ end
         q0 = [0.5]
         δq0 = 0.4 * normalized_box
         X0 = q0 .+ δq0
-        ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
+        ξ = variables!("ξₓ", numvars=1, order=2*orderQ)
 
         @testset "Forward integration 1" begin
             sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
@@ -472,7 +472,7 @@ end
         q0 = [0.5]
         δq0 = 0.3 * normalized_box
         X0 = q0 .+ δq0
-        ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
+        ξ = variables!("ξₓ", numvars=1, order=2*orderQ)
 
         @testset "Forward integration 1" begin
             sol1 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
@@ -555,7 +555,7 @@ end
         q0 = [0.0]
         δq0 = 0.1 * normalized_box
         X0 = q0 .+ δq0
-        ξ = set_variables("ξₓ", numvars=1, order=2*orderQ)
+        ξ = variables!("ξₓ", numvars=1, order=2*orderQ)
 
         @testset "Forward integration 1" begin
             sol1 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
@@ -644,7 +644,7 @@ end
         abstol = 1e-25
         orderQ = 2
         orderT = 20
-        ξ = set_variables("ξ", order=2*orderQ, numvars=length(q0))
+        ξ = variables!("ξ", order=2*orderQ, numvars=length(q0))
 
         sol = validated_integ3(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))

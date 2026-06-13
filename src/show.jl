@@ -3,7 +3,7 @@
 # Is the following really needed?
 # function showfull(io::IO, f::Union{TaylorModel1, RTaylorModel1, TaylorModelN})
 #     print(io,
-#     """Taylor model of degree $(get_order(f)):
+#     """Taylor model of degree $(TS.order(f)):
 #     - x0:  $(expansion_point(f))
 #     -  I:  $(domain(f))
 #     -  p:  $(polynomial(f))
@@ -29,7 +29,7 @@ for T in (:TaylorModel1, :TaylorModelN, :RTaylorModel1)
         strout = $T == TaylorModelN ?
             string(a.pol, " + ", a_rem) : string(a.pol, "+ ", a_rem)
         if $T == RTaylorModel1
-            _order = get_order(a)
+            _order = TS.order(a)
             strout = strout * " t" * TaylorSeries.superscriptify(_order+1)
         end
         _bigOnotation && TaylorSeries.displayBigO(true)

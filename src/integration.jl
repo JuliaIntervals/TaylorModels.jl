@@ -24,7 +24,7 @@ for TM in tupleTMs
 
 
         @inline function bound_integration(a::$(TM){T,S}, δ::Interval{S}) where {T<:TS.NumberNotSeries,S}
-            order = get_order(a)
+            order = TS.order(a)
             if $TM == TaylorModel1
                 aux = δ^interval(order) / interval(order+1)
                 Δ = δ * (remainder(a) + interval(getcoeff(polynomial(a), order)) * aux)
@@ -35,7 +35,7 @@ for TM in tupleTMs
             return Δ
         end
         @inline function bound_integration(a::$(TM){TaylorN{T}, S}, δ::Interval{S}, δI) where {T,S}
-            order = get_order(a)
+            order = TS.order(a)
             if $TM == TaylorModel1
                 aux = δ^interval(order) / interval(order+1)
                 Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
@@ -46,7 +46,7 @@ for TM in tupleTMs
             return Δ
         end
         @inline function bound_integration(a::$(TM){TaylorModelN{N,T,S}, S}, δ::Interval{S}, δI) where {N,T,S}
-            order = get_order(a)
+            order = TS.order(a)
             if $TM == TaylorModel1
                 aux = δ^interval(order) / interval(order+1)
                 Δ = δ * (remainder(a) + getcoeff(polynomial(a), order)(δI) * aux)
@@ -101,7 +101,7 @@ end
 
 function integrate(fT::TaylorModelN, which=1)
     p̂ = integrate(fT.pol, which)
-    order = get_order(fT)
+    order = TS.order(fT)
     r = TaylorN(p̂.coeffs[1:order+1])
     s = TaylorN(p̂.coeffs[order+2:end])
     Δ = bound_integration(fT, s, which)
@@ -115,7 +115,7 @@ end
 
 
 @inline function bound_integration(a::Vector{TaylorModel1{T,S}}, δ) where {T,S}
-    order = get_order(a[1])
+    order = TS.order(a[1])
     aux = δ^interval(order) / interval(order+1)
     Δ = δ .* (remainder.(a) .+ interval.(getcoeff.(polynomial.(a), order)) .* aux)
     return Δ

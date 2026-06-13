@@ -44,8 +44,10 @@ end
 # taylor model in N variables
 function bounds_TM(func::Function, dom::AbstractVector{<:Interval}, ord)
     x0 = mid.(dom)
-    set_variables(Float64, "x", order=2ord, numvars=N)
-    x = [TaylorModelN(i, ord, x0, dom) for i in eachindex(dom)]
+    N = length(dom)
+    # variables(Float64, "x", order=2ord, numvars=N)
+    # x = [TaylorModelN(i, ord, x0, dom) for i in eachindex(dom)]
+    x = variables!(Float64, "x", order=2*ord, numvars=N)
     return evaluate(func(x...), dom - x0)
 end
 
@@ -62,12 +64,13 @@ end
 function bounds_TM_NORM(func::Function, dom::AbstractVector{<:Interval}, ord::Int)
     x0 = mid.(dom)
     N = length(dom)
-    set_variables(Float64, "x", order=2ord, numvars=N)
+    # variables(Float64, "x", order=2ord, numvars=N)
 
     zeroBox = fill(0..0, N)
     symBox = fill(-1..1, N)
 
-    x = [TaylorModelN(i, ord, x0, dom) for i in eachindex(dom)]
+    # x = [TaylorModelN(i, ord, x0, dom) for i in eachindex(dom)]
+    x = variables!(Float64, "x", order=2*ord, numvars=N)
     xnorm = [normalize_taylor(xi.pol, dom - x0, true) for xi in x]
     xnormTM = [TaylorModelN(xi_norm, 0..0, zeroBox, symBox) for xi_norm in xnorm]
     return evaluate(func(xnormTM...), symBox)

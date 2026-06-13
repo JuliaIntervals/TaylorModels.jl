@@ -86,7 +86,7 @@ Computes the remainder using Lagrange bound
 """
 function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{false}, f::Function,
         polf, polfI, x0, I)
-    _order = get_order(polf) + 1
+    _order = TS.order(polf) + 1
     fTIend = interval(polfI[_order])
     # Lagrange bound
     return fTIend * (I-x0)^interval(_order)
@@ -99,7 +99,7 @@ Computes the remainder exploiting monotonicity; see Prop 2.3.7 in Mioara Joldes'
 """
 function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
         polf::Taylor1{T}, polfI::Taylor1, x0, I::Interval) where {T<:NumberNotSeries}
-    _order = get_order(polf) + 1
+    _order = TS.order(polf) + 1
     a = interval(inf(I))
     b = interval(sup(I))
     # Error is monotonic
@@ -115,7 +115,7 @@ function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
 end
 function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{false}, f::Function,
         polf::Taylor1, polfI::Taylor1, x0, I::Interval)
-    _order = get_order(polf) + 1
+    _order = TS.order(polf) + 1
     return polfI[_order]
 end
 
@@ -336,7 +336,7 @@ function quadratic_fast_bounder(fT::TaylorModel1)
 
     cent_dom = dom - x00
     x0 = -P[1] / (2 * P[2])
-    x = Taylor1(get_order(P))
+    x = Taylor1(TS.order(P))
     Qx0 = (x - x0) * P[2] * (x - x0)
     bound_qfb = (P - Qx0)(cent_dom)
     hi = sup(P(cent_dom))
@@ -372,7 +372,7 @@ function quadratic_fast_bounder(fT::TaylorModelN)
     if isposdef(mid.(H))
         P1 = -P[1].coeffs
         xn = H \ P1
-        x = get_variables()
+        x = variables()
         Qxn = 0.5 * (x - xn)' * H * (x - xn)
         bound_qfb = (P - Qxn)(dom - x0)
         hi = sup(P(dom - x0))

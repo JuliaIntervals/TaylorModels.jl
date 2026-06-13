@@ -22,7 +22,7 @@ end
 @testset "Tests for TaylorModelN " begin
     local _order = 2
     local _order_max = 2*(_order+1)
-    set_variables(Interval{Float64}, [:x, :y], order=_order_max)
+    variables!(Interval{Float64}, "x y", order=_order_max)
 
     b0 = [interval(0.0), interval(0.0)]
     ib0 = [interval(-0.5, 0.5), interval(-0.5, 0.5)]
@@ -59,9 +59,9 @@ end
         @test_throws AssertionError TaylorModelN(xT, interval(1,1), b0, ib0)
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
 
-        # Tests for get_order and remainder
-        @test get_order() == 6
-        @test get_order(xm) == 2
+        # Tests for order and remainder
+        @test TS.order() == 6
+        @test TS.order(xm) == 2
         @test isequal_interval(domain(xm), ib0)
         @test isequal_interval(remainder(ym), zi)
         @test expansion_point(ym) == b0

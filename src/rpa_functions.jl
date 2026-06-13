@@ -74,7 +74,7 @@ exploiting monotonicity if possible, otherwise, it uses Lagrange bound.
 for TM in tupleTMs
     @eval begin
         function rpa(g::Function, tmf::$TM)
-            _order = get_order(tmf)
+            _order = TS.order(tmf)
 
             # # Avoid overestimations:
             # if tmf == TaylorModel1(_order, expansion_point(tmf), domain(tmf))
@@ -128,7 +128,7 @@ for TM in tupleTMs
 end
 
 function rpa(g::Function, tmf::TaylorModel1{TaylorN{T},S}) where {T,S}
-    _order = get_order(tmf)
+    _order = TS.order(tmf)
     f_pol = polynomial(tmf)
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
@@ -145,7 +145,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorN{T},S}) where {T,S}
 end
 
 function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
-    _order = get_order(tmf)
+    _order = TS.order(tmf)
     f_pol = polynomial(tmf)
     f_pol0 = constant_term(f_pol)
     Δf = remainder(tmf)
@@ -166,7 +166,7 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
 end
 
 function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<:Real, S<:NumberNotSeries}
-    _order = get_order(tmf)
+    _order = TS.order(tmf)
 
     # # Avoid overestimations:
     # if tmf == TaylorModel1(_order, expansion_point(tmf), domain(tmf))
@@ -202,7 +202,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<
 end
 
 function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
-    _order = get_order(tmf)
+    _order = TS.order(tmf)
 
     # # Avoid overestimations
     # if tmf == TaylorModelN(constant_term(tmf.pol), _order, expansion_point(tmf), domain(tmf))
@@ -210,7 +210,7 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
     #     range_g = (g(tmf.pol))(centered_dom(tmf)) + remainder(tmf)
     #     return TaylorModelN(range_g, _order, expansion_point(tmf), domain(tmf))
     # else
-    #     v = get_variables(T, _order)
+    #     v = variables(T, _order)
     #     any( tmf.pol .== v ) && _rpaar(g, expansion_point(tmf), domain(tmf), _order)
     # end
 
@@ -254,7 +254,7 @@ for TM in tupleTMs
 
         function fp_rpa(tm::$TM{Interval{T},T}) where {T}
             fT = polynomial(tm)
-            order = get_order(tm)
+            order = TS.order(tm)
 
             b = Taylor1(Interval{T}, order)
             t = Taylor1(T, order)
@@ -274,12 +274,12 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
     Δ = remainder(tm)
     # x0 = expansion_point(tm)
     # I = domain(tm)
-    order = get_order(fT[0])
+    order = TS.order(fT[0])
     N = get_numvars(fT[0])
     D = symmetric_box(N)
 
     b = zero(fT)
-    t = Taylor1(TaylorN([zeros(HomogeneousPolynomial{T},order)], order), get_order(fT))
+    t = Taylor1(TaylorN([zeros(HomogeneousPolynomial{T},order)], order), TS.order(fT))
     for ind in eachindex(fT)
         for homPol in eachindex(fT[ind])
             for jind in eachindex(fT[ind][homPol])
@@ -300,7 +300,7 @@ function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     Δ = remainder(tm)
     x0 = expansion_point(tm)
     I = domain(tm)
-    order = get_order(tm)
+    order = TS.order(tm)
 
     b = zero(fT)
     t = TaylorN([HomogeneousPolynomial(zeros(T,N))], order)

@@ -23,8 +23,8 @@ end
 
 function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::Taylor1{Interval{T}}) where
         {N,T<:Real, S<:Real}
-    orderTMN = get_order(a[0])
-    bTN = Array{TaylorModelN{N,Interval{T},S}}(undef, get_order(a)+1)
+    orderTMN = TS.order(a[0])
+    bTN = Array{TaylorModelN{N,Interval{T},S}}(undef, TS.order(a)+1)
     unoTM = TaylorModelN(interval(one(T)), orderTMN, expansion_point(a[0]), domain(a[0]))
     @inbounds for ord in eachindex(bTN)
         bTN[ord] = b.coeffs[ord] * unoTM
@@ -36,8 +36,8 @@ end
 
 function promote(a::Taylor1{TaylorModelN{N,Interval{T},S}}, b::T) where
         {N, T<:Real, S<:Real}
-    orderTMN = get_order(a[0])
-    bTN = Array{TaylorModelN{N,Interval{T},S}}(undef, get_order(a)+1)
+    orderTMN = TS.order(a[0])
+    bTN = Array{TaylorModelN{N,Interval{T},S}}(undef, TS.order(a)+1)
     unoTM = TaylorModelN(interval(one(T)), orderTMN, expansion_point(a[0]), domain(a[0]))
     bTN[1] = b * unoTM
     @inbounds for ord = 2:length(bTN)
@@ -50,10 +50,10 @@ end
 
 function promote(a::Taylor1{TaylorModelN{N,T,S}}, b::R) where
         {N, T<:Real, S<:Real, R<:Real}
-    # orderTMN = get_order(a[0])
+    # orderTMN = TS.order(a[0])
     TT = promote_type(T,R)
-    aTN = Array{TaylorModelN{TT,S}}(undef, get_order(a)+1)
-    bTN = Array{TaylorModelN{TT,S}}(undef, get_order(a)+1)
+    aTN = Array{TaylorModelN{TT,S}}(undef, TS.order(a)+1)
+    bTN = Array{TaylorModelN{TT,S}}(undef, TS.order(a)+1)
     unoTT = one(TT)
     zeroTT = zero(TT)
     @inbounds for ord = 1:length(aTN)
@@ -69,11 +69,11 @@ end
 
 for TM in tupleTMs
     @eval promote(a::$TM{T,S}, b::T) where {T,S<:Real} =
-        (a, $(TM)(Taylor1([b], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
+        (a, $(TM)(Taylor1([b], TS.order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
     @eval promote(b::T, a::$TM{T,S}) where {T,S<:Real} = reverse( promote(a,b) )
     #
     @eval promote(a::$TM{T,S}, b::S) where {T,S} =
-        (a, $TM(Taylor1([convert(T, b)], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
+        (a, $TM(Taylor1([convert(T, b)], TS.order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
     # @eval promote(b::S, a::$TM{T,S}) where {T,S} = reverse( promote(a,b) )
     #
     # @eval promote(a::$TM{T,S}, b::R) where {T,S<:Real,R} = promote(a, convert(S, b))
@@ -81,15 +81,15 @@ for TM in tupleTMs
     #
     @eval function promote(a::$TM{TaylorModelN{N,T,S},S}, b::T) where {N,T,S}
         a_pol0 = a.pol[0]
-        tmN = TaylorModelN(b, get_order(a_pol0), expansion_point(a_pol0), domain(a_pol0))
-        return (a, $TM(Taylor1([tmN], get_order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
+        tmN = TaylorModelN(b, TS.order(a_pol0), expansion_point(a_pol0), domain(a_pol0))
+        return (a, $TM(Taylor1([tmN], TS.order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
     end
     # @eval promote(b::T, a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} = reverse( promote(a,b) )
 end
 
 
 function Base.convert(::Type{TaylorModel1{TaylorN{T}, S}}, tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
-    order = get_order(tm)
+    order = TS.order(tm)
     pol = Taylor1(zero(polynomial(tm[0])), order)
     for k in eachindex(polynomial(tm))
         pol[k] = polynomial(tm[k])
@@ -102,7 +102,7 @@ function Base.convert(::Type{TaylorModel1{TaylorModelN{N,T,S}, S}}, tm::TaylorMo
     z = interval(zero(S))
     symIbox = symmetric_box(S)
     zSB = interval.(mid.(symIbox))
-    order = get_order(tm)
+    order = TS.order(tm)
     pol = Taylor1(TaylorModelN.(tm[:], z, Ref(zSB), Ref(symIbox)), order)
     return TaylorModel1(pol, remainder(tm), expansion_point(tm), domain(tm))
 end

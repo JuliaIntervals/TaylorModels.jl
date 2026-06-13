@@ -6,7 +6,7 @@ for TM in tupleTMs
     # Evaluates the TM1{T,S} at a::T; the computation includes the remainder
     @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
         @assert iscontained(a, tm)
-        _order = get_order(tm)
+        _order = TS.order(tm)
 
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
@@ -18,7 +18,7 @@ for TM in tupleTMs
     end
     @eval function evaluate(tm::$TM{T,S}, a::Interval) where {T,S}
         @assert iscontained(a, tm)
-        _order = get_order(tm)
+        _order = TS.order(tm)
 
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
@@ -45,8 +45,8 @@ for TM in tupleTMs
     # _evaluate corresponds to composition: substitute tmf into tmg
     # It **does not** include the remainder
     @eval function _evaluate(tmg::$TM, tmf::$TM)
-        _order = get_order(tmf)
-        @assert _order == get_order(tmg)
+        _order = TS.order(tmf)
+        @assert _order == TS.order(tmg)
 
         tmres = zero(tmg.pol[_order]) * tmf
         tmres = tmres + tmg.pol[_order]
@@ -67,8 +67,8 @@ end
 
 # Substitute a TaylorModelN into a TM1; it **does not** include the remainder
 function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
-    _order = get_order(tmf)
-    @assert _order == get_order(tmg)
+    _order = TS.order(tmf)
+    @assert _order == TS.order(tmg)
     tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order,
         expansion_point(tmf), domain(tmf))
     @inbounds for k = _order:-1:0
@@ -95,7 +95,7 @@ end
 
 function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R<:Real}
     @assert iscontained(a, tm)
-    # _order = get_order(tm)
+    # _order = TS.order(tm)
     Δ = remainder(tm)
     return tm.pol(a) + Δ
 end
@@ -108,20 +108,20 @@ evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::AbstractVector{Interval{S}}) where 
 
 function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::T) where {N,T<:Real, S<:Real}
     @inbounds suma = a[end]*one(dx)
-    @inbounds for k in get_order(a)-1:-1:0
+    @inbounds for k in TS.order(a)-1:-1:0
         suma = suma*dx + a[k]
     end
     return suma
 end
 function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, v::AbstractVector{R}) where {N,T,S,R}
-    suma = Taylor1(zero(a[0])(v), get_order(a))
+    suma = Taylor1(zero(a[0])(v), TS.order(a))
     for k in eachindex(a)
         suma[k] = a[k](v)
     end
     return suma
 end
 function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, v::AbstractVector) where {N,T,S}
-    suma = Taylor1(zero(tm[0])(v), get_order(tm))
+    suma = Taylor1(zero(tm[0])(v), TS.order(tm))
     for k in eachindex(suma)
         suma[k] = tm[k](v)
     end

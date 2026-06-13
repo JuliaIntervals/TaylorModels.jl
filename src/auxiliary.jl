@@ -7,8 +7,8 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
 
         copy(f::$TM) = $TM(copy(f.pol), remainder(f), expansion_point(f), domain(f))
         @inline firstindex(a::$TM) = 0
-        @inline lastindex(a::$TM) = get_order(a)
-        @inline Base.length(a::$TM) = get_order(a)+1
+        @inline lastindex(a::$TM) = TS.order(a)
+        @inline Base.length(a::$TM) = TS.order(a)+1
         @inline Base.iterate(a::$TM, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
         @inline Base.eachindex(a::$TM) = firstindex(a):lastindex(a)
 
@@ -51,7 +51,7 @@ setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
     n::Int) where {N,T,S} = a.pol[n] = x
 setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
         n::Int) where {N,T,S} = setindex!(a.coeffs,
-    TaylorModelN(TaylorN(x.pol.coeffs[:], get_order(x.pol)), x.rem, x.x0[:], x.dom[:]),
+    TaylorModelN(TaylorN(x.pol.coeffs[:], TS.order(x.pol)), x.rem, x.x0[:], x.dom[:]),
     n+1)
 
 
@@ -73,9 +73,9 @@ for TM in tupleTMs
     @eval begin
         function fixorder(a::$TM, b::$TM)
             @assert all(isequal_interval.(tmdata(a), tmdata(b)))
-            get_order(a) == get_order(b) && return a, b
+            TS.order(a) == TS.order(b) && return a, b
 
-            order = min(get_order(a), get_order(b))
+            order = min(TS.order(a), TS.order(b))
             apol0, bpol0 = polynomial.((a, b))
             apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
@@ -90,7 +90,7 @@ for TM in tupleTMs
 
         function bound_truncation(::Type{$TM}, a::Taylor1, aux::Interval,
                 order::Int)
-            order_a = get_order(a)
+            order_a = TS.order(a)
             order ≥ order_a && return zero(aux)
             if $TM == TaylorModel1
                 res = Taylor1(copy(a.coeffs))
@@ -106,7 +106,7 @@ end
 
 function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Interval,
         order::Int) where {T}
-    order ≥ get_order(a) && return zero(aux)
+    order ≥ TS.order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
     symIbox = symmetric_box(numtype(aux))
     res = evaluate(a, symIbox)
@@ -117,9 +117,9 @@ end
 
 function fixorder(a::TaylorModelN, b::TaylorModelN)
     @assert all(isequal_interval.(tmdata(a), tmdata(b)))
-    get_order(a) == get_order(b) && return a, b
+    TS.order(a) == TS.order(b) && return a, b
 
-    order = min(get_order(a), get_order(b))
+    order = min(TS.order(a), TS.order(b))
     apol0, bpol0 = polynomial.((a, b))
     apol, bpol = TaylorSeries.fixorder(apol0, bpol0)
 
@@ -134,8 +134,8 @@ end
 
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
-    order ≥ get_order(a) && return zero(aux[1])
-    res = TaylorN(a.coeffs[:], get_order(a))
+    order ≥ TS.order(a) && return zero(aux[1])
+    res = TaylorN(a.coeffs[:], TS.order(a))
     res[0:order] .= zero(res[0])
     return res(aux)
 end
@@ -147,7 +147,7 @@ end
 TaylorModel1 formed by the TaylorModelN remainders.
 """
 function pol_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
-    order = get_order(tm)
+    order = TS.order(tm)
     polI = Taylor1(zero(remainder(tm[0])), order)
     for k in eachindex(tm)
         polI[k] = remainder(tm[k])
@@ -191,7 +191,7 @@ Return the pure polynomial part of a `tm::TaylorModel1{TaylorModelN{N,T,S},S}`
 as a `Taylor1{TaylorN{T}}`.
 """
 function pure_polynomial(tm::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S}
-    order = get_order(tm)
+    order = TS.order(tm)
     vTN = Vector{TaylorN{T}}(undef, order+1)
     for ind in eachindex(tm)
         vTN[ind+1] = polynomial(tm[ind])
