@@ -22,7 +22,7 @@ end
 @testset "Tests for TaylorModelN " begin
     local _order = 2
     local _order_max = 2*(_order+1)
-    variables!(Interval{Float64}, "x y", order=_order_max)
+    variables!(Interval{Float64}, "x y", order=_order_max; nowarn=true)
 
     b0 = [interval(0.0), interval(0.0)]
     ib0 = [interval(-0.5, 0.5), interval(-0.5, 0.5)]

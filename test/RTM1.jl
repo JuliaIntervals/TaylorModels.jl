@@ -146,7 +146,7 @@ end
         # Tests for RTM1's with TaylorN coefficients
         orderT = 4
         orderQ = 5
-        ξ = variables!("ξ", order = 2 * orderQ, numvars=1)
+        ξ = variables!("ξ", order = 2 * orderQ, numvars=1; nowarn=true)
         q0 = [0.5]
         δq0 = [interval(-0.1, 0.1)]
         qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
