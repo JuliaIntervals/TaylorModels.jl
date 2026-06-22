@@ -109,9 +109,9 @@ end
             timesdiv = mince_in_time(sol, var=0, timediv=2)
             fpdiv = mince_in_time(sol, var=1, timediv=2)
             @test issubset_interval(timesdiv[3], domT[2])
-            @test isequal_interval(hull(timesdiv[1],timesdiv[2]), domT[1])
+            @test isequal_interval(hull(timesdiv[1],timesdiv[2]; dec=:auto), domT[1])
             @test issubset_interval(fpdiv[3], qv[2][1])
-            @test issubset_interval(hull(fpdiv[3],fpdiv[4]), qv[2][1])
+            @test issubset_interval(hull(fpdiv[3],fpdiv[4]; dec=:auto), qv[2][1])
         end
 
         @testset "Forward integration 2" begin
@@ -186,9 +186,9 @@ end
             timesdiv = mince_in_time(sol, var=0, timediv=2)
             fpdiv = mince_in_time(sol, var=1, timediv=2)
             @test issubset_interval(timesdiv[3], domT[2])
-            @test isequal_interval(hull(timesdiv[1],timesdiv[2]), domT[1])
+            @test isequal_interval(hull(timesdiv[1],timesdiv[2]; dec=:auto), domT[1])
             @test issubset_interval(fpdiv[3], qv[2][1])
-            @test issubset_interval(hull(fpdiv[3],fpdiv[4]), qv[2][1])
+            @test issubset_interval(hull(fpdiv[3],fpdiv[4]; dec=:auto), qv[2][1])
         end
 
         # Initial conditions

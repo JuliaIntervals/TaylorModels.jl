@@ -76,7 +76,7 @@ function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{true}, f::Function,
     Δhi = f(b) - polf(b-x0)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δx0 = f(x0) - polf[0]
-    return interval(hull(Δlo, Δx0, Δhi)..., minimum(decoration.((Δlo, Δx0, Δhi))))
+    return interval(hull(Δlo, Δx0, Δhi; dec=:auto))
 end
 
 """
@@ -111,7 +111,7 @@ function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
     Δhi = f(b) - polf(b-x0)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δhi = Δhi / denom
-    return interval(hull(Δlo, Δhi)..., minimum(decoration.((Δlo, Δhi))))
+    return interval(hull(Δlo, Δhi; dec=:auto))
 end
 function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{false}, f::Function,
         polf::Taylor1, polfI::Taylor1, x0, I::Interval)
@@ -143,9 +143,9 @@ function bound_taylor1(fT::Taylor1, I::Interval)
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
     num_roots == 0 && return fT(I)
-    rangepoly = hull( fT(interval(inf(I))), fT(interval(sup(I))) )
+    rangepoly = hull( fT(interval(inf(I))), fT(interval(sup(I))); dec=:auto )
     @inbounds for ind in 1:num_roots
-        rangepoly = hull(rangepoly, fT(rootsder[ind].region))
+        rangepoly = hull(rangepoly, fT(rootsder[ind].region); dec=:auto)
     end
 
     return rangepoly
@@ -175,9 +175,9 @@ function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
     I_lo = inf(I)
     I_hi = sup(I)
     if inf(fTd(I)) > 0
-        return hull(fT(I_lo), fT(I_hi))
+        return hull(fT(I_lo), fT(I_hi); dec=:auto)
     elseif sup(fTd(I)) < 0
-        return hull(fT(I_hi), fT(I_lo))
+        return hull(fT(I_hi), fT(I_lo); dec=:auto)
     end
     return fT(I)
 end
