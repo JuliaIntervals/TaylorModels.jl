@@ -89,7 +89,7 @@ function _monot_bound_remainder(::Type{TaylorModel1}, ::Val{false}, f::Function,
     _order = TS.order(polf) + 1
     fTIend = interval(polfI[_order])
     # Lagrange bound
-    return fTIend * (I-x0)^interval(_order)
+    return fTIend * Base.literal_pow(^, I-x0, Val(_order))
 end
 
 """
@@ -103,11 +103,11 @@ function _monot_bound_remainder(::Type{RTaylorModel1}, ::Val{true}, f::Function,
     a = interval(inf(I))
     b = interval(sup(I))
     # Error is monotonic
-    denom = (a-x0)^interval(_order)
+    denom = Base.literal_pow(^, a-x0, Val(_order))
     Δlo = f(a) - polf(a-x0)
     # Δlo = f(a) - bound_taylor1(polf, a-x0)
     Δlo = Δlo / denom
-    denom = (b-x0)^interval(_order)
+    denom = Base.literal_pow(^, b-x0, Val(_order))
     Δhi = f(b) - polf(b-x0)
     # Δhi = f(b) - bound_taylor1(polf, b-x0)
     Δhi = Δhi / denom

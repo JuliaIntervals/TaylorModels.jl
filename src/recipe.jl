@@ -34,7 +34,7 @@ end
     xs = range(inf(domain(f)), stop=sup(domain(f)), length=100)
     evals = fT.(xs .- ξ0)
 
-    corrs = (xs .- ξ0) .^ order
+    corrs = Base.literal_pow.(^, xs .- ξ0, order)
     Δrel = Δ .* corrs
     evalslo = inf.(evals .+ Δrel)
     evalshi = sup.(evals .+ Δrel)

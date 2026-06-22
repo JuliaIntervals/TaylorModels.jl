@@ -247,7 +247,7 @@ function remainder_taylorstep!(f!::Function, t::Taylor1{T},
         δI::AbstractVector{Interval{T}}, δtI::Interval{T}, params) where {T}
 
     orderT = TS.order(dx[1])
-    aux = δtI^interval(orderT+1)
+    aux = Base.literal_pow(^, δtI, Val(orderT+1))
     N = length(x)
     Δx  = [xI[i][orderT+1] for i in eachindex(xI)] * aux
     Δdx = [dxI[i][orderT+1] for i in eachindex(xI)] * aux
@@ -297,7 +297,7 @@ end
 #         δI::IntervalBox{N,T}, δtI::Interval{T}, params) where {N,T}
 
 #     orderT = TS.order(dx[1])
-#     aux = δtI^(orderT+1)
+#     aux = Base.literal_pow(^, δtI, Val(orderT+1))
 #     # Estimate of remainder for x(t) based on interval integration xI
 #     ΔxC = IntervalBox([xI[i][orderT+1] for i in eachindex(xI)])
 #     Δx  = ΔxC * aux
@@ -320,7 +320,7 @@ end
 #     # @show(t[0], δtI)
 #     for i = 1:10
 #         δt /= 2
-#         aux = δt^(orderT+1)
+#         aux = Base.literal_pow(^, δt, Val(orderT+1))
 #         ΔΔx  = ΔxC * aux
 #         ΔΔdx  = ΔdxC * aux
 #         ΔΔ0  = Δ0C * aux / (orderT+1)
