@@ -40,7 +40,7 @@ for TM in tupleTMs
 
         # Short-cut for a constructor expanding around midpoint by default
         $(TM)(ord::Integer, dom::Interval) =
-            $(TM)(ord, Interval(mid(dom)), dom)
+            $(TM)(ord, interval(mid(dom)), dom)
 
         # Short-cut for a constant TM
         $(TM)(a::T, ord::Integer, x0::Interval{S}, dom::Interval{S}) where

@@ -12,7 +12,7 @@ setdisplay(:full)
 # which shows the efectivity of shrink-wrapping
 @testset "Testing `shrink_wrapping` 1" begin
     local _order = 2
-    variables!("x", numvars=1, order=2*_order)
+    variables!("x", numvars=1, order=2*_order; nowarn=true)
     x0 = SVector{1}(interval(0))
     dom = symmetric_box(1, Float64)
     for δ in 1/16:1/16:1
@@ -81,7 +81,7 @@ end
     # Taylor model controls grow and behaves *essentially* as the identity
     # (due to the normalization to the symmetric box) after two iterates
     order = 10
-    variables!("x y", order=2*order)
+    variables!("x y", order=2*order; nowarn=true)
     vm = [TaylorModelN(normalize_taylor(TaylorN(i, order=order), ib, true),
         zi, mib, B) for i = 1:2]
     vm0 = deepcopy(vm)

@@ -22,7 +22,7 @@ end
 @testset "Tests for TaylorModelN " begin
     local _order = 2
     local _order_max = 2*(_order+1)
-    variables!(Interval{Float64}, "x y", order=_order_max)
+    variables!(Interval{Float64}, "x y", order=_order_max; nowarn=true)
 
     b0 = [interval(0.0), interval(0.0)]
     ib0 = [interval(-0.5, 0.5), interval(-0.5, 0.5)]
@@ -400,7 +400,7 @@ end
         @test string((xm+ym)^2) == " Interval{Float64}(1.0, 1.0, com, true) + " *
             "Interval{Float64}(2.0, 2.0, com, true) x + Interval{Float64}(2.0, 2.0, com, true) y + " *
             "Interval{Float64}(1.0, 1.0, com, true) x² + Interval{Float64}(2.0, 2.0, com, true) x y + " *
-            "Interval{Float64}(1.0, 1.0, com, true) y² + Interval{Float64}(0.0, 0.0, com, false)"
+            "Interval{Float64}(1.0, 1.0, com, true) y² + Interval{Float64}(0.0, 0.0, com, true)"
     end
 
     @testset "Tests for bounders" begin

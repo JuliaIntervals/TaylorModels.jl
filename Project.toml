@@ -1,6 +1,6 @@
 name = "TaylorModels"
 uuid = "314ce334-5f6e-57ae-acf6-00b6e903104a"
-version = "0.10.2"
+version = "0.11.0"
 repo = "https://github.com/JuliaIntervals/TaylorModels.jl.git"
 
 [deps]
@@ -18,8 +18,8 @@ TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
 
 [compat]
 Aqua = "0.8"
-IntervalArithmetic = "0.22, 0.23, 1"
-IntervalRootFinding = "0.6, 0.7"
+IntervalArithmetic = "0.23, 1"
+IntervalRootFinding = "0.7"
 LinearAlgebra = "1"
 Markdown = "1"
 Parameters = "0.12.3, 0.13"
@@ -28,7 +28,7 @@ RecipesBase = "1"
 Reexport = "1"
 StaticArrays = "1.9"
 TaylorIntegration = "0.18"
-TaylorSeries = "0.21, 0.22"
+TaylorSeries = "0.22.2"
 Test = "1"
 julia = "1.10"
 

@@ -11,7 +11,7 @@ for TM in tupleTMs
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
         else
-            Δ = remainder(tm) * a^interval(_order + 1)
+            Δ = remainder(tm) * Base.literal_pow(^, a, Val(_order+1))
         end
 
         return tm.pol(a) + Δ
@@ -23,7 +23,7 @@ for TM in tupleTMs
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
         else
-            Δ = remainder(tm) * a^interval(_order + 1)
+            Δ = remainder(tm) * Base.literal_pow(^, a, Val(_order+1))
         end
 
         return tm.pol(a) + Δ

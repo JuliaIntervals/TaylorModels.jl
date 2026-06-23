@@ -168,7 +168,7 @@ end
         # Tests for TM1's with TaylorN coefficients
         orderT = 4
         orderQ = 5
-        ξ = variables!("ξ", order = 2 * orderQ, numvars=1)
+        ξ = variables!("ξ", order = 2 * orderQ, numvars=1; nowarn=true)
         q0 = [0.5]
         δq0 = [interval(-0.1, 0.1)]
         qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
@@ -519,7 +519,7 @@ end
             "[Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true), " *
             "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true)]), " *
-            "Interval{Float64}(-0.05020487208677604, 0.06448109909211741, trv, true), " *
+            "Interval{Float64}(-0.05020487208677604, 0.06448109909211741, com, true), " *
             "Interval{Float64}(1.0, 1.0, com, true), Interval{Float64}(0.5, 1.5, com, true))"
         use_show_default(false)
         @test string(tm^3) == " Interval{Float64}(1.0, 1.0, com, true) + " *
@@ -530,7 +530,7 @@ end
             " Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) + " *
             "Interval{Float64}(2.718281828459045, 2.7182818284590455, com, true) t + " *
             "Interval{Float64}(1.3591409142295225, 1.3591409142295228, com, true) t² + " *
-            "Interval{Float64}(-0.05020487208677604, 0.06448109909211741, trv, true)"
+            "Interval{Float64}(-0.05020487208677604, 0.06448109909211741, com, true)"
     end
 
     @testset "Tests for bounders" begin
