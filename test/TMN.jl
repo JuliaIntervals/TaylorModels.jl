@@ -400,7 +400,7 @@ end
         @test string((xm+ym)^2) == " Interval{Float64}(1.0, 1.0, com, true) + " *
             "Interval{Float64}(2.0, 2.0, com, true) x + Interval{Float64}(2.0, 2.0, com, true) y + " *
             "Interval{Float64}(1.0, 1.0, com, true) x² + Interval{Float64}(2.0, 2.0, com, true) x y + " *
-            "Interval{Float64}(1.0, 1.0, com, true) y² + Interval{Float64}(0.0, 0.0, com, false)"
+            "Interval{Float64}(1.0, 1.0, com, true) y² + Interval{Float64}(0.0, 0.0, com, true)"
     end
 
     @testset "Tests for bounders" begin
