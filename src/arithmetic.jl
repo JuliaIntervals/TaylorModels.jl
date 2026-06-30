@@ -526,7 +526,7 @@ end
 # Multiplication
 function *(a::TaylorModelN, b::TaylorModelN)
     @assert all(isequal_interval.(tmdata(a), tmdata(b)))
-    @assert TS.order(a)+TS.order(b) ≤ TS.order()
+    @assert TS.order(a)+TS.order(b) ≤ TS.order(TS.space(polynomial(a)))
     # Returned polynomial
     res = a.pol * b.pol
     # Remainder
@@ -599,7 +599,7 @@ end
 # Power
 # Square
 function TS.square(a::TaylorModelN)
-    @assert 2*TS.order(a) ≤ TS.order()
+    @assert 2*TS.order(a) ≤ TS.order(TS.space(polynomial(a)))
     res = TS.square(a.pol)
     Δ = remainder_square(a, TS.order(res))
     return TaylorModelN(res, Δ, expansion_point(a), domain(a))
