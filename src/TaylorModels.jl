@@ -23,7 +23,7 @@ using TaylorSeries: derivative, ∇
 
 import TaylorSeries: integrate, order, evaluate, pretty_print,
     constant_term, linear_polynomial, nonlinear_polynomial,
-    fixorder, get_numvars
+    fixorder, get_numvars, space
 
 import LinearAlgebra: norm
 

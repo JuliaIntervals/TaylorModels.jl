@@ -175,5 +175,6 @@ TaylorModelN!(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
 @inline get_numvars(::TaylorModelN{N,T,S}) where {N,T,S} = N
+@inline TS.space(a::TaylorModelN{N,T,S}) where {N,T,S} = space(polynomial(a))
 # Centered domain
 @inline centered_dom(tm::TaylorModelN) = domain(tm) .- expansion_point(tm)
