@@ -22,7 +22,8 @@ end
 @testset "Tests for TaylorModelN " begin
     local _order = 2
     local _order_max = 2*(_order+1)
-    variables!(Interval{Float64}, "x y", order=_order_max; nowarn=true)
+    local jspace = JetSpace(_order_max, ["x", "y"])
+    # variables!(Interval{Float64}, "x y", order=_order_max; nowarn=true)
 
     b0 = [interval(0.0), interval(0.0)]
     ib0 = [interval(-0.5, 0.5), interval(-0.5, 0.5)]
@@ -30,25 +31,25 @@ end
     ib1 = [interval(-0.5, 0.5), interval(0.5, 1.5)]
 
     zi = interval(0)
-    xT = TaylorN(Interval{Float64}, 1, order=_order)
-    yT = TaylorN(Interval{Float64}, 2, order=_order)
+    xT = TaylorN(jspace, Interval{Float64}, 1, order=_order)
+    yT = TaylorN(jspace, Interval{Float64}, 2, order=_order)
 
     @testset "TaylorModelN constructors" begin
-        xm = TaylorModelN{_order,Interval{Float64}, Float64}(xT, zi, b0, ib0)
-        ym = TaylorModelN{_order,Interval{Float64}, Float64}(yT, zi, b0, ib0)
+        xm = TaylorModelN{_order, Interval{Float64}, Float64}(xT, zi, b0, ib0)
+        ym = TaylorModelN{_order, Interval{Float64}, Float64}(yT, zi, b0, ib0)
         @test xm == TaylorModelN(xT, zi, b0, ib0)
         @test ym == TaylorModelN(yT, zi, b0, ib0)
-        @test xm == TaylorModelN(1, _order, b0, ib0)
-        @test ym == TaylorModelN(2, _order, b0, ib0)
-        @test TaylorModelN( b1[1], 2, b0, ib0) ==
-                TaylorModelN(TaylorN(b1[1], _order), zi, b0, ib0)
+        @test xm == TaylorModelN(jspace, 1, _order, b0, ib0)
+        @test ym == TaylorModelN(jspace, 2, _order, b0, ib0)
+        @test TaylorModelN(jspace, b1[1], 2, b0, ib0) ==
+                TaylorModelN(TaylorN(jspace, b1[1], _order), zi, b0, ib0)
 
         xm1 = TaylorModelN{_order,Interval{Float64}, Float64}(xT, zi, b0, ib0)
         TaylorModelN!(xm1, interval(-1,1))
         @test xm1 == TaylorModelN(xT, interval(-1,1), b0, ib0)
         TaylorModelN!(xm1, zi)
-        @test TaylorModelN(1, _order, b0, ib0) == xm1
-        @test TaylorModelN(2, _order, b0, ib0) == ym
+        @test TaylorModelN(jspace, 1, _order, b0, ib0) == xm1
+        @test TaylorModelN(jspace, 2, _order, b0, ib0) == ym
 
         @test isa(xm, AbstractSeries)
         @test TaylorModelN{2,Interval{Float64},Float64} <: AbstractSeries{Interval{Float64}}
@@ -60,7 +61,7 @@ end
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
 
         # Tests for order and remainder
-        @test TS.order() == 6
+        @test TS.order(jspace) == 6
         @test TS.order(xm) == 2
         @test isequal_interval(domain(xm), ib0)
         @test isequal_interval(remainder(ym), zi)
@@ -103,8 +104,8 @@ end
         b = b1[2] * a
         @test b == TaylorModelN( b1[2]*a_pol, Δ*b1[2], b1, ib1 )
         @test b / b1[2] == a
-        @test_throws AssertionError TaylorModelN(TaylorN(1, order=_order_max), zi, b1, ib1) *
-            TaylorModelN(TaylorN(2, order=_order_max), zi, b1, ib1)
+        @test_throws AssertionError TaylorModelN(TaylorN(jspace, 1, order=_order_max), zi, b1, ib1) *
+            TaylorModelN(TaylorN(jspace, 2, order=_order_max), zi, b1, ib1)
 
         remt = remainder(1/(1-TaylorModel1(_order, b1[1], ib1[1])))
         @test isequal_interval(remainder(1 / (1-xm)), remt)
@@ -116,8 +117,8 @@ end
     end
 
     @testset "RPAs, functions and remainders" begin
-        xm = TaylorModelN(1, _order, b1, ib1)
-        ym = TaylorModelN(2, _order, b1, ib1)
+        xm = TaylorModelN(jspace, 1, _order, b1, ib1)
+        ym = TaylorModelN(jspace, 2, _order, b1, ib1)
 
         @test rpa(x->5+zero(x), xm) == 5+zero(xm)
         @test rpa(x->5+one(x), ym) == 5+one(ym)
@@ -263,8 +264,8 @@ end
     @testset "Tests for integrate" begin
         ib0 = [interval(0., 1.), interval(0., 1.)]
         b0 = [interval(0.5, 0.5), interval(0.5, 0.5)]
-        xm = TaylorModelN(1, _order, b0, ib0)
-        ym = TaylorModelN(2, _order, b0, ib0)
+        xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+        ym = TaylorModelN(jspace, 2, _order, b0, ib0)
         xm.rem = interval(-0.25,0.25)
 
         f = (x, y) -> x
@@ -377,8 +378,8 @@ end
     end
 
     @testset "Display" begin
-        xm = TaylorModelN(1, _order, b1, ib1)
-        ym = TaylorModelN(2, _order, b1, ib1)
+        xm = TaylorModelN(jspace, 1, _order, b1, ib1)
+        ym = TaylorModelN(jspace, 2, _order, b1, ib1)
         use_show_default(true)
         @test string(xm+ym) == "TaylorModelN{2, Interval{Float64}, Float64}" *
             "(TaylorN{Interval{Float64}}(HomogeneousPolynomial{Interval{Float64}}" *
@@ -415,8 +416,8 @@ end
             ib0 = [interval(2.875, 3.0625), interval(0.5, 0.625)] # A box near global minimum
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
@@ -424,8 +425,8 @@ end
             @test in_interval(beale_min, bound_ldb)
 
             # Same as previous, but with Float64 coefficients
-            xT = TaylorN(Float64, 1, order=_order)
-            yT = TaylorN(Float64, 2, order=_order)
+            xT = TaylorN(jspace, Float64, 1, order=_order)
+            yT = TaylorN(jspace, Float64, 2, order=_order)
             xT = xT + c[1]
             yT = yT + c[2]
             xm = TaylorModelN(xT, interval(0), b0, ib0)
@@ -437,16 +438,16 @@ end
             ib0 = [interval(2.875, 3.0625), interval(0.375, 0.5)]
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test issubset_interval(bound_ldb, bound_naive_tm)
             @test in_interval(beale_min, bound_ldb)
 
-            xT = TaylorN(Float64, 1, order=_order)
-            yT = TaylorN(Float64, 2, order=_order)
+            xT = TaylorN(jspace, Float64, 1, order=_order)
+            yT = TaylorN(jspace, Float64, 2, order=_order)
             xT = xT + c[1]
             yT = yT + c[2]
             xm = TaylorModelN(xT, interval(0), b0, ib0)
@@ -460,15 +461,15 @@ end
             ib0 = [interval(1.01176, 1.1353), interval(0.888235, 1.01177)]
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = rosenbrock(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test issubset_interval(bound_ldb, bound_naive_tm)
 
-            xT = TaylorN(Float64, 1, order=_order)
-            yT = TaylorN(Float64, 2, order=_order)
+            xT = TaylorN(jspace, Float64, 1, order=_order)
+            yT = TaylorN(jspace, Float64, 2, order=_order)
             xT = xT + c[1]
             yT = yT + c[2]
             xm = TaylorModelN(xT, zi, b0, ib0)
@@ -481,15 +482,15 @@ end
             ib0 = [interval(-0.647059, -0.588235), interval(-1.58824, -1.52941)]
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = mccormick(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_ldb = linear_dominated_bounder(fT)
             @test issubset_interval(bound_ldb, bound_naive_tm)
 
-            xT = TaylorN(Float64, 1, order=_order)
-            yT = TaylorN(Float64, 2, order=_order)
+            xT = TaylorN(jspace, Float64, 1, order=_order)
+            yT = TaylorN(jspace, Float64, 2, order=_order)
             xT = xT + c[1]
             yT = yT + c[2]
             xm = TaylorModelN(xT, zi, b0, ib0)
@@ -505,8 +506,8 @@ end
             ib0 = [interval(3 - δ, 3 + δ), interval(0.5 - δ, 0.5 + δ)]
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = beale(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
@@ -516,8 +517,8 @@ end
             ib0 = [interval(1. - δ, 1. + δ), interval(1. - δ, 1 + δ)]
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = rosenbrock(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)
@@ -528,8 +529,8 @@ end
                     interval(-1.54719 - δ, -1.54719 + δ)]
             c = mid.(ib0)
             b0 = [interval(c[1]), interval(c[2])]
-            xm = TaylorModelN(1, _order, b0, ib0)
-            ym = TaylorModelN(2, _order, b0, ib0)
+            xm = TaylorModelN(jspace, 1, _order, b0, ib0)
+            ym = TaylorModelN(jspace, 2, _order, b0, ib0)
             fT = mccormick(xm, ym)
             bound_naive_tm = fT(centered_dom(fT))
             bound_qfb = quadratic_fast_bounder(fT)

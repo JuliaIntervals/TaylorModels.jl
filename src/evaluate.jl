@@ -69,7 +69,7 @@ end
 function _evaluate(tmg::TaylorModel1{T,S}, tmf::TaylorModelN{N,T,S}) where{N,T,S}
     _order = TS.order(tmf)
     @assert _order == TS.order(tmg)
-    tmres = TaylorModelN(zero(constant_term(tmg.pol)), _order,
+    tmres = TaylorModelN(space(tmf), zero(constant_term(tmg.pol)), _order,
         expansion_point(tmf), domain(tmf))
     @inbounds for k = _order:-1:0
         tmres = tmres * tmf

@@ -17,7 +17,8 @@ function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
 
     # Vector of independent TaylorN variables
     order = TS.order(xTMN[1])
-    X = [TaylorN(T, i, order=order) for i in 1:N]
+    # X = [TaylorN(T, i, order=order) for i in 1:N]
+    X = variables(space(xTMN[1]), order=order)
 
     # Remainder of original TaylorModelN and componentwise mag
     rem = remainder.(xTMN)
@@ -113,7 +114,7 @@ end
 # Postverify and define Taylor models to be returned
 for TT in (:T, :(Interval{T}))
     @eval function scalepostverify_sw!(xTMN::Vector{TaylorModelN{N,$TT,S}},
-            X::Vector{TaylorN{$TT}}) where {N,T<:IANumTypes, S<:IANumTypes}
+            X::Vector{TaylorN{T}}) where {N,T, S<:IANumTypes}
         postverify = true
         x0 = expansion_point(xTMN[1])
         B = domain(xTMN[1])
@@ -158,7 +159,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     rem = zero(Δ)
 
     # Linear shift
-    lin_shift = mid(Δ) + sum((aux*TaylorN(i, order=orderQ) for i in 1:N))
+    lin_shift = mid(Δ) + aux*sum((TaylorN(space(a), i, order=orderQ) for i in 1:N))
     bpol = polynomial(a) + lin_shift
 
     # Compute the new remainder

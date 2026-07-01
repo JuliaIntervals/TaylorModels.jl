@@ -279,7 +279,8 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
     D = symmetric_box(N)
 
     b = zero(fT)
-    t = Taylor1(TaylorN([zeros(HomogeneousPolynomial{T},order)], order), TS.order(fT))
+    t = Taylor1(TaylorN(space(tm.pol),
+        [zeros(HomogeneousPolynomial{T},order)], order), TS.order(fT))
     for ind in eachindex(fT)
         for homPol in eachindex(fT[ind])
             for jind in eachindex(fT[ind][homPol])
@@ -303,7 +304,7 @@ function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
     order = TS.order(tm)
 
     b = zero(fT)
-    t = TaylorN([HomogeneousPolynomial(zeros(T,N))], order)
+    t = TaylorN(space(tm), [HomogeneousPolynomial(space(tm), zeros(T,N))], order)
     for ind = 0:order
         @inbounds for homPol in eachindex(fT[ind])
             t[ind][homPol] = mid(fT[ind][homPol])

@@ -256,8 +256,8 @@ of the `TaylorModelN` included.
 """ linear_dominated_bounder
 
 for TT = (:T, :(Interval{T}))
-    @eval function linear_dominated_bounder(fT::TaylorModelN{N,$TT,S}; ϵ=1e-5, max_iter=5) where
-            {N,T<:IANumTypes, S<:IANumTypes}
+    @eval function linear_dominated_bounder(fT::TaylorModelN{N,$TT,S};
+            ϵ=1e-5, max_iter=5) where {N,T<:IANumTypes, S<:IANumTypes}
         d = one(T)
         dom = domain(fT)
         x0 = expansion_point(fT)
@@ -363,7 +363,7 @@ For this algorithm the linear part is bounded by solving a simple
 set of linear equations (compared to the iterative procedure by Makino & Berz).
 """
 function quadratic_fast_bounder(fT::TaylorModelN)
-    @assert get_numvars() == get_numvars(fT)
+    @assert get_numvars(space(fT)) == get_numvars(fT)
     P = polynomial(fT)
     dom = domain(fT)
     x0 = expansion_point(fT)
@@ -372,7 +372,7 @@ function quadratic_fast_bounder(fT::TaylorModelN)
     if isposdef(mid.(H))
         P1 = -P[1].coeffs
         xn = H \ P1
-        x = variables()
+        x = variables(space(fT); order=TS.order(fT))
         Qxn = 0.5 * (x - xn)' * H * (x - xn)
         bound_qfb = (P - Qxn)(dom - x0)
         hi = sup(P(dom - x0))
