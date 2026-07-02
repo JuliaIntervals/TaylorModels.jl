@@ -12,10 +12,10 @@ for TM in (:TaylorModel1, :RTaylorModel1, :TaylorModelN)
         @inline Base.iterate(a::$TM, state=0) = state ≥ lastindex(a) ? nothing : (a[state+1], state+1)
         @inline Base.eachindex(a::$TM) = firstindex(a):lastindex(a)
 
-        getindex(a::$TM, n::Integer) = getindex(polynomial(a), n)
-        getindex(a::$TM, u::UnitRange) = getindex(polynomial(a), u)
-        getindex(a::$TM, c::Colon) = getindex(polynomial(a), c)
-        # getindex(a::$TM, u::StepRange{Int,Int}) = getindex(polynomial(a), u)
+        getindex(a::$TM, n::Integer) = a.pol.coeffs[n+1]
+        getindex(a::$TM, u::UnitRange) = a.pol.coeffs[u .+ 1]
+        getindex(a::$TM, c::Colon) = a.pol.coeffs[c]
+        # getindex(a::$TM, u::StepRange{Int,Int}) = a.pol.coeffs[u .+ 1]
 
         constant_term(a::$TM) = constant_term(polynomial(a))
         linear_polynomial(a::$TM) = linear_polynomial(polynomial(a))
@@ -29,12 +29,12 @@ end
 # setindex, iscontained
 for TM in tupleTMs
     @eval begin
-        setindex!(a::$TM{T,S}, x::T, n::Integer) where {T<:Number, S} = a.pol[n] = x
-        setindex!(a::$TM{T,S}, x::T, u::UnitRange) where {T<:Number, S} = a.pol[u] .= x
+        setindex!(a::$TM{T,S}, x::T, n::Integer) where {T<:Number, S} = a.pol.coeffs[n+1] = x
+        setindex!(a::$TM{T,S}, x::T, u::UnitRange) where {T<:Number, S} = a.pol.coeffs[u .+ 1] .= x
         function setindex!(a::$TM{T,S}, x::Array{T,1}, u::UnitRange) where {T<:Number, S}
             @assert length(u) == length(x)
             for ind in eachindex(x)
-                a.pol[u[ind]] = x[ind]
+                a.pol.coeffs[u[ind]+1] = x[ind]
             end
         end
         setindex!(a::$TM{T,S}, x::T, c::Colon) where {T<:Number, S} = a[c] .= x
@@ -48,11 +48,12 @@ iscontained(a, tm::TaylorModelN) = all(in_interval.(a, centered_dom(tm)))
 iscontained(a::AbstractVector{<:Interval}, tm::TaylorModelN) =
     all(issubset_interval.(a, centered_dom(tm)))
 setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
-    n::Int) where {N,T,S} = a.pol[n] = x
+    n::Int) where {N,T,S} = a.pol.coeffs[n+1] = x
 setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
-        n::Int) where {N,T,S} = setindex!(a.coeffs,
-    TaylorModelN(TaylorN(x.pol.coeffs[:], TS.order(x.pol)), x.rem, x.x0[:], x.dom[:]),
-    n+1)
+        n::Int) where {N,T,S} =
+    setindex!(a.coeffs,
+        TaylorModelN(TaylorN(space(x), x.pol.coeffs[:], TS.order(x.pol)),
+            x.rem, x.x0[:], x.dom[:]), n+1)
 
 
 """
@@ -93,7 +94,7 @@ for TM in tupleTMs
             order_a = TS.order(a)
             order ≥ order_a && return zero(aux)
             if $TM == TaylorModel1
-                res = Taylor1(copy(a.coeffs))
+                res = Taylor1(a.coeffs, order_a)
                 res[0:order] .= zero(res[0])
             else
                 res = Taylor1(a.coeffs[order+2:end], order_a-order )
@@ -135,7 +136,7 @@ end
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
         order::Int)
     order ≥ TS.order(a) && return zero(aux[1])
-    res = TaylorN(a.coeffs[:], TS.order(a))
+    res = TaylorN(space(a), a.coeffs[:], TS.order(a))
     res[0:order] .= zero(res[0])
     return res(aux)
 end

@@ -124,7 +124,7 @@ mutable struct TaylorModelN{N,T,S} <: AbstractSeries{T}
             x0::SVector{N,Interval{S}}, dom::SVector{N,Interval{S}}) where
             {N,T<:NumberNotSeries,S<:Real}
 
-        @assert N == get_numvars()
+        @assert N == get_numvars(space(pol))
         @assert in_interval(zero(S), rem) && all(issubset_interval.(x0, dom))
 
         return new{N,T,S}(pol, rem, x0, dom)
@@ -135,14 +135,14 @@ end
 function TaylorModelN{N,T,S}(pol::TaylorN{T}, rem::Interval{S},
         x0::AbstractVector{Interval{S}}, dom::AbstractVector{Interval{S}}) where
         {N,T<:NumberNotSeries,S<:Real}
-    @assert N == get_numvars()
+    @assert N == get_numvars(pol)
     return TaylorModelN{N,T,S}(pol, rem, SVector{N}(x0), SVector{N}(dom))
 end
 
 function TaylorModelN(pol::TaylorN{T}, rem::Interval{S},
         x0::AbstractVector{Interval{S}}, dom::AbstractVector{Interval{S}}) where
         {T<:NumberNotSeries,S<:Real}
-    N = get_numvars()
+    N = get_numvars(pol)
     return TaylorModelN{N,T,S}(pol, rem, SVector{N}(x0), SVector{N}(dom))
 end
 
@@ -154,14 +154,23 @@ TaylorModelN(pol::TaylorN{T}, rem::Interval{S}, x0::SVector{N,Interval{S}},
 TaylorModelN(nv::Integer, ord::Integer, x0::AbstractVector{Interval{T}},
         dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(x0[nv] + TaylorN(Interval{T}, nv, order=ord), zero(dom[1]), x0, dom)
+TaylorModelN(space::JetSpace, nv::Integer, ord::Integer, x0::AbstractVector{Interval{T}},
+        dom::AbstractVector{Interval{T}}) where {T} =
+    TaylorModelN(x0[nv] + TaylorN(space, Interval{T}, nv, order=ord), zero(dom[1]), x0, dom)
 
 # Short-cut for a constant
 TaylorModelN(a::Interval{T}, ord::Integer, x0::AbstractVector{Interval{T}},
         dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
+TaylorModelN(space::JetSpace, a::Interval{T}, ord::Integer, x0::AbstractVector{Interval{T}},
+        dom::AbstractVector{Interval{T}}) where {T} =
+    TaylorModelN(TaylorN(space, a, ord), zero(dom[1]), x0, dom)
 TaylorModelN(a::T, ord::Integer, x0::AbstractVector{<:Interval{T}},
         dom::AbstractVector{Interval{T}}) where {T} =
     TaylorModelN(TaylorN(a, ord), zero(dom[1]), x0, dom)
+TaylorModelN(space::JetSpace, a::T, ord::Integer, x0::AbstractVector{<:Interval{T}},
+        dom::AbstractVector{Interval{T}}) where {T} =
+    TaylorModelN(TaylorN(space, a, ord), zero(dom[1]), x0, dom)
 
 # Constructor for just changing the remainder
 TaylorModelN!(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
@@ -175,5 +184,6 @@ TaylorModelN!(u::TaylorModelN{N,T,S}, Δ::Interval{S}) where {N,T,S} =
 @inline domain(tm::TaylorModelN) = tm.dom
 @inline expansion_point(tm::TaylorModelN) = tm.x0
 @inline get_numvars(::TaylorModelN{N,T,S}) where {N,T,S} = N
+@inline TS.space(a::TaylorModelN{N,T,S}) where {N,T,S} = space(polynomial(a))
 # Centered domain
 @inline centered_dom(tm::TaylorModelN) = domain(tm) .- expansion_point(tm)

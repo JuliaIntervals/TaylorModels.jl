@@ -486,9 +486,11 @@ end
 
 
 # Same as above, for TaylorModelN
-zero(a::TaylorModelN) = TaylorModelN(TaylorN(zero(a.pol[0]), TS.order(a.pol)),
+zero(a::TaylorModelN) = TaylorModelN(
+    TaylorN(space(a), zero(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
     zero(remainder(a)), expansion_point(a), domain(a))
-one(a::TaylorModelN) = TaylorModelN(TaylorN(one(a.pol[0]), TS.order(a.pol)),
+one(a::TaylorModelN) = TaylorModelN(
+    TaylorN(space(a), one(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
     zero(remainder(a)), expansion_point(a), domain(a))
 zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), TS.order(a))
 
@@ -526,7 +528,7 @@ end
 # Multiplication
 function *(a::TaylorModelN, b::TaylorModelN)
     @assert all(isequal_interval.(tmdata(a), tmdata(b)))
-    @assert TS.order(a)+TS.order(b) ≤ TS.order()
+    @assert TS.order(a)+TS.order(b) ≤ TS.order(space(a))
     # Returned polynomial
     res = a.pol * b.pol
     # Remainder
@@ -563,7 +565,7 @@ function _neglected_polynomial(a::TaylorModelN{N,T,S}, b::TaylorModelN{N,T,S},
     z = zero(R)
     suma = Vector{promote_type(R,D)}(undef, rnegl_order-_order)
     for k in _order+1:rnegl_order
-        tmp = HomogeneousPolynomial(z, k)
+        tmp = HomogeneousPolynomial(space(a), z, k)
         @inbounds for i = 0:k
             (i > a_order || k-i > b_order) && continue
             TS.mul!(tmp, a.pol[i], b.pol[k-i])
@@ -599,7 +601,7 @@ end
 # Power
 # Square
 function TS.square(a::TaylorModelN)
-    @assert 2*TS.order(a) ≤ TS.order()
+    @assert 2*TS.order(a) ≤ TS.order(space(a))
     res = TS.square(a.pol)
     Δ = remainder_square(a, TS.order(res))
     return TaylorModelN(res, Δ, expansion_point(a), domain(a))
@@ -615,7 +617,7 @@ function remainder_square(a::TaylorModelN{N,T,S},
     suma = Array{promote_type(TS.numtype(a.pol),
                     TS.numtype(domain(a)))}(undef, rnegl_order-_order)
     for k in _order+1:rnegl_order
-        vv[k-_order] = HomogeneousPolynomial(zero(TS.numtype(a.pol)), k)
+        vv[k-_order] = HomogeneousPolynomial(space(a), zero(TS.numtype(a.pol)), k)
         @inbounds for i = 0:k
             (i > a_order || k-i > a_order) && continue
             TS.mul!(vv[k-_order], a.pol[i], a.pol[k-i])

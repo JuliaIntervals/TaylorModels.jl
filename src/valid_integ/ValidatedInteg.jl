@@ -10,6 +10,7 @@ using Parameters
 import Parameters: @unpack
 using StaticArrays
 
+import TaylorSeries: space
 export TMSol, TMSol3, flowpipe, get_xTM
 export shrink_wrapping!, absorb_remainder
 export validated_integ, validated_integ2, validated_integ3

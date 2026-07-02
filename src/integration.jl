@@ -102,13 +102,13 @@ end
 function integrate(fT::TaylorModelN, which=1)
     p̂ = integrate(fT.pol, which)
     order = TS.order(fT)
-    r = TaylorN(p̂.coeffs[1:order+1])
-    s = TaylorN(p̂.coeffs[order+2:end])
+    r = TaylorN(space(fT), p̂.coeffs[1:order+1])
+    s = TaylorN(space(fT), p̂.coeffs[order+2:end])
     Δ = bound_integration(fT, s, which)
     return TaylorModelN(r, Δ, expansion_point(fT), domain(fT))
 end
 function integrate(fT::TaylorModelN, s::Symbol)
-    which = TaylorSeries.lookupvar(s)
+    which = TS.lookupvar(space(fT), s)
     return integrate(fT, which)
 end
 
