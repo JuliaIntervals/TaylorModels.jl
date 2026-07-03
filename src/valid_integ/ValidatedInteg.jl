@@ -6,6 +6,7 @@ using TaylorModels
 using Reexport
 @reexport using TaylorIntegration
 using LinearAlgebra: I, cond, mul!, qr
+using InteractiveUtils #: methodswith
 using Parameters
 import Parameters: @unpack
 using StaticArrays
