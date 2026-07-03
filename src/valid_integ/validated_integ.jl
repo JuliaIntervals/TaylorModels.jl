@@ -5,14 +5,15 @@ const _DEF_MINABSTOL = 1.0e-50
 
 function validated_integ(f!, X0::AbstractVector{Interval{U}},
         t0::T, tmax::T, orderQ::Int, orderT::Int,
-        abstol::T, params=nothing;
+        abstol::T, localsp::JetSpace, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
         check_property::F=(t, x)->true) where {T<:Real, U, F}
 
     # Initialize cache
     vX0 = Vector(X0)
-    cacheVI = init_cache_VI(t0, vX0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    cacheVI = init_cache_VI(t0, vX0, maxsteps, orderT, orderQ, f!, localsp, params;
+        parse_eqs)
 
     return _validated_integ!(f!, vX0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol, absorb, check_property)
@@ -20,13 +21,14 @@ end
 
 function validated_integ(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}},
         t0::T, tmax::T, orderQ::Int, orderT::Int,
-        abstol::T, params=nothing;
+        abstol::T, localsp::JetSpace, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
         check_property::F=(t, x)->true) where {T<:Real, U, F}
 
     # Initialize cache
-    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, localsp, params;
+        parse_eqs)
     q0 = evaluate(constant_term.(polynomial.(X0)), Vector(symmetric_box(length(X0),U)))
 
     return _validated_integ!(f!, q0, t0, tmax, abstol, cacheVI, params,

@@ -41,7 +41,8 @@ it is assumed that the domain of the TaylorN variables is normalized to the doma
 
 """
 function init_cache_VI(t0::T, x0::Array{Interval{U},1},
-        maxsteps::Int, orderT::Int, orderQ::Int, f!::F, params = nothing;
+        maxsteps::Int, orderT::Int, orderQ::Int, f!::F,
+        localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {U,T,F}
 
     dof = length(x0)
@@ -50,10 +51,10 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
     zB = zero(S)
     # Initialize Taylor1{TaylorN} expansions explicitly
     q0 = Array{TaylorN{U}}(undef, dof)
-    @inbounds for ind in eachindex(q0)
-        q0[ind] = mid(x0[ind]) + TaylorN(ind, order=orderQ) * radius(x0[ind])
-    end
-
+    # @inbounds for ind in eachindex(q0)
+    #     q0[ind] = mid(x0[ind]) + TaylorN(localsp, ind, order=orderQ) * radius(x0[ind])
+    # end
+    q0 .= mid.(x0) .+ variables(localsp; order=orderQ) .* radius.(x0)
     # Initialize the vector of Taylor1{TaylorN{U}} expansions
     t, x, dx = TI.init_expansions(t0, q0, orderT)
     # Determine if specialized jetcoeffs! method exists/works
@@ -71,7 +72,8 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
 
     # More initializations
     xTMN  = Array{TaylorModelN{dof,Interval{T},T}}(undef, dof)
-    @. xTMN = TaylorModelN(TaylorN(getcoeff(xI[:], 0), orderQ), zI, (zB,), (S,))
+    xTMN .= TaylorModelN.(
+        TaylorN.((localsp,), getcoeff.(xI[:], 0), orderQ), zI, (zB,), (S,))
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
     rem   = Array{Interval{T}}(undef, dof)
     for ind in eachindex(x)
@@ -93,14 +95,15 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
     return cacheVI
 end
 function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
-        maxsteps::Int, orderT::Int, orderQ::Int, f!::F, params = nothing;
+        maxsteps::Int, orderT::Int, orderQ::Int, f!::F,
+        localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {U,T,F}
     dof = length(xTM)
     S  = symmetric_box(dof, U)
     # Initialize the vector of Taylor1{TaylorN} expansions
     x0 = evaluate(evaluate.(polynomial.(xTM)), Vector(S))
     return init_cache_VI(t0, x0, maxsteps, orderT, orderQ,
-                f!, params; parse_eqs = parse_eqs)
+                f!, localsp, params; parse_eqs = parse_eqs)
 end
 
 struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
@@ -128,14 +131,16 @@ struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
 end
 
 init_cache_VI3(f!::F, t0::T, x0::Array{Interval{U},1},
-        maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
+        maxsteps::Int, orderT::Int, orderQ::Int,
+        localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {U,T,F} =
     init_cache_VI3(f!, t0, SVector(x0...),
-        maxsteps, orderT, orderQ, params;
+        maxsteps, orderT, orderQ, localsp, params;
         parse_eqs = parse_eqs)
 
 function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
-        maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
+        maxsteps::Int, orderT::Int, orderQ::Int,
+        localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {N,U,T,F}
     # N = length(x0)
     @assert N == length(x0)
@@ -145,9 +150,10 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     vTN = Array{TaylorN{U}}(undef, N)
 
     # Initialize the vector of Taylor1{TaylorN{U}} expansions explicitly
-    @inbounds for ind in eachindex(vTN)
-        vTN[ind] = mid(x0[ind]) + TaylorN(ind, order=orderQ) * radius(x0[ind])
-    end
+    # @inbounds for ind in eachindex(vTN)
+    #     vTN[ind] = mid(x0[ind]) + TaylorN(ocalsp, ind, order=orderQ) * radius(x0[ind])
+    # end
+    vTN .= mid.(x0) .+ variables(localsp; order=orderQ) .* radius.(x0)
     t, x, dx = TI.init_expansions(t0, vTN, orderT)
     auxN = zero(vTN[1])
 
@@ -204,17 +210,17 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
             Array{Taylor1{TaylorN{U}}}(undef, N), #xaux
             t, x, dx, rv,
             t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
-            xTM1v, x0New, rem1, rem2, rem0,
-            parse_eqsX)
+            xTM1v, x0New, rem1, rem2, rem0, parse_eqsX)
 end
 
 function init_cache_VI3(f!::F, t0::T,
         xTM::Array{TaylorModel1{TaylorModelN{N,T,U},U},1},
-        maxsteps::Int, orderT::Int, orderQ::Int, params = nothing;
+        maxsteps::Int, orderT::Int, orderQ::Int,
+        localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {N,U,T,F}
 
     # Initialize the vector of Taylor1{TaylorN} expansions
     x0 = evaluate(evaluate.(xTM, xTM[1].x0), domain(xTM[1].pol[0]))
-    return init_cache_VI3(f!, t0, SVector(x0...), maxsteps, orderT, orderQ, params;
-        parse_eqs = parse_eqs)
+    return init_cache_VI3(f!, t0, SVector(x0...), maxsteps, orderT, orderQ,
+        localsp, params; parse_eqs = parse_eqs)
 end

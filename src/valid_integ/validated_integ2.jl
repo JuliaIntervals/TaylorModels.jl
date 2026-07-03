@@ -1,7 +1,7 @@
 # Some methods for validated integration of ODEs (second approach)
 
-function validated_integ2(f!, X0::AbstractVector{Interval{U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
-        abstol::T, params=nothing;
+function validated_integ2(f!, X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
+        orderQ::Int, orderT::Int, abstol::T, localsp::JetSpace, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
         validatesteps::Int=30, ε::T=1e-10, δ::T=1e-6,
@@ -9,22 +9,24 @@ function validated_integ2(f!, X0::AbstractVector{Interval{U}}, t0::T, tmax::T, o
 
     # Initialize cache
     vX0 = Vector(X0)
-    cacheVI = init_cache_VI(t0, vX0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    cacheVI = init_cache_VI(t0, vX0, maxsteps, orderT, orderQ, f!, localsp, params;
+        parse_eqs)
 
     return _validated_integ2!(f!, vX0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol, absorb,
         validatesteps, ε, δ, absorb_steps)
 end
 
-function validated_integ2(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tmax::T, orderQ::Int, orderT::Int,
-        abstol::T, params=nothing;
+function validated_integ2(f!, X0::Vector{TaylorModel1{TaylorN{T}, U}}, t0::T, tmax::T,
+        orderQ::Int, orderT::Int, abstol::T, localsp::JetSpace, params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL), absorb::Bool=false,
         validatesteps::Int=30, ε::T=1e-10, δ::T=1e-6,
         absorb_steps::Int=3) where {T <: Real, U}
 
     # Initialize cache
-    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, params; parse_eqs)
+    cacheVI = init_cache_VI(t0, X0, maxsteps, orderT, orderQ, f!, localsp, params;
+        parse_eqs)
     q0 = evaluate(constant_term.(polynomial.(X0)), Vector(symmetric_box(length(X0),U)))
 
     return _validated_integ2!(f!, q0, t0, tmax, abstol, cacheVI, params,
