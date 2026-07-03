@@ -1,27 +1,226 @@
 # Mutating functions
 #
 
+function TS.identity!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        k::Int) where {T,S,N}
+    TS.identity!(c.coeffs[k+1], a.coeffs[k+1])
+    return nothing
+end
+function TS.identity!(c::TaylorModelN{N,T,S}, a::TaylorModelN{N,T,S}) where {T,S,N}
+    for k in eachindex(c)
+        TS.identity!(polynomial(c), polynomial(a), k)
+    end
+    c.rem = a.rem
+    return nothing
+end
+
+
+function TS.zero!(a::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {T,S,N}
+    TS.zero!(a.coeffs[k+1])
+    return nothing
+end
 function TS.zero!(a::TaylorModelN)
     for k in eachindex(a)
-        TS.zero!(a, k)
+        TS.zero!(polynomial(a), k)
     end
+    a.rem = zero(a.rem)
     return nothing
 end
 function TS.zero!(a::TaylorModelN, k::Int)
-    TS.zero!(a[k])
+    TS.zero!(polynomial(a), k)
+    return nothing
+end
+
+function TS.one!(a::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {T,S,N}
+    if k == 0
+        TS.one!(a.coeffs[1])
+    else
+        TS.zero!(a.coeffs[k+1])
+    end
+    return nothing
+end
+function TS.one!(a::TaylorModelN)
+    for k in eachindex(polynomial(a))
+        TS.zero!(polynomial(a), k)
+    end
+    TS.one!(polynomial(a), 0)
+    a.rem = zero(a.rem)
+    return nothing
+end
+function TS.one!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        k::Int) where {T,S,N}
+    if k == 0
+        c.coeffs[1] = one(a.coeffs[1])
+    else
+        TS.zero!(c.coeffs[k+1])
+    end
+    return nothing
+end
+
+#
+function TS.add!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        k::Int) where {N,T,S}
+    TS.identity(c.coeffs[k+1], a.coeffs[k+1])
+    return nothing
+end
+# function TS.add!(c::TaylorModelN{N,T,S}, a::TaylorModelN{N,T,S}) where {N,T,S}
+#     for k in eachindex(c)
+#         TS.add!(polynomial(c), polynomial(a), k)
+#     end
+#     c.rem = a.rem
+#     return nothing
+# end
+function TS.add!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
+    c.coeffs[k+1] = a.coeffs[k+1] + b.coeffs[k+1]
+    return nothing
+end
+# function TS.add!(c::TaylorModelN{N,T,S}, a::TaylorModelN{N,T,S}) where {N,T,S}
+#     for k in eachindex(c)
+#         TS.add!(polynomial(c), polynomial(a), polynomial(b), k)
+#     end
+#     c.rem = a.rem + b.rem
+#     return nothing
+# end
+
+function TS.subst!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        k::Int) where {N,T,S}
+    TS.identity!(c.coeffs[k+1], - a.coeffs[k+1])
+    return nothing
+end
+# function TS.subst!(c::TaylorModelN{N,T,S}, a::TaylorModelN{N,T,S}) where {N,T,S}
+#     for k in eachindex(c)
+#         TS.subst!(polynomial(c), polynomial(a), k)
+#     end
+#     c.rem = -a.rem
+#     return nothing
+# end
+function TS.subst!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
+    c.coeffs[k+1] = a.coeffs[k+1] - b.coeffs[k+1]
+    return nothing
+end
+# function TS.subst!(c::TaylorModelN{N,T,S}, a::TaylorModelN{N,T,S},
+#         b::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S}
+#     for k in eachindex(c)
+#         TS.subst!(polynomial(c), polynomial(a), polynomial(b), k)
+#     end
+#     c.rem = a.rem - b.rem
+#     return nothing
+# end
+
+function TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::NumberNotSeries,
+        b::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
+    res.coeffs[k+1] = a * b.coeffs[k+1]
+    return nothing
+end
+
+TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+    b::NumberNotSeries, k::Int) where {N,T,S} = TS.mul!(res, b, a, k)
+
+function TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::Taylor1{TaylorModelN{N,T,S}}, ordT::Int) where {N,T,S}
+    # Sanity
+    TS.zero!(res, ordT)
+    res_k = res.coeffs[ordT+1]
+    for k in 0:ordT
+        res_k += a.coeffs[k+1] * b.coeffs[ordT+1-k]
+    end
+    return nothing
+end
+
+function TS.div!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::NumberNotSeries, k::Int) where {N,T,S}
+    res.coeffs[k+1] = a.coeffs[k+1] / b
+    return nothing
+end
+
+function TS.div!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        b::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
+    # order and coefficient of first factorized term
+    # ordfact, cdivfact = divfactorization(a, b)
+    anz = findfirst(a)
+    bnz = findfirst(b)
+    anz = anz ≥ 0 ? anz : TS.order(a)
+    bnz = bnz ≥ 0 ? bnz : TS.order(a)
+    ordfact = min(anz, bnz)
+    # Is the polynomial factorizable?
+    iszero(b[ordfact]) && throw( ArgumentError(
+        """Division does not define a Taylor1 polynomial;
+        order k=$(ordfact) => coeff[$(ordfact)]=$(cdivfact).""") )
+    TS.zero!(c, k)
+    if k == 0
+        c.coeffs[1] = a.coeffs[ordfact+1] / b.coeffs[ordfact+1]
+        # TS.div!(c[0], a[ordfact], b[ordfact])
+        return nothing
+    end
+    imin = max(0, k+ordfact-TS.order(b))
+    tmp = c.coeffs[imin+1] * b.coeffs[k+1+ordfact-imin]
+    # TS.mul!(c[k], c[imin], b[k+ordfact-imin])
+    for i = imin+1:k-1
+        tmp += c.coeffs[i+1] * b.coeffs[k+1+ordfact-i]
+        # TS.mul!(c[k], c[i], b[k+ordfact-i])
+    end
+    if k+ordfact ≤ TS.order(b)
+        tmp = (a.coeffs[k+1+ordfact]-tmp)
+        # for l in eachindex(c[k])
+        #     TS.subst!(c[k], a[k+ordfact], c[k], l)
+        # end
+        c.coeffs[k+1] = tmp / b.coeffs[ordfact+1]
+        # TS.div!(c[k], b[ordfact])
+    else
+        # c[k] = (-c[k]) / b[ordfact]
+        c.coeffs[k+1] = tmp
+        TS.div_scalar!(c.coeffs[k+1], -1, b.coeffs[ordfact+1])
+    end
     return nothing
 end
 
 #
 function TS.pow!(c::Taylor1{TaylorModelN{N,T,S}},
         a::Taylor1{TaylorModelN{N,T,S}},
-        tmp::Taylor1{TaylorModelN{N,T,S}}, r::S, k::Int, l0::Int=0) where {N,T,S}
+        tmp::Taylor1{TaylorModelN{N,T,S}}, r::U, k::Int) where {N,T,S,U}
+    (r == 0) && return TS.one!(c, a, k)
+    (r == 1) && return TS.identity!(c, a, k)
+    (r == 2) && return TS.sqr!(c, a, constant_term(tmp), k)
+    (r == 0.5) && return TS.sqrt!(c, a, tmp, k)
+    # Sanity
+    TS.zero!(c, k)
+    # First non-zero coefficient
+    l0 = findfirst(a)
+    l0 < 0 && return nothing
+    # # Index of first non-zero coefficient of the result; must be integer
+    # !isinteger(r*l0) && throw(DomainError(a,
+    #     """The 0-th order Taylor1 coefficient must be non-zero
+    #     to raise the Taylor1 polynomial to a non-integer exponent."""))
+    # lnull = trunc(Int, r*l0 )
+    # kprime = k-lnull
+    # (kprime < 0 || lnull > TS.order(a)) && return nothing
+    # # Relevant for positive integer r, to avoid round-off errors
+    # isinteger(r) && r > 0 && (k > r*findlast(a)) && return nothing
+    # # First non-zero coeff
+    # if k == lnull
+    #     @inbounds c[k] = (a[l0])^float(r)
+    #     return nothing
+    # end
+    # # The recursion formula
+    # if l0+kprime ≤ TS.order(a)
+    #     @inbounds c[k] = r * kprime * c[lnull] * a[l0+kprime]
+    # end
+    # for i = 1:k-lnull-1
+    #     ((i+lnull) > TS.order(a) || (l0+kprime-i > TS.order(a))) && continue
+    #     aaux = r*(kprime-i) - i
+    #     @inbounds c[k] += aaux * c[i+lnull] * a[l0+kprime-i]
+    # end
+    # @inbounds c[k] = c[k] / (kprime * a[l0])
+    # return nothing
+    # #
     if k == l0
         c[0] = ( a[l0] )^r
         return nothing
     end
     tmp[k-l0] = zero(c[k-l0])
-    for i = 0:k-l0-1
+    for i = 1:k-l0-1
         aaux = r*(k-i) - i
         tmp[k-l0] += aaux * a[k-i] * c[i]
     end
@@ -55,8 +254,8 @@ function TS.sqr_orderzero!(c::Taylor1{TaylorModelN{N,T,S}},
     return nothing
 end
 
-function TS.sqrt!(c::Taylor1{TaylorModelN{N,T,S}},
-        a::Taylor1{TaylorModelN{N,T,S}}, k::Int, k0::Int=0) where {N,T,S}
+function TS.sqrt!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
+        ::Taylor1{TaylorModelN{N,T,S}}, k::Int, k0::Int=0) where {N,T,S}
     if k == k0
         c[k] = sqrt(a[2*k0])
         return nothing

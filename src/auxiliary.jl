@@ -66,7 +66,8 @@ it corresponds to `get_numvars()`.
 symmetric_box(N::Int) = fill(interval(-1.0, 1.0), SVector{N})
 symmetric_box(N::Int, ::Type{S}) where {S<:IA.NumTypes} =
     fill(interval(-one(S), one(S)), SVector{N})
-symmetric_box(::Type{T}) where {T<:IA.NumTypes} = symmetric_box(get_numvars(), T)
+symmetric_box(::Type{T}) where {T<:IA.NumTypes} = symmetric_box(1, T)
+symmetric_box(::Type{T}, a::JetSpace) where {T<:IA.NumTypes} = symmetric_box(get_numvars(a), T)
 
 
 # fixorder and bound_truncation
@@ -109,7 +110,7 @@ function bound_truncation(::Type{TaylorModel1}, a::Taylor1{TaylorN{T}}, aux::Int
         order::Int) where {T}
     order ≥ TS.order(a) && return zero(aux)
     # Assumes that the domain for the TaylorN variables is the symmetric normalized box -1 .. 1
-    symIbox = symmetric_box(numtype(aux))
+    symIbox = symmetric_box(numtype(aux), space(a[0]))
     res = evaluate(a, symIbox)
     res[0:order] .= zero(res[0])
     return res(aux)

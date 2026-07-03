@@ -168,7 +168,7 @@ function remainder_product(a::TaylorModel1{TaylorN{T},S},
     auxT = centered_dom(a)
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(S)
+    auxQ = symmetric_box(S, space(a[0]))
     if iseven(_order)
         # Remaining terms of the product as a Taylor1 pol
         rnegl = _neglected_polynomial(a, b, _order)
@@ -243,7 +243,7 @@ function remainder_product(a::RTaylorModel1{TaylorN{T},S},
     aux = centered_dom(a)
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(S)
+    auxQ = symmetric_box(S, space(a[0]))
     Δnegl = rnegl(aux)(auxQ)
     Δa = a.pol(aux)(auxQ)
     Δb = b.pol(aux)(auxQ)
@@ -282,7 +282,7 @@ function remainder_square(a::TaylorModel1{TaylorN{T}, S},
     auxT = centered_dom(a)
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(S)
+    auxQ = symmetric_box(S, space(a[0]))
     if iseven(_order)
         # Remaining terms of the product as a Taylor1 pol
         rnegl = _neglected_polynomial(a, _order)
@@ -347,7 +347,7 @@ function remainder_square(a::RTaylorModel1{TaylorN{T},S}, _order::Int) where
     aux = centered_dom(a)
     # An N-dimensional symmetrical IntervalBox is assumed
     # to bound the TaylorN part
-    auxQ = symmetric_box(S)
+    auxQ = symmetric_box(S, space(a[0]))
     Δnegl = rnegl(aux)(auxQ)
     Δa = a.pol(aux)(auxQ)
     V = Base.literal_pow(^, aux, Val(_order+1))
@@ -492,7 +492,7 @@ zero(a::TaylorModelN) = TaylorModelN(
 one(a::TaylorModelN) = TaylorModelN(
     TaylorN(space(a), one(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
     zero(remainder(a)), expansion_point(a), domain(a))
-zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), TS.order(a))
+# zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), TS.order(a))
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
 
@@ -706,66 +706,8 @@ end
 *(b::TaylorModelN{N,T,S}, a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S} = a * b
 
 # Multiplication by numbers
-*(a::Taylor1{TaylorModelN{N,R,S}}, b::T) where {N,R,S,T<:NumberNotSeries} = Taylor1(a.coeffs .* b)
-*(b::T, a::Taylor1{TaylorModelN{N,R,S}}) where {N,R,S,T<:NumberNotSeries} = a * b
+# *(a::Taylor1{TaylorModelN{N,R,S}}, b::T) where {N,R,S,T<:NumberNotSeries} = Taylor1(a.coeffs .* b)
+# *(b::T, a::Taylor1{TaylorModelN{N,R,S}}) where {N,R,S,T<:NumberNotSeries} = a * b
 *(a::Taylor1{TaylorModelN{N,S,R}}, b::TaylorModelN{N,S,R}) where {N,S,R} =
     Taylor1(a.coeffs .* b)
 *(b::TaylorModelN{N,S,R}, a::Taylor1{TaylorModelN{N,S,R}}) where {N,S,R} = a * b
-
-#
-function TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
-        b::Taylor1{TaylorModelN{N,T,S}}, ordT::Int) where {N,T,S}
-    # Sanity
-    TS.zero!(res[ordT])
-    tmp = res[ordT]
-    for k in 0:ordT
-        # res[ordT] += a[k] * b[ordT-k]
-        tmp += a[k] * b[ordT-k]
-        # for ordQ in eachindex(a[ordT])
-        #     TS.mul!(res[ordT], a[k], b[ordT-k], ordQ)
-        # end
-    end
-    res[ordT] = tmp
-    return nothing
-end
-
-function TS.div!(c::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
-        b::Taylor1{TaylorModelN{N,T,S}}, k::Int) where {N,T,S}
-    # order and coefficient of first factorized term
-    # ordfact, cdivfact = divfactorization(a, b)
-    anz = findfirst(a)
-    bnz = findfirst(b)
-    anz = anz ≥ 0 ? anz : TS.order(a)
-    bnz = bnz ≥ 0 ? bnz : TS.order(a)
-    ordfact = min(anz, bnz)
-    # Is the polynomial factorizable?
-    iszero(b[ordfact]) && throw( ArgumentError(
-        """Division does not define a Taylor1 polynomial;
-        order k=$(ordfact) => coeff[$(ordfact)]=$(cdivfact).""") )
-    TS.zero!(c, k)
-    if k == 0
-        c[0] = a[ordfact]/b[ordfact]
-        # TS.div!(c[0], a[ordfact], b[ordfact])
-        return nothing
-    end
-    imin = max(0, k+ordfact-TS.order(b))
-    tmp = c[imin] * b[k+ordfact-imin]
-    # TS.mul!(c[k], c[imin], b[k+ordfact-imin])
-    for i = imin+1:k-1
-        tmp += c[i] * b[k+ordfact-i]
-        # TS.mul!(c[k], c[i], b[k+ordfact-i])
-    end
-    if k+ordfact ≤ TS.order(b)
-        tmp = (a[k+ordfact]-tmp)
-        # for l in eachindex(c[k])
-        #     TS.subst!(c[k], a[k+ordfact], c[k], l)
-        # end
-        c[k] = tmp / b[ordfact]
-        # TS.div!(c[k], b[ordfact])
-    else
-        # c[k] = (-c[k]) / b[ordfact]
-        c[k] = tmp
-        TS.div_scalar!(c[k], -1, b[ordfact])
-    end
-    return nothing
-end
