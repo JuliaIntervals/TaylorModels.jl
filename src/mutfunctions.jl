@@ -126,8 +126,10 @@ function TS.mul!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,
     for k in 0:ordT
         res_k += a.coeffs[k+1] * b.coeffs[ordT+1-k]
     end
+    res[ordT] = res_k
     return nothing
 end
+
 
 function TS.div!(res::Taylor1{TaylorModelN{N,T,S}}, a::Taylor1{TaylorModelN{N,T,S}},
         b::NumberNotSeries, k::Int) where {N,T,S}

@@ -706,8 +706,8 @@ end
 *(b::TaylorModelN{N,T,S}, a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S} = a * b
 
 # Multiplication by numbers
-# *(a::Taylor1{TaylorModelN{N,R,S}}, b::T) where {N,R,S,T<:NumberNotSeries} = Taylor1(a.coeffs .* b)
-# *(b::T, a::Taylor1{TaylorModelN{N,R,S}}) where {N,R,S,T<:NumberNotSeries} = a * b
+*(a::Taylor1{TaylorModelN{N,R,S}}, b::T) where {N,R,S,T<:NumberNotSeries} = Taylor1(a.coeffs .* b)
+*(b::T, a::Taylor1{TaylorModelN{N,R,S}}) where {N,R,S,T<:NumberNotSeries} = a * b
 *(a::Taylor1{TaylorModelN{N,S,R}}, b::TaylorModelN{N,S,R}) where {N,S,R} =
     Taylor1(a.coeffs .* b)
 *(b::TaylorModelN{N,S,R}, a::Taylor1{TaylorModelN{N,S,R}}) where {N,S,R} = a * b
