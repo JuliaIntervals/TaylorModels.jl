@@ -8,6 +8,8 @@ using StaticArrays
 
 const _num_tests = 1_000
 
+const TI = TaylorIntegration
+
 setdisplay(:full)
 
 # Function to check, against an exact solution of the ODE, the computed
@@ -50,7 +52,7 @@ end
     zI = interval(0.0)
 
     @testset "falling_ball!" begin
-        @taylorize function falling_ball!(dx, x, p, t)
+        TI.@taylorize2 function falling_ball!(dx, x, p, t)
             dx[1] = x[2]
             dx[2] = -one(x[1])
             nothing
@@ -68,10 +70,11 @@ end
         abstol = 1e-20
         orderQ = 2
         orderT = 4
-        ξ = variables!("ξₓ ξᵥ", order=2*orderQ, numvars=length(q0); nowarn=true)
+
+        spFB = JetSpace(2*orderQ, ["ξₓ", "ξᵥ"])
 
         @testset "Forward integration 1" begin
-            sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB)
             tTM = expansion_point(sol)
             qv  = flowpipe(sol)
             qTM = get_xTM(sol)
@@ -89,7 +92,7 @@ end
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
-            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB,
                 parse_eqs=false)
             qvf, qTMf = getfield.((solf,), 2:3)
 
@@ -98,7 +101,7 @@ end
 
             # initializaton with a Taylor model
             X0tm = sol[1]
-            sol2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol, spFB)
             qTM2 = getfield(sol2, 3)
             @test qTM == qTM2
             @test sol2[1,2] == X0tm[2]
@@ -115,7 +118,7 @@ end
         end
 
         @testset "Forward integration 2" begin
-            sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB)
             tTM = expansion_point(sol)
             qv  = flowpipe(sol)
             qTM = get_xTM(sol)
@@ -133,7 +136,7 @@ end
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
-            solf = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB,
                 parse_eqs=false)
             qvf, qTMf = getfield.((solf,), 2:3)
             @test length(qvf) == length(qv)
@@ -141,14 +144,15 @@ end
 
             # initializaton with a Taylor model
             X0tm = get_xTM(sol,1)
-            sol2 = validated_integ2(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ2(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol, spFB)
             qTM2 = getfield(sol2, 3)
             @test qTM == qTM2
             @test sol2[1,2] == X0tm[2]
         end
 
         @testset "Forward integration 3" begin
-            sol = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT,
+                abstol, spFB)
             tTM = expansion_point(sol)
             qv  = flowpipe(sol)
             qTM = get_xTM(sol)
@@ -166,8 +170,8 @@ end
             end
 
             # Check equality of solutions using `parse_eqs=false` or `parse_eqs=true`
-            solf = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=false)
+            solf = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT,
+                abstol, spFB; parse_eqs=false)
             qvf, qTMf = getfield.((solf,), 2:3)
 
             @test length(qvf) == length(qv)
@@ -175,7 +179,7 @@ end
 
             # initializaton with a Taylor model
             X0tm = sol[1]
-            sol2 = validated_integ3(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ3(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol, spFB)
             qTM2 = getfield(sol2, 3)
             @test qTM == qTM2
             @test sol2[1,2] == X0tm[2]
@@ -198,7 +202,7 @@ end
         X0 = q0 .+ δq0
 
         @testset "Backward integration 1" begin
-            sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == length(qTM[1,:]) == length(sol)
             @test firstindex(sol) == 1
@@ -213,7 +217,7 @@ end
                 test_integ((t,x)->exactsol(t,tini,x), expansion_point(sol,n), sol[n], q0, δq0, bbroken=true)
             end
 
-            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB,
                 adaptive=false)
             tTMf, qvf, qTMf = getfield.((solf,), 1:3)
 
@@ -222,11 +226,11 @@ end
 
             # initializaton with a Taylor model
             X0tm = sol[1]
-            sol2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol, spFB)
             qv2, qTM2 = getfield.((sol2,), 2:3)
             @test qTM == qTM2
 
-            sol2f = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol,
+            sol2f = validated_integ(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol, spFB,
                 adaptive=false)
             qv2f, qTM2f = getfield.((sol2f,), 2:3)
             @test length(qv2f) == length(qv2)
@@ -234,7 +238,7 @@ end
         end
 
         @testset "Backward integration 2" begin
-            sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ2(falling_ball!, X0, tini, tend, orderQ, orderT, abstol, spFB)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == size(qTM,2) == length(sol)
             @test firstindex(sol) == 1
@@ -251,7 +255,8 @@ end
         end
 
         @testset "Backward integration 3" begin
-            sol = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT,
+                abstol, spFB)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == length(qTM[1,:]) == length(sol)
             @test firstindex(sol) == 1
@@ -267,7 +272,7 @@ end
             end
 
             solf = validated_integ3(falling_ball!, X0, tini, tend, orderQ, orderT, abstol,
-                adaptive=false)
+                spFB, adaptive=false)
             tTMf, qvf, qTMf = getfield.((solf,), 1:3)
 
             @test length(qvf) == length(qv)
@@ -275,12 +280,13 @@ end
 
             # initializaton with a Taylor model
             X0tm = sol[1]
-            sol2 = validated_integ3(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ3(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol,
+                spFB)
             qv2, qTM2 = getfield.((sol2,), 2:3)
             @test qTM == qTM2
 
             sol2f = validated_integ3(falling_ball!, X0tm, tini, tend, orderQ, orderT, abstol,
-                adaptive=false)
+                spFB, adaptive=false)
             qv2f, qTM2f = getfield.((sol2f,), 2:3)
             @test length(qv2f) == length(qv2)
             @test all(qTM .== qTM2f)
@@ -288,7 +294,7 @@ end
     end
 
     @testset "x_square!" begin
-        @taylorize function x_square!(dx, x, p, t)
+        TI.@taylorize2 function x_square!(dx, x, p, t)
             dx[1] = x[1]^2
             nothing
         end
@@ -303,10 +309,10 @@ end
         q0 = [2.]
         δq0 = 0.0625 * normalized_box
         X0 = q0 .+ δq0
-        ξ = variables!("ξₓ", numvars=1, order=2*orderQ; nowarn=true)
+        spSq = JetSpace(2*orderQ, ["ξₓ"])
 
         @testset "Forward integration 1" begin
-            sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol, spSq)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == size(qTM, 2) == length(tTM)
             @test domain(sol,1) == zero(δq0[1])
@@ -319,7 +325,7 @@ end
                 test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0, bbroken=true)
             end
 
-            solf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ(x_square!, X0, tini, tend, orderQ, orderT, abstol, spSq,
                 adaptive=false)
             tTMf, qvf, qTMf = getfield.((solf,), 1:3)
 
@@ -328,13 +334,13 @@ end
 
             # initializaton with a Taylor model
             X0tm = copy(qTM[:, 1])
-            sol2 = validated_integ(x_square!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ(x_square!, X0tm, tini, tend, orderQ, orderT, abstol, spSq)
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test qTM == qTM2
         end
 
         @testset "Forward integration 2" begin
-            sol = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ2(x_square!, X0, tini, tend, orderQ, orderT, abstol, spSq)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test isequal_interval(domain(sol,1), zI)
 
@@ -350,7 +356,7 @@ end
         end
 
         @testset "Forward integration 3" begin
-            sol = validated_integ3(x_square!, X0, tini, tend, orderQ, orderT, abstol)
+            sol = validated_integ3(x_square!, X0, tini, tend, orderQ, orderT, abstol, spSq)
             tTM, qv, qTM = getfield.((sol,), 1:3)
             @test length(qv) == size(qTM, 2) == length(tTM)
             @test domain(sol,1) == zero(δq0[1])
@@ -363,7 +369,7 @@ end
                 test_integ((t,x)->exactsol(t,x), tTM[n], sol[n], q0, δq0)
             end
 
-            solf = validated_integ3(x_square!, X0, tini, tend, orderQ, orderT, abstol,
+            solf = validated_integ3(x_square!, X0, tini, tend, orderQ, orderT, abstol, spSq;
                 adaptive=false)
             tTMf, qvf, qTMf = getfield.((solf,), 1:3)
 
@@ -372,14 +378,14 @@ end
 
             # initializaton with a Taylor model
             X0tm = copy(qTM[:, 1])
-            sol2 = validated_integ3(x_square!, X0tm, tini, tend, orderQ, orderT, abstol)
+            sol2 = validated_integ3(x_square!, X0tm, tini, tend, orderQ, orderT, abstol, spSq)
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test qTM == qTM2
         end
     end
 
     @testset "x_cube!" begin
-        @taylorize x_cube!(dx, x, p, t) = (dx[1] = - x[1]^3;)
+        TI.@taylorize2 x_cube!(dx, x, p, t) = (dx[1] = - x[1]^3;)
 
         exactsol(t, x) = x[1] / sqrt(1 + 2*x[1]^2*t)
 
@@ -392,17 +398,17 @@ end
         q0 = [0.5]
         δq0 = 0.4 * normalized_box
         X0 = q0 .+ δq0
-        ξ = variables!("ξₓ", numvars=1, order=2*orderQ; nowarn=true)
+        spCube = JetSpace(2*orderQ, ["ξ"])
 
         @testset "Forward integration 1" begin
             sol1 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=false,
+                spCube; parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=true,
+                spCube; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -419,7 +425,7 @@ end
 
         @testset "Forward integration 2" begin
             sol2 = validated_integ2(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
-                maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
+                spCube; maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
                 validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
             tTM, qv, qTM = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -434,13 +440,13 @@ end
         end
 
         @testset "Forward integration 3" begin
-            sol1 = validated_integ3(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+            sol1 = validated_integ3(x_cube!, X0, tini, tend, orderQ, orderT, abstol, spCube;
                 parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
-            sol2 = validated_integ3(x_cube!, X0, tini, tend, orderQ, orderT, abstol,
+            sol2 = validated_integ3(x_cube!, X0, tini, tend, orderQ, orderT, abstol, spCube;
                 parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
@@ -459,7 +465,7 @@ end
     end
 
     @testset "Christian's test" begin
-        @taylorize ff!(dx, x, p, t) = (dx[1] = x[1]*(one(x[1])-x[1]^2);)
+        TI.@taylorize2 ff!(dx, x, p, t) = (dx[1] = x[1]*(one(x[1])-x[1]^2);)
 
         exactsol(t, x) = x[1]*exp(t) / sqrt(one(x[1]) + x[1]^2*(exp(2*t)-one(x[1])))
 
@@ -472,17 +478,17 @@ end
         q0 = [0.5]
         δq0 = 0.3 * normalized_box
         X0 = q0 .+ δq0
-        ξ = variables!("ξₓ", numvars=1, order=2*orderQ; nowarn=true)
+        spCS = JetSpace(2*orderQ, ["ξₓ"])
 
         @testset "Forward integration 1" begin
             sol1 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=false,
+                spCS; parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ(ff!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=true,
+                spCS; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -499,7 +505,7 @@ end
 
         @testset "Forward integration 2" begin
             sol2 = validated_integ2(ff!, X0, tini, tend, orderQ, orderT, abstol,
-                maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
+                spCS; maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
                 validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
             tTM, qv, qTM = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -515,13 +521,13 @@ end
 
         @testset "Forward integration 3" begin
             sol1 = validated_integ3(ff!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=false,
+                spCS; parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ3(ff!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=true,
+                spCS; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -538,7 +544,7 @@ end
     end
 
     @testset "Integrate cos(t)" begin
-        @taylorize function cost!(du, u, params, t)
+        TI.@taylorize2 function cost!(du, u, params, t)
             tt = t + zero(u[1]) # useful for pase_eqs=true
             du[1] = cos(tt)
             return nothing
@@ -555,17 +561,19 @@ end
         q0 = [0.0]
         δq0 = 0.1 * normalized_box
         X0 = q0 .+ δq0
-        ξ = variables!("ξₓ", numvars=1, order=2*orderQ; nowarn=true)
+        spCost = JetSpace(2*orderQ, ["ξₓ"])
 
         @testset "Forward integration 1" begin
+            # TS.default_space[] is needed here to avoid an error (related to promotion)
+            TS.set_default_space!(spCost)
             sol1 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=false,
+                TS.default_space[]; parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=true,
+                TS.default_space[]; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -581,7 +589,10 @@ end
         end
 
         # @testset "Forward integration 2" begin
+        #     # TS.default_space[] is needed here to avoid an error (related to promotion)
+        #     TS.set_default_space!(spCost)
         #     sol2 = validated_integ2(cost!, X0, tini, tend, orderQ, orderT, abstol,
+        #         TS.default_space[];
         #         maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
         #         validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
         #     tTM, qv, qTM = getfield.((sol2,), 1:3)
@@ -598,13 +609,13 @@ end
 
         @testset "Forward integration 3" begin
             sol1 = validated_integ3(cost!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=false,
+                spCost; parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ3(cost!, X0, tini, tend, orderQ, orderT, abstol,
-                parse_eqs=true,
+                spCost; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -622,7 +633,7 @@ end
 
 
     @testset "Pendulum with constant torque" begin
-        @taylorize function pendulum!(dx, x, p, t)
+        TI.@taylorize2 function pendulum!(dx, x, p, t)
             aux = 2 * sin(x[1])
             dx[1] = x[2]
             dx[2] = aux + 8*x[3]
@@ -644,15 +655,17 @@ end
         abstol = 1e-25
         orderQ = 2
         orderT = 20
-        ξ = variables!("ξ", order=2*orderQ, numvars=length(q0); nowarn=true)
+        # ξ = variables!("ξ", order=2*orderQ, numvars=length(q0); nowarn=true)
+        spPend = JetSpace(2*orderQ, ["ξ₁", "ξ₂", "ξ₃"])
 
-        sol = validated_integ3(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        sol = validated_integ3(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+            spPend);
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
         qTM = getfield(sol, 3)
         @test all(isbounded.(remainder.(qTM)))
 
         sol = validated_integ2(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
-            validatesteps=32);
+            spPend; validatesteps=32);
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
         qTM = getfield(sol, 3)
         @test all(isbounded.(remainder.(qTM)))
@@ -674,7 +687,8 @@ end
         # qTM = getfield(sol, 3)
         # @test all(isbounded.(remainder.(qTM)))
 
-        sol = validated_integ3(pendulum!, X0, tini, tend, orderQ, orderT, abstol);
+        sol = validated_integ3(pendulum!, X0, tini, tend, orderQ, orderT, abstol,
+            spPend);
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
         qTM = getfield(sol, 3)
         @test all(isbounded.(remainder.(qTM)))
