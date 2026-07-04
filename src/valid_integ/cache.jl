@@ -143,7 +143,7 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
         localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {N,U,T,F}
     # N = length(x0)
-    @assert N == length(x0)
+    @assert N == length(x0) == get_numvars(localsp)
     zI = zero(Interval{U})
     symIbox = symmetric_box(N, U)
     zbox = zero(symIbox)
@@ -151,7 +151,7 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
 
     # Initialize the vector of Taylor1{TaylorN{U}} expansions explicitly
     # @inbounds for ind in eachindex(vTN)
-    #     vTN[ind] = mid(x0[ind]) + TaylorN(ocalsp, ind, order=orderQ) * radius(x0[ind])
+    #     vTN[ind] = mid(x0[ind]) + TaylorN(localsp, ind, order=orderQ) * radius(x0[ind])
     # end
     vTN .= mid.(x0) .+ variables(localsp; order=orderQ) .* radius.(x0)
     t, x, dx = TI.init_expansions(t0, vTN, orderT)
@@ -220,7 +220,7 @@ function init_cache_VI3(f!::F, t0::T,
         parse_eqs::Bool = true) where {N,U,T,F}
 
     # Initialize the vector of Taylor1{TaylorN} expansions
-    x0 = evaluate(evaluate.(xTM, xTM[1].x0), domain(xTM[1].pol[0]))
+    x0 = evaluate(evaluate.(xTM, xTM[1].x0), centered_dom(xTM[1].pol[0]))
     return init_cache_VI3(f!, t0, SVector(x0...), maxsteps, orderT, orderQ,
         localsp, params; parse_eqs = parse_eqs)
 end

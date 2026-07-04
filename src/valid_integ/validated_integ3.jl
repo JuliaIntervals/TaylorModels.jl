@@ -23,10 +23,10 @@ function picard_lindelof(f!,
 end
 
 function picard_lindelof!(f!,
-        x2N ::Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
-        dx1N::Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
-        x1N ::Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
-        t1N ::TaylorModel1{TaylorModelN{N,T,S},S},
+        x2N    :: Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
+        dx1N   :: Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
+        x1N    :: Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
+        t1N,
         params) where {N,T,S}
     dom = domain(x1N[1][0])
     f!(dx1N, x1N, params, t1N)
@@ -39,14 +39,15 @@ end
 
 function validated_integ3(f!,
         X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
-        orderQ::Int, orderT::Int, abstol::T, params = nothing;
+        orderQ::Int, orderT::Int, abstol::T,
+        localsp::JetSpace = TS.default_space[], params = nothing;
         maxsteps::Int = 2000, parse_eqs::Bool = true,
         adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
         absorb::Bool = false, check_property::F = Returns(true)
         ) where {T<:Real, U<:IANumTypes, F}
     # Initialize cache
     return validated_integ3(f!, SVector(X0...), t0, tmax,
-        orderQ, orderT, abstol, params;
+        orderQ, orderT, abstol, localsp, params;
         maxsteps = maxsteps, parse_eqs = parse_eqs,
         adaptive = adaptive, minabstol = minabstol,
         absorb = absorb, check_property = check_property)
@@ -54,13 +55,15 @@ end
 
 function validated_integ3(f!,
         X0::SVector{N,Interval{U}}, t0::T, tmax::T,
-        orderQ::Int, orderT::Int, abstol::T, params = nothing;
+        orderQ::Int, orderT::Int, abstol::T,
+        localsp::JetSpace = TS.default_space[], params = nothing;
         maxsteps::Int = 2000, parse_eqs::Bool = true,
         adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
         absorb::Bool = false, check_property::F = Returns(true)
         ) where {N, T<:Real, U<:IANumTypes, F}
     # Initialize cache
-    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params; parse_eqs)
+    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ,
+        localsp, params; parse_eqs)
     return _validated_integ3!(f!, X0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol,
         # absorb, check_property
@@ -69,13 +72,14 @@ end
 
 function validated_integ3(f!,
         X0::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}}, t0::T, tmax::T,
-        orderQ::Int, orderT::Int, abstol::T, params=nothing;
+        orderQ::Int, orderT::Int, abstol::T,
+        localsp::JetSpace = TS.default_space[], params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL),
         absorb::Bool=false, check_property::F=(t, x)->true
         ) where {N, T<:Real, U, F}
     # Initialize cache
-    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, params; parse_eqs)
+    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, localsp, params; parse_eqs)
     q0 = SVector(evaluate(evaluate.(X0, X0[1].x0), X0[1].pol[0].dom)...)
     return _validated_integ3!(f!, q0, t0, tmax, abstol, cacheVI, params,
         maxsteps, adaptive, minabstol, #absorb, check_property
@@ -91,7 +95,7 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         ) where {N,T,U}
 
     # Unpack caches
-    @unpack tv, xv, xaux, t, x, dx, rv,
+    @unpack tv, xv, xaux, t, x, dx, rv, #rv1,
             t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
             xTM1v, x0New, rem1, rem2, rem0, parse_eqs = cacheVI
 
@@ -122,8 +126,8 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         # Validated step of the integration
         rem0 .= remainder.(vTMN) # store old remainder
         (_success, δt, red_abstol) = _validation3!(
-            f!, t, x,
-            t1N, x1N, dx1N, x2N, z1N,
+            VV, f!, t, x,
+            t1N, x1N, dx1N, x2N, z1N, #rv1,
             δt, sign_tstep,
             rem1, rem2, rem0, zbox,
             # symIbox, orderT,
@@ -211,13 +215,15 @@ end
 """
     _validation3!
 """
-function _validation3!(f!, t::Taylor1{T},
+function _validation3!(VV, f!,
+        t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}},
         t1N::TaylorModel1{TaylorModelN{N,T,T},T},
         x1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         dx1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         x2N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         z1N::TaylorModel1{TaylorModelN{N,T,T},T},
+        # rv1::TI.RetAlloc{Taylor1{TaylorModelN{N,T,T}}},
         δt::T, sign_tstep::Int,
         rem1::Vector{Interval{T}},
         rem2::Vector{Interval{T}},
