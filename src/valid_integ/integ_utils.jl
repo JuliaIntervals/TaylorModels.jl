@@ -10,7 +10,7 @@ Numer Algor 78:1001–1017 (2018), https://doi.org/10.1007/s11075-017-0410-1
 """
 function shrink_wrapping!(xTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
     # Original domain of TaylorModelN should be the symmetric normalized box
-    B = symmetric_box(S)
+    B = symmetric_box(S, space(xTMN[1]))
     @assert all(isequal_interval.(domain.(xTMN), (B,)))
     x0 = zero(B)
     @assert all(expansion_point.(xTMN) .== (x0,))
@@ -154,7 +154,7 @@ IEEE Press.
 function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
     Δ = remainder(a)
     orderQ = TS.order(a)
-    δ = symmetric_box(T)
+    δ = symmetric_box(T, space(a))
     aux = diam(Δ)/(2N)
     rem = zero(Δ)
 

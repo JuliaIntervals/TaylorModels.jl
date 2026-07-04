@@ -100,7 +100,7 @@ end
 
 function Base.convert(::Type{TaylorModel1{TaylorModelN{N,T,S}, S}}, tm::TaylorModel1{TaylorN{T}, S}) where {N,T,S}
     z = interval(zero(S))
-    symIbox = symmetric_box(S)
+    symIbox = symmetric_box(S, space(tm[0]))
     zSB = interval.(mid.(symIbox))
     order = TS.order(tm)
     pol = Taylor1(TaylorModelN.(tm[:], z, Ref(zSB), Ref(symIbox)), order)

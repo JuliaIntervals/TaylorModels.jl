@@ -135,7 +135,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorN{T},S}) where {T,S}
     x0 = expansion_point(tmf)
     I = domain(tmf)
     range_tmf = f_pol(I-x0) + Δf # TaylorN{Interval{...}}
-    symIbox = symmetric_box(S)
+    symIbox = symmetric_box(S, space(tmf[0]))
     interval_range_tmf = range_tmf(symIbox)
     tmg = _rpa(TaylorModel1, g, f_pol0, interval_range_tmf, _order)
     tm1 = tmf - f_pol0
@@ -152,7 +152,7 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
     x0 = expansion_point(tmf)
     I = domain(tmf)
     range_tmf = f_pol(I-x0) + Δf # TaylorN{Interval{...}}
-    symIbox = symmetric_box(S)
+    symIbox = symmetric_box(S, space(tmf[0]))
     interval_range_tmf = range_tmf(symIbox)
     tmg = _rpa(RTaylorModel1, g, f_pol0, interval_range_tmf, _order)
     tm1 = tmf - f_pol0
@@ -276,7 +276,7 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
     # I = domain(tm)
     order = TS.order(fT[0])
     N = get_numvars(fT[0])
-    D = symmetric_box(N)
+    D = symmetric_box(N, space(tm[0]))
 
     b = zero(fT)
     t = Taylor1(TaylorN(space(tm.pol),

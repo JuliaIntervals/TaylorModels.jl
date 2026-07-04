@@ -172,7 +172,7 @@ end
         q0 = [0.5]
         δq0 = [interval(-0.1, 0.1)]
         qaux = normalize_taylor(q0[1] + TaylorN(1, order=orderQ), δq0, true)
-        symIbox = symmetric_box(Float64)
+        symIbox = symmetric_box(Float64, TS.space(ξ[1]))
         t = Taylor1([qaux, one(qaux)], orderT)
         dom = y0
         x00 = mid(dom)
@@ -377,11 +377,11 @@ end
         orderQ = 5
         dom = y0
         t00 = mid(dom)
-        symIbox = symmetric_box(Float64)
         δq0 = [interval(-0.25, 0.25)]
         qaux = normalize_taylor(TaylorN(1, order=orderQ) + t00, δq0, true)
         xT = Taylor1([qaux, one(qaux)], orderT)
         tm = TaylorModel1(deepcopy(xT), x0, t00, dom)
+        symIbox = symmetric_box(Float64)
 
         s(x) = sin(x)
         c(x) = cos(x)
