@@ -29,8 +29,12 @@ end
     y1 = interval(-1, 1)
 
     @testset "RTaylorModel1 constructors" begin
-        tv = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
-        tv1 = RTaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv = RTaylorModel1{Interval{Float64},Float64}(
+            Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1 = RTaylorModel1{Interval{Float64},Float64}(
+            Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1u = RTaylorModel1{Interval{Float64},Float64}(
+            Taylor1(Interval{Float64},5), x0, x0, ii0, TM._nocheck)
         @test tv == RTaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == RTaylorModel1(5, x0, ii0)
         @test tv == RTaylorModel1(5, ii0)
@@ -38,9 +42,16 @@ end
         @test RTaylorModel1(x1, 5, x0, ii0) == RTaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test RTaylorModel1(5, 0.7, ii1) == RTaylorModel1(5, interval(0.7), ii1)
 
+        @test tv1 == RTaylorModel1(Taylor1(Interval{Float64}, 5), x0, x0, ii0)
+        @test tv1 == tv1u
         RTaylorModel1!(tv1, ii0)
+        RTaylorModel1!(tv1u, ii0)
         @test tv1 == RTaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
+        @test tv1 == tv1u
         RTaylorModel1!(tv1, x0)
+        RTaylorModel1!(tv1u, x0)
+        @test tv1 == tv1u
+        @test TM.unsafe_RTaylorModel1(5, x0, ii0) == tv1
         @test RTaylorModel1(5, x0, ii0) == tv1
         @test RTaylorModel1(5, ii0) == tv
 
@@ -53,6 +64,9 @@ end
 
         # Test errors in construction
         @test_throws AssertionError RTaylorModel1(5, x1, ii0)
+        tm_wrong = TM.unsafe_RTaylorModel1(5, x1, ii0)
+        @test isequal_interval(expansion_point(tm_wrong), x1)
+        @test !issubset_interval(x1, ii0)
 
         # Tests for order and remainder
         @test TS.order(tv) == 5

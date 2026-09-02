@@ -55,8 +55,12 @@ end
     y1 = interval(-1, 1)
 
     @testset "TaylorModel1 constructors" begin
-        tv = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
-        tv1 = TaylorModel1{Interval{Float64},Float64}(Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv = TaylorModel1{Interval{Float64},Float64}(
+            Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1 = TaylorModel1{Interval{Float64},Float64}(
+            Taylor1(Interval{Float64},5), x0, x0, ii0)
+        tv1u = TaylorModel1{Interval{Float64},Float64}(
+            Taylor1(Interval{Float64},5), x0, x0, ii0, TM._nocheck)
         @test tv == TaylorModel1(Taylor1(Interval{Float64},5), x0, x0, ii0)
         @test tv == TaylorModel1(5, x0, ii0)
         @test tv == TaylorModel1(5, ii0)
@@ -64,9 +68,16 @@ end
         @test TaylorModel1(x1, 5, x0, ii0) == TaylorModel1(Taylor1(x1, 5), x0, x0, ii0)
         @test TaylorModel1(5, 0.7, ii1) == TaylorModel1(5, interval(0.7), ii1)
 
+        @test tv1 == TaylorModel1(Taylor1(Interval{Float64}, 5), x0, x0, ii0)
+        @test tv1 == tv1u
         TaylorModel1!(tv1, ii0)
+        TaylorModel1!(tv1u, ii0)
         @test tv1 == TaylorModel1(Taylor1(Interval{Float64}, 5), ii0, x0, ii0)
+        @test tv1 == tv1u
         TaylorModel1!(tv1, x0)
+        TaylorModel1!(tv1u, x0)
+        @test tv1 == tv1u
+        @test TM.unsafe_TaylorModel1(5, x0, ii0) == tv1
         @test TaylorModel1(5, x0, ii0) == tv1
         @test TaylorModel1(5, ii0) == tv
 
@@ -76,6 +87,12 @@ end
         # Test errors in construction
         @test_throws AssertionError TaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0)
         @test_throws AssertionError TaylorModel1(5, x1, ii0)
+        # `tm_wrong` are *wrongly* usages of `TM.unsafe_TaylorModel1`
+        tm_wrong = TM.unsafe_TaylorModel1(Taylor1(Interval{Float64},5), x1, x0, ii0)
+        @test isequal_interval(remainder(tm_wrong), x1)
+        @test !in_interval(zero(Float64), x1)
+        tm_ok = TM.unsafe_TaylorModel1(Taylor1(Interval{Float64},5), interval(-0.25,0.25), x0, ii0)
+        @test tm_ok == TaylorModel1(Taylor1(Interval{Float64},5), interval(-0.25,0.25), x0, ii0)
 
         # Tests for order, remainder, polynomial and domain
         @test TS.order(tv) == 5
