@@ -72,13 +72,13 @@ function init_cache_VI(t0::T, x0::Array{Interval{U},1},
 
     # More initializations
     xTMN  = Array{TaylorModelN{dof,Interval{T},T}}(undef, dof)
-    xTMN .= TaylorModelN.(
+    xTMN .= TM.unsafe_TaylorModelN.(
         TaylorN.((localsp,), getcoeff.(xI[:], 0), orderQ), zI, (zB,), (S,))
     xTM1v = Array{TaylorModel1{TaylorN{T},T}}(undef, dof, maxsteps+1)
     rem   = Array{Interval{T}}(undef, dof)
     for ind in eachindex(x)
         rem[ind] = zI
-        xTM1v[ind, 1] = TaylorModel1(deepcopy(x[ind]), zI, zI, zI)
+        xTM1v[ind, 1] = TM.unsafe_TaylorModel1(deepcopy(x[ind]), zI, zI, zI)
     end
 
     # Initialize cache
@@ -164,9 +164,9 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     end
 
     # More initializations
-    zN = TaylorModelN(zero(x[1][0]), zI, zbox, symIbox)
-    uN = TaylorModelN( one(x[1][0]), zI, zbox, symIbox)
-    t1N = TaylorModel1(Taylor1([zN, uN], orderT), zI, 0.0, zI)
+    zN = TM.unsafe_TaylorModelN(zero(x[1][0]), zI, zbox, symIbox)
+    uN = TM.unsafe_TaylorModelN( one(x[1][0]), zI, zbox, symIbox)
+    t1N = TM.unsafe_TaylorModel1(Taylor1([zN, uN], orderT), zI, 0.0, zI)
     z1N = zero(t1N)
 
     TT = TaylorModel1{TaylorModelN{N,T,U}, U}

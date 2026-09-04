@@ -180,7 +180,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
         end
     end
 
-    return TaylorModelN(bpol, rem, expansion_point(a), domain(a))
+    return unsafe_TaylorModelN(bpol, rem, expansion_point(a), domain(a))
 end
 
 

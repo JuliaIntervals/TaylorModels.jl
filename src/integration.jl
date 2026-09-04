@@ -5,17 +5,17 @@ for TM in tupleTMs
         function integrate(a::$(TM){T,S}) where {T<:TS.NumberNotSeries,S}
             integ_pol = integrate(a.pol)
             Δ = bound_integration(a, centered_dom(a))
-            return $(TM)( integ_pol, Δ, expansion_point(a), domain(a) )
+            return $(Symbol(:unsafe_, TM))( integ_pol, Δ, expansion_point(a), domain(a) )
         end
         function integrate(a::$(TM){TaylorN{T},S}, cc0) where {T,S}
             integ_pol = integrate(a.pol)
             Δ = bound_integration(a, centered_dom(a), cc0)
-            return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
+            return $(Symbol(:unsafe_, TM))(integ_pol, Δ, expansion_point(a), domain(a))
         end
         function integrate(a::$(TM){TaylorModelN{N,T,S},S}, cc0) where {N,T,S}
             integ_pol = integrate(polynomial(a))
             Δ = bound_integration(a, centered_dom(a), cc0)
-            return $(TM)(integ_pol, Δ, expansion_point(a), domain(a))
+            return $(Symbol(:unsafe_, TM))(integ_pol, Δ, expansion_point(a), domain(a))
         end
         integrate(a::$(TM){T,S}, c0) where {T,S} = c0 + integrate(a)
         integrate(a::$(TM){TaylorN{T},S}, c0, δI) where {T,S} = c0 + integrate(a, δI)
@@ -67,7 +67,7 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
     # Remainder bound after integrating
     Δ = bound_integration(a, δ)
     ΔN = Δ(centered_dom(a[0]))
-    return TaylorModel1( integ_pol, ΔN, expansion_point(a), domain(a) )
+    return unsafe_TaylorModel1( integ_pol, ΔN, expansion_point(a), domain(a) )
 end
 function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
         a::TaylorModel1{TaylorModelN{N,T,S},S}, δI) where {N,T,S}
@@ -105,7 +105,7 @@ function integrate(fT::TaylorModelN, which=1)
     r = TaylorN(space(fT), p̂.coeffs[1:order+1])
     s = TaylorN(space(fT), p̂.coeffs[order+2:end])
     Δ = bound_integration(fT, s, which)
-    return TaylorModelN(r, Δ, expansion_point(fT), domain(fT))
+    return unsafe_TaylorModelN(r, Δ, expansion_point(fT), domain(fT))
 end
 function integrate(fT::TaylorModelN, s::Symbol)
     which = TS.lookupvar(space(fT), s)

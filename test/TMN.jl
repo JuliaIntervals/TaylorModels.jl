@@ -68,6 +68,15 @@ end
         @test_throws AssertionError TaylorModelN(xT, interval(1,1), b0, ib0)
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
 
+        # b0 is not contained in domain
+        tm_wrong = TM.unsafe_TaylorModelN(xT, zi, b0, ib1)
+        @test all(expansion_point(tm_wrong) .== b0)
+        @test !all(issubset_interval.(b0, ib1))
+        # remainder does contain 0
+        tm_wrong = TM.unsafe_TaylorModelN(xT, interval(1), b0, ib1)
+        @test isequal_interval(remainder(tm_wrong), interval(1))
+        @test !in_interval(zero(Float64), remainder(tm_wrong))
+
         # Tests for order and remainder
         @test TS.order(jspace) == 6
         @test TS.order(xm) == 2

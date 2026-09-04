@@ -74,7 +74,7 @@ function _validated_integ!(f!, q0, t0::T, tmax::T, abstol::T,
         # Save different objects
         nsteps += 1
         for ind in eachindex(x)
-            xTM1v[ind, nsteps] = TaylorModel1(deepcopy(x[ind]), rem[ind], zI, δtI) # deepcopy is needed!
+            xTM1v[ind, nsteps] = TM.unsafe_TaylorModel1(deepcopy(x[ind]), rem[ind], zI, δtI) # deepcopy is needed!
             x[ind] = Taylor1(evaluate(x[ind], δt), orderT)
             # dx = Taylor1(zero(constant_term(x)), orderT)
             xI[ind] = Taylor1(evaluate(evaluate(x[ind], δt), symIbox), orderT+1)
@@ -195,7 +195,7 @@ function _validation(f!, t::Taylor1{T}, x::Vector{Taylor1{TaylorN{T}}},
         # Create TaylorModelN to store remainders and evaluation
         @inbounds begin
             for i in eachindex(x)
-                xTMN[i] = TaylorModelN(x[i](δtI), rem[i], SVector{N}(zbox), SVector{N}(symIbox))
+                xTMN[i] = TM.unsafe_TaylorModelN(x[i](δtI), rem[i], SVector{N}(zbox), SVector{N}(symIbox))
 
                 # If remainder is still too big, do it again
                 j = 0

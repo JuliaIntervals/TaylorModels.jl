@@ -1,7 +1,7 @@
 # rpa_functions.jl
 
 # α_mid=0.484375 is used to preferentially round-down the mid point
-# when the mid point is not exactly representable.
+# when the mid point is not exactly representable; currently used in tests.
 const α_mid = 0.484375 # == 31/64
 
 """
@@ -23,10 +23,10 @@ for TM in tupleTMs
         function _rpa(::Type{$TM}, f::Function, x0::Interval{T}, I::Interval{T},
                 _order::Int) where {T}
 
-            polf  = f( Taylor1([x0,one(x0)], _order) )
-            polfI = f( Taylor1([I,one(I)], _order+1+($TM==RTaylorModel1) ) )
+            polf  = f( Taylor1([x0, one(x0)], _order) )
+            polfI = f( Taylor1([I, one(I)], _order+1+($TM==RTaylorModel1) ) )
             Δ = bound_remainder($TM, f, polf, polfI, x0, I)
-            return $TM(polf, Δ, x0, I)
+            return $(Symbol(:unsafe_, TM))(polf, Δ, x0, I)
         end
 
         function _rpa(::Type{$TM}, f::Function, x0::TaylorN{S}, I::Interval{T},
@@ -35,7 +35,7 @@ for TM in tupleTMs
             polfI = f( Taylor1([I,one(I)], _order+1+($TM==RTaylorModel1)))
             x0I = interval(constant_term(x0))
             Δ = bound_remainder($TM, f, polf, polfI, x0I, I)
-            return $TM(polf, Δ, x0I, I)
+            return $(Symbol(:unsafe_, TM))(polf, Δ, x0I, I)
         end
 
         function _rpa(::Type{$TM}, f::Function, x0::T, I::Interval{T},
@@ -45,7 +45,7 @@ for TM in tupleTMs
             polfI = f( Taylor1([I,one(I)], _order+1+($TM==RTaylorModel1)) )
             x0I = interval(x0)
             Δ = bound_remainder($TM, f, polf, polfI, x0I, I)
-            return $TM(polf, Δ, x0I, I)
+            return $(Symbol(:unsafe_, TM))(polf, Δ, x0I, I)
         end
     end
 end
@@ -103,7 +103,7 @@ for TM in tupleTMs
 
             # Compute RPA for `g`, around constant_term(f_pol), over range_tmf
             tmg = _rpa($TM, g, f_pol0, range_tmf, _order)
-            if tmf == $TM(_order, x0, I)  # indep variable
+            if tmf == $(Symbol(:unsafe_, TM))(_order, x0, I)  # indep variable
                 return tmg
             end
 
@@ -115,14 +115,15 @@ for TM in tupleTMs
             if $TM == TaylorModel1
                 Δ = remainder(tmres) + remainder(tmg)
             else
-                tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), remainder(tm1), x0, I)
-                for i = 1:_order
-                    tmn = tmn * tmf
-                end
+                tmn = unsafe_RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), remainder(tm1), x0, I)
+                # for i = 1:_order
+                #     tmn = tmn * tmf
+                # end
+                tmn = tmn * tmf^_order
                 Δ = remainder(tmres) + remainder(tmn) * remainder(tmg)
             end
 
-            return $TM(tmres.pol, Δ, x0, I)
+            return $(Symbol(:unsafe_, TM))(tmres.pol, Δ, x0, I)
         end
     end
 end
@@ -141,7 +142,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorN{T},S}) where {T,S}
     tm1 = tmf - f_pol0
     tmres = tmg(tm1)
     Δ = remainder(tmres) + remainder(tmg)
-    return TaylorModel1(tmres.pol, Δ, x0, I)
+    return unsafe_TaylorModel1(tmres.pol, Δ, x0, I)
 end
 
 function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
@@ -157,12 +158,12 @@ function rpa(g::Function, tmf::RTaylorModel1{TaylorN{T},S}) where {T,S}
     tmg = _rpa(RTaylorModel1, g, f_pol0, interval_range_tmf, _order)
     tm1 = tmf - f_pol0
     tmres = tmg(tm1)
-    tmn = RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), remainder(tm1), x0, I)
+    tmn = unsafe_RTaylorModel1(Taylor1(copy(tm1.pol.coeffs)), remainder(tm1), x0, I)
     for i = 1:_order
         tmn = tmn * tmf
     end
     Δ = remainder(tmres) + remainder(tmn) * remainder(tmg)
-    return RTaylorModel1(tmres.pol, Δ, x0, I)
+    return unsafe_RTaylorModel1(tmres.pol, Δ, x0, I)
 end
 
 function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<:Real, S<:NumberNotSeries}
@@ -198,7 +199,7 @@ function rpa(g::Function, tmf::TaylorModel1{TaylorModelN{N,S,T},T}) where {N, T<
 
     # Final remainder
     Δ = remainder(tmres) + remainder(tmg)
-    return TaylorModel1(tmres.pol, Δ, x0, I)
+    return unsafe_TaylorModel1(tmres.pol, Δ, x0, I)
 end
 
 function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
@@ -233,7 +234,7 @@ function rpa(g::Function, tmf::TaylorModelN{N,T,S}) where {N,T,S}
 
     # Final remainder
     Δ = remainder(tmres) + remainder(tmg)
-    return TaylorModelN(tmres.pol, Δ, x0, I)
+    return unsafe_TaylorModelN(tmres.pol, Δ, x0, I)
 end
 
 
@@ -263,7 +264,7 @@ for TM in tupleTMs
                 b[ind] = fT[ind] - interval(t[ind])
             end
             Δ = remainder(tm) + b(centered_dom(tm))
-            return $TM(t, Δ, tm.x0, tm.dom)
+            return $(Symbol(:unsafe_, TM))(t, Δ, tm.x0, tm.dom)
         end
     end
 end
@@ -290,7 +291,7 @@ function fp_rpa(tm::TaylorModel1{TaylorN{S},T}) where
         end
     end
     rem = Δ + b(centered_dom(tm))(D)
-    return TaylorModel1(t, rem, tm.x0, tm.dom)
+    return unsafe_TaylorModel1(t, rem, tm.x0, tm.dom)
 end
 
 
@@ -312,7 +313,7 @@ function fp_rpa(tm::TaylorModelN{N,Interval{T},T}) where {N,T}
         end
     end
     Δ = Δ + b(I-x0)
-    return TaylorModelN(t, Δ, x0, I)
+    return unsafe_TaylorModelN(t, Δ, x0, I)
 end
 
 

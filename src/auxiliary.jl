@@ -52,7 +52,7 @@ setindex!(a::TaylorModel1{TaylorModelN{N,T,S},S}, x::TaylorModelN{N,T,S},
 setindex!(a::Taylor1{TaylorModelN{N,T,S}}, x::TaylorModelN{N,T,S},
         n::Int) where {N,T,S} =
     setindex!(a.coeffs,
-        TaylorModelN(TaylorN(space(x), x.pol.coeffs[:], TS.order(x.pol)),
+        unsafe_TaylorModelN(TaylorN(space(x), x.pol.coeffs[:], TS.order(x.pol)),
             x.rem, x.x0[:], x.dom[:]), n+1)
 
 
@@ -86,8 +86,8 @@ for TM in tupleTMs
             Δa = bound_truncation($TM, apol0, dom, order) + remainder(a)
             Δb = bound_truncation($TM, bpol0, dom, order) + remainder(b)
 
-            return $TM(apol, Δa, expansion_point(a), domain(a)),
-                $TM(bpol, Δb, expansion_point(b), domain(b))
+            return $(Symbol(:unsafe_, TM))(apol, Δa, expansion_point(a), domain(a)),
+                   $(Symbol(:unsafe_, TM))(bpol, Δb, expansion_point(b), domain(b))
         end
 
         function bound_truncation(::Type{$TM}, a::Taylor1, aux::Interval,
@@ -130,8 +130,8 @@ function fixorder(a::TaylorModelN, b::TaylorModelN)
     Δa = bound_truncation(TaylorModelN, apol0, dom, order) + remainder(a)
     Δb = bound_truncation(TaylorModelN, bpol0, dom, order) + remainder(b)
 
-    return TaylorModelN(apol, Δa, expansion_point(a), domain(a)),
-        TaylorModelN(bpol, Δb, expansion_point(b), domain(b))
+    return unsafe_TaylorModelN(apol, Δa, expansion_point(a), domain(a)),
+           unsafe_TaylorModelN(bpol, Δb, expansion_point(b), domain(b))
 end
 
 function bound_truncation(::Type{TaylorModelN}, a::TaylorN, aux::AbstractVector{<:Interval},
@@ -154,7 +154,7 @@ function pol_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
     for k in eachindex(tm)
         polI[k] = remainder(tm[k])
     end
-    return TaylorModel1(polI, remainder(tm), expansion_point(tm), domain(tm))
+    return unsafe_TaylorModel1(polI, remainder(tm), expansion_point(tm), domain(tm))
 end
 
 
@@ -180,9 +180,9 @@ function shift_remainder(tm::TaylorModel1{TaylorModelN{N,T,S}, S}) where {N,T,S}
     rem = total_remainder(tm)
     z = interval(0.0)
     for k in eachindex(tm)
-        tm[k] = TaylorModelN(tm[k], z)
+        TaylorModelN!(tm[k], z)
     end
-    return TaylorModel1(tm, rem)
+    return unsafe_TaylorModel1(tm, rem)
 end
 
 

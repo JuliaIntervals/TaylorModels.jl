@@ -64,9 +64,14 @@ end
 
         # Test errors in construction
         @test_throws AssertionError RTaylorModel1(5, x1, ii0)
+        # `tm_wrong` are *wrongly* usages of `TM.unsafe_TaylorModel1`
+        # x1 is not in domain ii0
         tm_wrong = TM.unsafe_RTaylorModel1(5, x1, ii0)
         @test isequal_interval(expansion_point(tm_wrong), x1)
         @test !issubset_interval(x1, ii0)
+        # This is ok!
+        tm_ok = TM.unsafe_RTaylorModel1(Taylor1(Interval{Float64},5), interval(-0.25,0.25), x0, ii0)
+        @test tm_ok == RTaylorModel1(Taylor1(Interval{Float64},5), interval(-0.25,0.25), x0, ii0)
 
         # Tests for order and remainder
         @test TS.order(tv) == 5

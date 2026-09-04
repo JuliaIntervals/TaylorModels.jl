@@ -4,17 +4,19 @@
 for TM in tupleTMs
     @eval begin
         zero(a::$TM{T,S}) where {T,S} =
-            $TM(zero(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
+            $(Symbol(:unsafe_, TM))(zero(a.pol), zero(remainder(a)),
+                expansion_point(a), domain(a))
         one(a::$TM{T,S}) where {T,S} =
-            $TM(one(a.pol), zero(remainder(a)), expansion_point(a), domain(a))
+            $(Symbol(:unsafe_, TM))(one(a.pol), zero(remainder(a)),
+                expansion_point(a), domain(a))
 
         if $TM == TaylorModel1
             zero(a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} =
-                $TM(Taylor1(zero(a.pol[0]), TS.order(a.pol)), zero(remainder(a)),
-                    expansion_point(a), domain(a))
+                $(Symbol(:unsafe_, TM))(Taylor1(zero(a.pol[0]), TS.order(a.pol)),
+                    zero(remainder(a)), expansion_point(a), domain(a))
             one(a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} =
-                $TM(Taylor1(one(a.pol[0]), TS.order(a.pol)), zero(remainder(a)),
-                    expansion_point(a), domain(a))
+                $(Symbol(:unsafe_, TM))(Taylor1(one(a.pol[0]), TS.order(a.pol)),
+                    zero(remainder(a)), expansion_point(a), domain(a))
         end
 
         # iszero(a::$TM) = iszero(a.pol) && iszero(zero(remainder(a)))
@@ -26,33 +28,37 @@ for TM in tupleTMs
 
 
         # Addition
-        +(a::$TM{T,S}) where {T,S} = $TM(a.pol, remainder(a), expansion_point(a), domain(a))
+        +(a::$TM{T,S}) where {T,S} = $(Symbol(:unsafe_, TM))(a.pol, remainder(a),
+            expansion_point(a), domain(a))
 
         function +(a::$TM, b::$TM)
             a, b = fixorder(a, b)
-            return $TM(a.pol+b.pol, remainder(a)+remainder(b), expansion_point(a), domain(a))
+            return $(Symbol(:unsafe_, TM))(a.pol+b.pol, remainder(a)+remainder(b),
+                expansion_point(a), domain(a))
         end
 
-        +(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol+b, remainder(a),
-            expansion_point(a), domain(a))
+        +(a::$TM, b::T) where {T<:NumberNotSeries} = $(Symbol(:unsafe_, TM))(a.pol+b,
+            remainder(a), expansion_point(a), domain(a))
 
-        +(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b+a.pol, remainder(a),
-            expansion_point(a), domain(a))
+        +(b::T, a::$TM) where {T<:NumberNotSeries} = $(Symbol(:unsafe_, TM))(b+a.pol,
+            remainder(a), expansion_point(a), domain(a))
 
 
         # Substraction
-        -(a::$TM{T,S}) where {T,S} = $TM(-a.pol, -remainder(a), expansion_point(a), domain(a))
+        -(a::$TM{T,S}) where {T,S} = $(Symbol(:unsafe_, TM))(-a.pol, -remainder(a),
+            expansion_point(a), domain(a))
 
         function -(a::$TM, b::$TM)
             a, b = fixorder(a, b)
-            return $TM(a.pol-b.pol, remainder(a)-remainder(b), expansion_point(a), domain(a))
+            return $(Symbol(:unsafe_, TM))(a.pol-b.pol, remainder(a)-remainder(b),
+                expansion_point(a), domain(a))
         end
 
-        -(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol-b, remainder(a),
-            expansion_point(a), domain(a))
+        -(a::$TM, b::T) where {T<:NumberNotSeries} = $(Symbol(:unsafe_, TM))(a.pol-b,
+            remainder(a), expansion_point(a), domain(a))
 
-        -(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(b-a.pol, -remainder(a),
-            expansion_point(a), domain(a))
+        -(b::T, a::$TM) where {T<:NumberNotSeries} = $(Symbol(:unsafe_, TM))(b-a.pol,
+            -remainder(a), expansion_point(a), domain(a))
 
 
         # Basic division
@@ -64,11 +70,11 @@ for TM in tupleTMs
 
 
         # Multiplication by numbers
-        *(a::$TM, b::T) where {T<:NumberNotSeries} = $TM(a.pol*b, b*remainder(a),
-            expansion_point(a), domain(a))
+        *(a::$TM, b::T) where {T<:NumberNotSeries} = $(Symbol(:unsafe_, TM))(a.pol*b,
+            b*remainder(a), expansion_point(a), domain(a))
 
-        *(b::T, a::$TM) where {T<:NumberNotSeries} = $TM(a.pol*b, b*remainder(a),
-            expansion_point(a), domain(a))
+        *(b::T, a::$TM) where {T<:NumberNotSeries} = $(Symbol(:unsafe_, TM))(a.pol*b,
+            b*remainder(a), expansion_point(a), domain(a))
 
         # Multiplication
         function *(a::$TM{T,S}, b::$TM{T,S}) where {T,S}
@@ -77,7 +83,7 @@ for TM in tupleTMs
             res = a.pol * b.pol
             # Remainder
             Δ = remainder_product(a, b, TS.order(res))
-            return $TM(res, Δ, expansion_point(a), domain(a))
+            return $(Symbol(:unsafe_, TM))(res, Δ, expansion_point(a), domain(a))
         end
 
         # Division by numbers
@@ -92,7 +98,7 @@ for TM in tupleTMs
             res = TS.square(a.pol)
             # Remainder
             Δ = remainder_square(a, TS.order(res))
-            return $TM(res, Δ, expansion_point(a), domain(a))
+            return $(Symbol(:unsafe_, TM))(res, Δ, expansion_point(a), domain(a))
         end
 
         function ^(a::$TM{T,S}, r::NumberNotSeries) where {T,S}
@@ -454,12 +460,12 @@ function /(a::RTaylorModel1, b::RTaylorModel1)
     #
     _order = TS.order(a)
     ared = truncate_taylormodel(
-        RTaylorModel1(Taylor1(a.pol.coeffs[bk+1:_order+1]), remainder(a),
-        expansion_point(a), domain(a)), _order-bk)
+        unsafe_RTaylorModel1(Taylor1(a.pol.coeffs[bk+1:_order+1]), remainder(a),
+            expansion_point(a), domain(a)), _order-bk)
     _order = TS.order(b)
     bred = truncate_taylormodel(
-        RTaylorModel1(Taylor1(b.pol.coeffs[bk+1:_order+1]), remainder(b),
-        expansion_point(b), domain(b)), _order-bk)
+        unsafe_RTaylorModel1(Taylor1(b.pol.coeffs[bk+1:_order+1]), remainder(b),
+            expansion_point(b), domain(b)), _order-bk)
 
     return basediv( ared, bred )
 end
@@ -481,17 +487,17 @@ function truncate_taylormodel(a::RTaylorModel1, m::Integer)
     aux = centered_dom(a)
     Δnegl = bound_truncation(RTaylorModel1, bpol, aux, m)
     Δ = Δnegl + remainder(a) * Base.literal_pow(^, aux, Val(_order-m))
-    return RTaylorModel1( apol, Δ, expansion_point(a), domain(a) )
+    return unsafe_RTaylorModel1( apol, Δ, expansion_point(a), domain(a) )
 end
 
 
 # Same as above, for TaylorModelN
-zero(a::TaylorModelN) = TaylorModelN(
+zero(a::TaylorModelN) = unsafe_TaylorModelN(
     TaylorN(space(a), zero(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
-    zero(remainder(a)), expansion_point(a), domain(a))
-one(a::TaylorModelN) = TaylorModelN(
+        zero(remainder(a)), expansion_point(a), domain(a))
+one(a::TaylorModelN) = unsafe_TaylorModelN(
     TaylorN(space(a), one(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
-    zero(remainder(a)), expansion_point(a), domain(a))
+        zero(remainder(a)), expansion_point(a), domain(a))
 # zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), TS.order(a))
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
@@ -507,20 +513,20 @@ findfirst(a::TaylorModelN) = findfirst(a.pol)
 # Addition and substraction
 for op in (:+, :-)
     @eval begin
-        $(op)(a::TaylorModelN) = TaylorModelN($(op)(a.pol), $(op)(remainder(a)),
+        $(op)(a::TaylorModelN) = unsafe_TaylorModelN($(op)(a.pol), $(op)(remainder(a)),
             expansion_point(a), domain(a))
 
         function $(op)(a::TaylorModelN, b::TaylorModelN)
             a, b = fixorder(a, b)
-            return TaylorModelN($(op)(a.pol, b.pol), $(op)(remainder(a), remainder(b)),
+            return unsafe_TaylorModelN($(op)(a.pol, b.pol), $(op)(remainder(a), remainder(b)),
                 expansion_point(a), domain(a))
         end
 
         $(op)(a::TaylorModelN, b::T) where {T<:NumberNotSeries} =
-            TaylorModelN($(op)(a.pol, b), remainder(a), expansion_point(a), domain(a))
+            unsafe_TaylorModelN($(op)(a.pol, b), remainder(a), expansion_point(a), domain(a))
 
         $(op)(b::T, a::TaylorModelN) where {T<:NumberNotSeries} =
-            TaylorModelN($(op)(b, a.pol), $(op)(remainder(a)), expansion_point(a), domain(a))
+            unsafe_TaylorModelN($(op)(b, a.pol), $(op)(remainder(a)), expansion_point(a), domain(a))
     end
 end
 
@@ -533,7 +539,7 @@ function *(a::TaylorModelN, b::TaylorModelN)
     res = a.pol * b.pol
     # Remainder
     Δ = remainder_product(a, b, TS.order(res))
-    return TaylorModelN(res, Δ, expansion_point(a), domain(a))
+    return unsafe_TaylorModelN(res, Δ, expansion_point(a), domain(a))
 end
 
 function remainder_product(a::TaylorModelN{N,T,S}, b::TaylorModelN{N,T,S},
@@ -579,7 +585,7 @@ end
 function *(b::T, a::TaylorModelN) where {T<:NumberNotSeries}
     pol = a.pol * b
     rem = b * remainder(a)
-    return TaylorModelN(pol, rem, expansion_point(a), domain(a))
+    return unsafe_TaylorModelN(pol, rem, expansion_point(a), domain(a))
 end
 
 *(a::TaylorModelN, b::T) where {T<:NumberNotSeries} = b * a
@@ -604,7 +610,7 @@ function TS.square(a::TaylorModelN)
     @assert 2*TS.order(a) ≤ TS.order(space(a))
     res = TS.square(a.pol)
     Δ = remainder_square(a, TS.order(res))
-    return TaylorModelN(res, Δ, expansion_point(a), domain(a))
+    return unsafe_TaylorModelN(res, Δ, expansion_point(a), domain(a))
 end
 
 function remainder_square(a::TaylorModelN{N,T,S},
@@ -649,7 +655,7 @@ function Base.power_by_squaring(x::TaylorModelN, p::Integer)
     @assert p ≥ 0
     (p == 0) && return one(x)
     (p == 1) && return TaylorModelN(
-        Taylor1(x.pol.coeffs[:], TS.order(x.pol)), x.rem, x.x0[:], x.dom[:])
+        TaylorN(x.pol.coeffs[:], TS.order(x.pol)), x.rem, x.x0[:], x.dom[:])
     (p == 2) && return TS.square(x)
     (p == 3) && return x*TS.square(x)
     t = trailing_zeros(p) + 1
@@ -678,7 +684,7 @@ for f in (:+, :-)
         for i in eachindex(a)
             c[i] = ($f)(a[i], b[i])
         end
-        return TaylorModel1(c, ($f)(remainder(a), remainder(b)),
+        return unsafe_TaylorModel1(c, ($f)(remainder(a), remainder(b)),
             expansion_point(a), domain(a))
     end
     @eval function ($f)(b::T, a::TaylorModel1{TaylorModelN{N,R,S}}) where
@@ -687,7 +693,7 @@ for f in (:+, :-)
         for i in eachindex(a)
             c[i] = ($f)(b, a[i])
         end
-        return TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
+        return unsafe_TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
     end
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S}}, b::T) where
             {N,R,S,T<:NumberNotSeries}
@@ -701,7 +707,7 @@ end
 
 function *(a::TaylorModel1{TaylorModelN{N,T,S},S}, b::TaylorModelN{N,T,S}) where {N,T,S}
     res = polynomial(a)*b
-    return TaylorModel1(res, remainder(a), expansion_point(a), domain(a))
+    return unsafe_TaylorModel1(res, remainder(a), expansion_point(a), domain(a))
 end
 *(b::TaylorModelN{N,T,S}, a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S} = a * b
 

@@ -64,10 +64,10 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
 
     # Initializations
     @. begin
-    #     xTMN = TaylorModelN(constant_term(x), zI, (zB,), (S,))
-        xTM1 = TaylorModel1(deepcopy(x), zI, zI, zI)
+    #     xTMN = TM.unsafe_TaylorModelN(constant_term(x), zI, (zB,), (S,))
+        xTM1 = TM.unsafe_TaylorModel1(deepcopy(x), zI, zI, zI)
     #     rem = zI
-    #     xTM1v[:, 1] = TaylorModel1(deepcopy(x), zI, zI, zI)
+    #     xTM1v[:, 1] = TM.unsafe_TaylorModel1(deepcopy(x), zI, zI, zI)
     end
     polv = polynomial.(xTM1)
     fill!(E, zI)
@@ -108,7 +108,7 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
         # Flowpipe
         @. begin
             rem = remainder(xTM1)
-            xTMN = TaylorModelN(copy(evaluate(xTM1, domt)), rem, (zB,), (S,))
+            xTMN = TM.unsafe_TaylorModelN(copy(evaluate(xTM1, domt)), rem, (zB,), (S,))
         end
         xv[nsteps] = evaluate(xTMN, S)
 
@@ -116,7 +116,7 @@ function _validated_integ2!(f!, q0, t0::T, tf::T, abstol::T, cacheVI::VectorCach
         @inbounds for i in eachindex(x)
             aux_pol = evaluate(xTM1[i], δt) #δtI
             # rem[i] = remainder(xTM1[i])
-            xTMN[i] = TaylorModelN(deepcopy(aux_pol), rem[i], zB, S)
+            xTMN[i] = TM.unsafe_TaylorModelN(deepcopy(aux_pol), rem[i], zB, S)
 
             # Absorb remainder
             j = 0
@@ -180,8 +180,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     orderT = TS.order(t)
     @. begin
         polv = deepcopy.(x)
-        xTM1K = TaylorModel1(polv, zI, zI, domT)
-        # xTM1K = TaylorModel1(polv, rem, zI, domT)
+        xTM1K = TM.unsafe_TaylorModel1(polv, zI, zI, domT)
+        # xTM1K = TM.unsafe_TaylorModel1(polv, rem, zI, domT)
         E = remainder(xTM1K)
         # E = remainder(x0)
     end
@@ -200,7 +200,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
         # Try to prove existence and uniqueness up to validatesteps
         nsteps = 0
         E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box, VV) # 0-th iteration
-        @. xTM1K = TaylorModel1(polv, E′, zI, domT)
+        @. xTM1K = TM.unsafe_TaylorModel1(polv, E′, zI, domT)
         while nsteps < validatesteps
             E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box)
             all(iscontractive.(E′, E)) && break
@@ -210,7 +210,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                 if !iscontractive(E′[i], E[i])
                     E[i] = E′[i] * εi + δi
                 end
-                xTM1K[i] = TaylorModel1(polv[i], E[i], zI, domT)
+                xTM1K[i] = TM.unsafe_TaylorModel1(polv[i], E[i], zI, domT)
             end
             nsteps += 1
         end
@@ -227,8 +227,8 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
                     δt = δt * 0.1^(1/orderT)
                     domT = sign_tstep * interval(0, sign_tstep*δt)
                     @. begin
-                        xTM1K = TaylorModel1(polv, zI, zI, domT)
-                        # xTM1K = TaylorModel1(polv, rem, zI, domT)
+                        xTM1K = TM.unsafe_TaylorModel1(polv, zI, zI, domT)
+                        # xTM1K = TM.unsafe_TaylorModel1(polv, rem, zI, domT)
                         E = remainder(xTM1K)
                         # E = remainder(x0)
                     end
@@ -264,7 +264,7 @@ function _validate_step!(xTM1K, f!, dx, x0, params, x, t, box, dof, rem, abstol,
     #     E .= remainder.(xTM1K)
     #     E′ .= picard_iteration(f!, dx, xTM1K, params, t, x0, box)
     #     @. begin
-    #         xTM1K = TaylorModel1(polv, E′, zI, dom)
+    #         xTM1K = TM.unsafe_TaylorModel1(polv, E′, zI, dom)
     #         low_ratiov = inf(E′) / inf(E)
     #         hi_ratiov  = sup(E′) / sup(E)
     #     end
