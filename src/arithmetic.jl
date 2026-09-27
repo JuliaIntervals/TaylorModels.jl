@@ -87,7 +87,8 @@ for TM in tupleTMs
         end
 
         # Division by numbers
-        /(a::$TM, b::T) where {T<:NumberNotSeries} = a * inv(b)
+        /(a::$TM, b::T) where {T<:NumberNotSeries} =
+            $(Symbol(:unsafe_, TM))(a.pol/b, remainder(a)/b, expansion_point(a), domain(a))
 
         /(b::T, a::$TM) where {T<:NumberNotSeries} = b * inv(a)
 
