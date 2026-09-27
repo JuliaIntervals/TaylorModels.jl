@@ -2,7 +2,7 @@
 
 using TaylorModels
 
-using Test, Random
+using Test, Random, StaticArrays
 
 const _num_tests = 1000
 
@@ -37,10 +37,18 @@ end
     @testset "TaylorModelN constructors" begin
         xm = TaylorModelN{_order, Interval{Float64}, Float64}(xT, zi, b0, ib0)
         ym = TaylorModelN{_order, Interval{Float64}, Float64}(yT, zi, b0, ib0)
+        xmu = TaylorModelN{_order, Interval{Float64}, Float64}(xT, zi, SVector{2}(b0), SVector{2}(ib0), TM._nocheck)
+        ymu = TaylorModelN{_order, Interval{Float64}, Float64}(yT, zi, SVector{2}(b0), SVector{2}(ib0), TM._nocheck)
+        @test xm == xmu
         @test xm == TaylorModelN(xT, zi, b0, ib0)
+        @test xmu == TM.unsafe_TaylorModelN(xT, zi, b0, ib0)
+        @test ym == ymu
         @test ym == TaylorModelN(yT, zi, b0, ib0)
+        @test ymu == TM.unsafe_TaylorModelN(yT, zi, b0, ib0)
         @test xm == TaylorModelN(jspace, 1, _order, b0, ib0)
+        @test xm == TM.unsafe_TaylorModelN(jspace, 1, _order, b0, ib0)
         @test ym == TaylorModelN(jspace, 2, _order, b0, ib0)
+        @test ym == TM.unsafe_TaylorModelN(jspace, 2, _order, b0, ib0)
         @test TaylorModelN(jspace, b1[1], 2, b0, ib0) ==
                 TaylorModelN(TaylorN(jspace, b1[1], _order), zi, b0, ib0)
 
@@ -59,6 +67,15 @@ end
         @test_throws AssertionError TaylorModelN(xT, zi, b0, ib1)
         @test_throws AssertionError TaylorModelN(xT, interval(1,1), b0, ib0)
         @test_throws BoundsError TaylorModelN(5, _order, b0, ib0) # wrong variable number
+
+        # b0 is not contained in domain
+        tm_wrong = TM.unsafe_TaylorModelN(xT, zi, b0, ib1)
+        @test all(expansion_point(tm_wrong) .== b0)
+        @test !all(issubset_interval.(b0, ib1))
+        # remainder does contain 0
+        tm_wrong = TM.unsafe_TaylorModelN(xT, interval(1), b0, ib1)
+        @test isequal_interval(remainder(tm_wrong), interval(1))
+        @test !in_interval(zero(Float64), remainder(tm_wrong))
 
         # Tests for order and remainder
         @test TS.order(jspace) == 6

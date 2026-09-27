@@ -5,8 +5,8 @@
 function promote(a::TaylorModelN{T,S}, b::R) where {T<:Real, S<:Real, R<:Real}
     apol, bb = promote(a.pol, b)
     a_rem = remainder(a)
-    return (TaylorModelN(apol, a_rem, expansion_point(a), domain(a)),
-        TaylorModelN(bb, zero(a_rem), expansion_point(a), domain(a)))
+    return (unsafe_TaylorModelN(apol, a_rem, expansion_point(a), domain(a)),
+        unsafe_TaylorModelN(bb, zero(a_rem), expansion_point(a), domain(a)))
 end
 # promote(b::R, a::TaylorModelN{T,S}) where { T<:Real, S<:Real, R<:Real} =
 #     reverse(promote(a,b))
@@ -14,9 +14,9 @@ end
 #
 function promote(a::TaylorModelN{N,T,S}, b::TaylorN{R}) where {N, T, S, R}
     RR = promote_type(T,R)
-    aa = TaylorModelN(convert(TaylorN{RR},a.pol), remainder(a), expansion_point(a),
+    aa = unsafe_TaylorModelN(convert(TaylorN{RR},a.pol), remainder(a), expansion_point(a),
         domain(a))
-    bb = TaylorModelN(convert(TaylorN{RR},b), 0..0, expansion_point(a), domain(a))
+    bb = unsafe_TaylorModelN(convert(TaylorN{RR},b), zero(remainder(a)), expansion_point(a), domain(a))
     return (aa, bb)
 end
 # promote(b::TaylorN{R}, a::TaylorModelN{T,S}) where { T, S, R} = reverse( promote(a, b) )
@@ -69,11 +69,13 @@ end
 
 for TM in tupleTMs
     @eval promote(a::$TM{T,S}, b::T) where {T,S<:Real} =
-        (a, $(TM)(Taylor1([b], TS.order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
+        (a, $(Symbol(:unsafe_, TM))(Taylor1([b], TS.order(a)), zero(remainder(a)),
+            expansion_point(a), domain(a)))
     @eval promote(b::T, a::$TM{T,S}) where {T,S<:Real} = reverse( promote(a,b) )
     #
     @eval promote(a::$TM{T,S}, b::S) where {T,S} =
-        (a, $TM(Taylor1([convert(T, b)], TS.order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
+        (a, $(Symbol(:unsafe_, TM))(Taylor1([convert(T, b)], TS.order(a)),
+            zero(remainder(a)), expansion_point(a), domain(a)))
     # @eval promote(b::S, a::$TM{T,S}) where {T,S} = reverse( promote(a,b) )
     #
     # @eval promote(a::$TM{T,S}, b::R) where {T,S<:Real,R} = promote(a, convert(S, b))
@@ -82,7 +84,8 @@ for TM in tupleTMs
     @eval function promote(a::$TM{TaylorModelN{N,T,S},S}, b::T) where {N,T,S}
         a_pol0 = a.pol[0]
         tmN = TaylorModelN(b, TS.order(a_pol0), expansion_point(a_pol0), domain(a_pol0))
-        return (a, $TM(Taylor1([tmN], TS.order(a)), zero(remainder(a)), expansion_point(a), domain(a)))
+        return (a, $(Symbol(:unsafe_, TM))(Taylor1([tmN], TS.order(a)), zero(remainder(a)),
+            expansion_point(a), domain(a)))
     end
     # @eval promote(b::T, a::$TM{TaylorModelN{N,T,S},S}) where {N,T,S} = reverse( promote(a,b) )
 end
@@ -95,7 +98,7 @@ function Base.convert(::Type{TaylorModel1{TaylorN{T}, S}}, tm::TaylorModel1{Tayl
         pol[k] = polynomial(tm[k])
     end
     rem = total_remainder(tm)
-    return TaylorModel1(pol, rem, expansion_point(tm), domain(tm))
+    return unsafe_TaylorModel1(pol, rem, expansion_point(tm), domain(tm))
 end
 
 function Base.convert(::Type{TaylorModel1{TaylorModelN{N,T,S}, S}}, tm::TaylorModel1{TaylorN{T}, S}) where {N,T,S}
@@ -104,5 +107,5 @@ function Base.convert(::Type{TaylorModel1{TaylorModelN{N,T,S}, S}}, tm::TaylorMo
     zSB = interval.(mid.(symIbox))
     order = TS.order(tm)
     pol = Taylor1(TaylorModelN.(tm[:], z, Ref(zSB), Ref(symIbox)), order)
-    return TaylorModel1(pol, remainder(tm), expansion_point(tm), domain(tm))
+    return unsafe_TaylorModel1(pol, remainder(tm), expansion_point(tm), domain(tm))
 end

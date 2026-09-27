@@ -16,18 +16,18 @@ for TM in tupleTMs
 
         return tm.pol(a) + Δ
     end
-    @eval function evaluate(tm::$TM{T,S}, a::Interval) where {T,S}
-        @assert iscontained(a, tm)
-        _order = TS.order(tm)
+    # @eval function evaluate(tm::$TM{T,S}, a::Interval) where {T,S}
+    #     @assert iscontained(a, tm)
+    #     _order = TS.order(tm)
 
-        if $(TM) == TaylorModel1
-            Δ = remainder(tm)
-        else
-            Δ = remainder(tm) * Base.literal_pow(^, a, Val(_order+1))
-        end
+    #     if $(TM) == TaylorModel1
+    #         Δ = remainder(tm)
+    #     else
+    #         Δ = remainder(tm) * Base.literal_pow(^, a, Val(_order+1))
+    #     end
 
-        return tm.pol(a) + Δ
-    end
+    #     return tm.pol(a) + Δ
+    # end
 
     @eval (tm::$TM{T,S})(a) where {T,S} = evaluate(tm, a)
 
@@ -39,7 +39,7 @@ for TM in tupleTMs
             {T<:NumberNotSeries,S,R}
         @assert length(a) == get_numvars()
         pol = tm.pol(a)
-        return $TM(pol, tm.rem, tm.x0, tm.dom)
+        return $(Symbol(:unsafe_, TM))(pol, tm.rem, tm.x0, tm.dom)
     end
 
     # _evaluate corresponds to composition: substitute tmf into tmg
@@ -125,7 +125,7 @@ function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, v::AbstractVector) wh
     for k in eachindex(suma)
         suma[k] = tm[k](v)
     end
-    return TaylorModel1(suma, remainder(tm), expansion_point(tm), domain(tm))
+    return unsafe_TaylorModel1(suma, remainder(tm), expansion_point(tm), domain(tm))
 end
 function evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T) where {N,T,S}
     aux = zero(tm[0].pol)
@@ -153,8 +153,8 @@ function __evaluate!(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T,
             TS.add!(pol, aux, tm[k].pol, j)
         end
     end
-    return TaylorModelN(pol, rem + remainder(tm),
-        tm[0].x0, tm[0].dom) :: TaylorModelN{N,T,S}
+    return unsafe_TaylorModelN(pol, rem + remainder(tm),
+        expansion_point(tm[0]), domain(tm[0])) :: TaylorModelN{N,T,S}
 end
 function __evaluate!(tmn::TaylorModelN{N,T,S},
         tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::T, aux::TaylorN{T}) where {N,T,S}
