@@ -35,12 +35,13 @@ function test_integ(fexact, t0, qTM, q0, δq0; bbroken::Bool=false)
     if bb
         @test bb
     else
-        # @show(t0, domt, remainder.(qTM),
-        #     δt, δtI, q0ξ, q0ξB, q, qq,
-        #     fexact(t0+δtI, q0 .+ q0ξB), n)
         if bbroken
             @test_broken bb
         else
+            # @show(t0, domt, remainder.(qTM),
+            #     δt, δtI, q0ξ, q0ξB, q, #qq,
+            #     fexact(t0+δtI, q0 .+ q0ξB), #n
+            #     )
             @test bb
         end
     end
@@ -472,8 +473,8 @@ end
         tini, tend = 0.0, 3.0
         normalized_box = symmetric_box(1)
         abstol = 1e-20
-        orderQ = 2
-        orderT = 13
+        orderQ = 3
+        orderT = 18
         params = nothing
         q0 = [0.5]
         δq0 = 0.3 * normalized_box
