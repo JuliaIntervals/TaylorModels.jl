@@ -196,7 +196,9 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
         # x1N[i] = TaylorModel1(deepcopy(x[i]), zI, 0.0, zI)
         # xTM1v[i, 1] = deepcopy(x1N[i])
         x1N[i] = deepcopy(z1N)
-        xTM1v[i, 1] = deepcopy(z1N)
+        for k in 1:maxsteps+1
+            xTM1v[i, k] = deepcopy(z1N)
+        end
         for it in eachindex(x[i].coeffs)
             for iq in eachindex(x[i].coeffs[it].coeffs)
                 for hq in eachindex(x[i].coeffs[it].coeffs[iq].coeffs)

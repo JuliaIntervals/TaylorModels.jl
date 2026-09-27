@@ -253,8 +253,6 @@ function qrprecondition!(
     # QR factorization of linTN
     qqr = qr(linTN)
     linTN .= qqr.Q * I # Reuse memory
-    # # Transform remainders
-    # mul!(rems, transpose(linTN), remainder.(vTMN))
     #
     # Get scaling vector, so range of rightTMN is contained in [-1,1]
     # and construct leftTMN and rightTMN
@@ -320,25 +318,67 @@ function qrprecondition!(
 end
 
 
+"""
+    _update_inicond!(x, dx, x1N, vTMN)
+
+In-place update the initial conditions in `x` and `dx` (the latter reset
+to zero) from `vTMN`; `x1N` stores the remainder.
+"""
 function _update_inicond!(x, dx, x1N, vTMN)
     zz = zero(x[1][0][0][1])
     for ind in eachindex(x)
-        x1N[ind].rem = vTMN[ind].rem # Store remainder
+        src1 = vTMN[ind]
+        src2 = x1N[ind]
+        src2.rem = src1.rem # Store remainder
         # Zero everything
-        for ordT in eachindex(x1N[ind].pol.coeffs)
-            for ordQ in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs)
-                for h in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+        for ordT in eachindex(src2.pol.coeffs)
+            src2_ordT = src2.pol.coeffs[ordT]
+            for ordQ in eachindex(src2_ordT.pol.coeffs)
+                for h in eachindex(src2_ordT.pol.coeffs[ordQ].coeffs)
                     x[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
                     # dx[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
                 end
             end
         end
         # Update constant coeff (new initial condition)
-        for ordQ in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs)
-            for h in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs[ordQ].coeffs)
+        src2_ordT1 = src2.pol.coeffs[1]
+        for ordQ in eachindex(src2_ordT1.pol.coeffs)
+            for h in eachindex(src2_ordT1.pol.coeffs[ordQ].coeffs)
                 x[ind].coeffs[1].coeffs[ordQ].coeffs[h] =
-                    vTMN[ind].pol.coeffs[ordQ].coeffs[h]
+                    src1.pol.coeffs[ordQ].coeffs[h]
                 dx[ind].coeffs[1].coeffs[ordQ].coeffs[h] = zz
+            end
+        end
+    end
+    return nothing
+end
+
+
+"""
+    _update_output!(xTM1v::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}},
+        x1N::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}})
+
+In-place update of `xTM1v` with the contents of `x1N`, to avoid `deepcopy`.
+Assumes same shape of both entries.
+"""
+function _update_output!(xTM1v::AbstractVector{<:TaylorModel1}, x1N)
+    @inbounds for ind in eachindex(x1N)
+        src = x1N[ind]
+        tgt = xTM1v[ind]
+        tgt.rem = src.rem
+        tgt.x0  = src.x0
+        tgt.dom = src.dom
+        for ordT in eachindex(src.pol.coeffs)
+            src_ordT = src.pol.coeffs[ordT]  # a TaylorModelN
+            tgt_ordT = tgt.pol.coeffs[ordT]
+            tgt_ordT.rem = src_ordT.rem
+            tgt_ordT.x0  = src_ordT.x0
+            tgt_ordT.dom = src_ordT.dom
+            for ordQ in eachindex(src_ordT.pol.coeffs)
+                for h in eachindex(src_ordT.pol.coeffs[ordQ].coeffs)
+                    tgt_ordT.pol.coeffs[ordQ].coeffs[h] =
+                        src_ordT.pol.coeffs[ordQ].coeffs[h]
+                end
             end
         end
     end
