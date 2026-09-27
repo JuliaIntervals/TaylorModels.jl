@@ -14,6 +14,8 @@ using StaticArrays
 import TaylorSeries: space
 export TMSol, TMSol3, flowpipe, get_xTM
 export shrink_wrapping!, absorb_remainder
+export qrprecondition, qrprecondition!
+export affine_compose, affine_compose!
 export validated_integ, validated_integ2, validated_integ3
 export iscontractive, picard_lindelof, picard_lindelof!
 export mince_in_time

@@ -122,7 +122,7 @@ for TT in (:T, :(Interval{T}))
         oI = one($TT)
         @inbounds for i in eachindex(xTMN)
             pol = polynomial(xTMN[i])
-            tmn = TaylorModelN(pol(X), zI, x0, B )
+            tmn = TM.unsafe_TaylorModelN(pol(X), zI, x0, B )
             ppol = fp_rpa(tmn) * oI
             bb = issubset_interval(xTMN[i](B), ppol(B)) ||
                     isequal_interval(xTMN[i](B), ppol(B))
@@ -180,7 +180,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
         end
     end
 
-    return unsafe_TaylorModelN(bpol, rem, expansion_point(a), domain(a))
+    return TM.unsafe_TaylorModelN(bpol, rem, expansion_point(a), domain(a))
 end
 
 
@@ -243,38 +243,41 @@ function qrprecondition!(
         leftTMN::Vector{TaylorModelN{N,T,S}}, rightTMN::Vector{TaylorModelN{N,T,S}},
         linTN::Matrix{T}, rems::Vector{Interval{S}}, scaleV::Vector{T},
         vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-    # Initialize TMN polynomials
-    for ind in eachindex(vTMN)
-        for ordQ in eachindex(vTMN[ind].pol.coeffs)
-            for hp in eachindex(vTMN[ind].pol.coeffs[ordQ].coeffs)
-                leftTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    zero(leftTMN[ind].pol.coeffs[ordQ].coeffs[hp])
-                rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    zero(rightTMN[ind].pol.coeffs[ordQ].coeffs[hp])
-            end
-        end
-    end
+    #
     # Linear matrix: TS.jacobian(linear_polynomial(vTMN))
-    for jind in eachindex(vTMN)
-        for ind in eachindex(vTMN)
+    @inbounds for ind in eachindex(vTMN)
+        for jind in eachindex(vTMN)
             linTN[ind, jind] = vTMN[ind].pol.coeffs[2].coeffs[jind]
         end
     end
     # QR factorization of linTN
     qqr = qr(linTN)
     linTN .= qqr.Q * I # Reuse memory
-    # Transform remainders
-    mul!(rems, linTN', remainder.(vTMN))
+    # # Transform remainders
+    # mul!(rems, transpose(linTN), remainder.(vTMN))
+    #
     # Get scaling vector, so range of rightTMN is contained in [-1,1]
-    for ind in eachindex(vTMN)
+    # and construct leftTMN and rightTMN
+    zI = zero(remainder(vTMN[1]))
+    @inbounds for ind in eachindex(vTMN)
+        # Reset polynomial coeffs to zero
+        for ordQ in eachindex(vTMN[ind].pol.coeffs)
+            for hp in eachindex(vTMN[ind].pol.coeffs[ordQ].coeffs)
+                leftTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
+                    zero(vTMN[ind].pol.coeffs[ordQ].coeffs[hp])
+                rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
+                    zero(vTMN[ind].pol.coeffs[ordQ].coeffs[hp])
+            end
+        end
         # Constant term
         leftTMN[ind].pol.coeffs[1].coeffs[1] = vTMN[ind].pol.coeffs[1].coeffs[1]
-        # Linear corrections
+        # Linear parts
         for hp in eachindex(vTMN[ind].pol.coeffs[2])
-            leftTMN[ind].pol.coeffs[2].coeffs[hp] = linTN[ind, hp]
-            rightTMN[ind].pol.coeffs[2].coeffs[hp] = qqr.R[ind, hp]
+            leftTMN[ind].pol.coeffs[2].coeffs[hp] = linTN[ind, hp] # Q
+            rightTMN[ind].pol.coeffs[2].coeffs[hp] = qqr.R[ind, hp] # R
         end
-        # Higher order terms (rightTMN)
+        rems[ind] = zI
+        # Higher order terms (rightTMN only)
         for jind in eachindex(vTMN)
             for ordQ in eachindex(vTMN[ind].pol.coeffs)
                 ordQ < 3 && continue
@@ -283,38 +286,31 @@ function qrprecondition!(
                         linTN[jind, ind] * vTMN[jind].pol.coeffs[ordQ].coeffs[hp]
                 end
             end
+            # Transform remainders
+            rems[ind] += linTN[jind, ind] * remainder(vTMN[jind])
         end
-        # Scaling vector
+        # Obtain scaling vector
         scaleV[ind] = mag(evaluate(rightTMN[ind].pol, domain(vTMN[ind])) + rems[ind])
     end
+    #
     # Exploit the scaled vars
-    for ind in eachindex(vTMN)
+    @inbounds for ind in eachindex(vTMN)
         # Constant terms remains unchanged
         # Linear corrections
         for hp in eachindex(vTMN[ind].pol.coeffs[2])
-            leftTMN[ind].pol.coeffs[2].coeffs[hp] = linTN[ind, hp] * scaleV[hp]
+            leftTMN[ind].pol.coeffs[2].coeffs[hp] *= scaleV[hp]
             rightTMN[ind].pol.coeffs[2].coeffs[hp] *= inv(scaleV[ind])
         end
         # Higher order terms (rightTMN)
         for ordQ in eachindex(vTMN[ind].pol.coeffs)
             ordQ < 3 && continue
-            for hp in eachindex(vTMN[ind].pol.coeffs[2])
+            for hp in eachindex(vTMN[ind].pol.coeffs[ordQ])
                 rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] *= inv(scaleV[ind])
             end
         end
-    end
-    # Output
-    for ind in eachindex(vTMN)
-        for ordQ in eachindex(vTMN[ind].pol.coeffs)
-            for hp in eachindex(vTMN[ind].pol.coeffs[ordQ].coeffs)
-                leftTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    leftTMN[ind].pol.coeffs[ordQ].coeffs[hp]
-                rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    rightTMN[ind].pol.coeffs[ordQ].coeffs[hp]
-            end
-        end
-        leftTMN[ind].rem = zero(rems[ind])
-        rightTMN[ind].rem = rems[ind]
+        # Output
+        leftTMN[ind].rem = zI
+        rightTMN[ind].rem = rems[ind] * inv(scaleV[ind])
         leftTMN[ind].x0 = vTMN[ind].x0
         rightTMN[ind].x0 = vTMN[ind].x0
         leftTMN[ind].dom = vTMN[ind].dom
@@ -345,6 +341,43 @@ function _update_inicond!(x, dx, x1N, vTMN)
                 dx[ind].coeffs[1].coeffs[ordQ].coeffs[h] = zz
             end
         end
+    end
+    return nothing
+end
+
+
+function affine_compose(leftTMN::Vector{TaylorModelN{N,T,S}},
+        rightTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
+    res = zero.(leftTMN)
+    affine_compose!(res, leftTMN, rightTMN)
+    return res
+end
+
+function affine_compose!(w::Vector{TaylorModelN{N,T,S}},
+        leftTMN::Vector{TaylorModelN{N,T,S}},
+        z::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
+    @assert w !== z "w and z must not alias"
+    @inbounds for i in eachindex(w)
+        for ordQ in eachindex(w[i].pol.coeffs)
+            for hp in eachindex(w[i].pol.coeffs[ordQ].coeffs)
+                w[i].pol.coeffs[ordQ].coeffs[hp] = zero(w[i].pol.coeffs[ordQ].coeffs[hp])
+            end
+        end
+        w[i].pol.coeffs[1].coeffs[1] = leftTMN[i].pol.coeffs[1].coeffs[1]
+        wrem = zero(z[1].rem)
+        for j in eachindex(z)
+            Aij = leftTMN[i].pol.coeffs[2].coeffs[j]
+            iszero(Aij) && continue
+            for ordQ in eachindex(z[j].pol.coeffs)
+                for hp in eachindex(z[j].pol.coeffs[ordQ].coeffs)
+                    w[i].pol.coeffs[ordQ].coeffs[hp] += Aij * z[j].pol.coeffs[ordQ].coeffs[hp]
+                end
+            end
+            wrem += Aij * z[j].rem
+        end
+        w[i].rem = wrem
+        w[i].x0  = z[i].x0
+        w[i].dom = z[i].dom
     end
     return nothing
 end
