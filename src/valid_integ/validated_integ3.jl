@@ -31,7 +31,7 @@ function picard_lindelof!(f!,
     dom = domain(x1N[1][0])
     f!(dx1N, x1N, params, t1N)
     @inbounds for ind in eachindex(x1N)
-        TaylorModels.integrate!(x2N[ind], dx1N[ind], x1N[ind].pol[0], dom)
+        TM.integrate!(x2N[ind], dx1N[ind], x1N[ind].pol[0], dom)
     end
     return nothing
 end
@@ -95,9 +95,12 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         ) where {N,T,U}
 
     # Unpack caches
-    @unpack tv, xv, xaux, t, x, dx, rv, #rv1,
-            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
-            xTM1v, x0New, rem1, rem2, rem0, parse_eqs = cacheVI
+    @unpack tv, xv, xTM1v,
+            xaux, t, x, dx, rv, #rv1,
+            t1N, x1N, dx1N, x2N, z1N, vTN, auxN,
+            xTM1v, x0New, rem1, rem2, rem0,
+            vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
+            parse_eqs = cacheVI
 
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
@@ -144,26 +147,29 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
             xTM1v[ind, nsteps] = deepcopy(x1N[ind])
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
             # Evaluate x1N at δt (new TMN initial condition with remainder)
-            TaylorModels.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
+            TM.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
         end
 
-        # Absorb reminders in constant and linear terms (of new init cond)
-        _abs_rems!(vTMN)
+        # Use qr-precondition to set new initial condition (leftTMN)
+        qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+        # shrink_wrapping!(rightTMN)
+        # affine_compose!(vTMN, leftTMN, rightTMN)
 
         # Update initial state
+        _update_inicond!(x, dx, x1N, leftTMN)
         # if normb && dof == 1
         #     # No issue with the wrapping effect in 1-d
         #     x0New .= evaluate.(vTMN, (symIbox,))
         #     normalize_taylorNs!(vTN, x0New)
         #     TI.init_expansions!(x, dx, vTN, orderT)
         # else
-            _update_inicond!(x, dx, x1N, vTMN)
+        #    _update_inicond!(x, dx, x1N, vTMN)
         # end
 
         # Update time
         t0 += δt
         t[0] = t0
-        t1N.pol[0].pol[0][1] = t0
+        t1N.pol.coeffs[1].pol.coeffs[1].coeffs[1] = t0
 
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
