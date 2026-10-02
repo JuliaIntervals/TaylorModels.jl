@@ -183,14 +183,15 @@ function bound_taylor1(fT::Taylor1{Interval{T}}, fTd::Taylor1{Interval{T}},
 end
 
 """
-    bound_taylor1(fT::TaylorModel1, I=domain(fT)::Interval)
+    bound_taylor1(fT::TaylorModel1, I=centered_dom(fT)::Interval)
 
 Compute a *tight* polynomial bound for the Taylor model `fT`
 in the interval `I`, considering whether its derivative `ftd` has
 a definite sign.
 
 """
-bound_taylor1(fT::TaylorModel1, I::Interval=domain(fT)) = bound_taylor1(polynomial(fT), I)
+bound_taylor1(fT::TaylorModel1, I::Interval=centered_dom(fT)) =
+    bound_taylor1(polynomial(fT), I)
 
 """
     linear_dominated_bounder(fT::TaylorModel1, ϵ=1e-3::Float64, max_iter=5::Int)
@@ -382,4 +383,42 @@ function quadratic_fast_bounder(fT::TaylorModelN)
     end
 
     return bound_tm
+end
+
+
+"""
+    monotonicity_bounder(tm::TaylorModelN, box = centered_dom(tm)) -> Interval
+
+Rigorous enclosure of the range of `tm` over `box`, a box of displacements
+from the expansion point (`box ⊆ centered_dom(tm)`), never wider than plain
+interval evaluation `evaluate(tm, box)`.
+
+Monotonicity test per variable: if `0 ∉ ∂_j p(box_lo)`, `p` is monotone in
+`σ_j` on `box_lo`, so its minimum lies on the face `σ_j = inf(box_j)`
+(increasing) or `σ_j = sup(box_j)` (decreasing); `σ_j` is fixed there and the
+test continues with the remaining variables. Likewise `box_hi` for the maximum.
+The result, `[inf p(box_lo), sup p(box_hi)] + Δ`, is intersected with
+`p(box) + Δ`. Only interval evaluations are used (two-sided, rigorous). In 1D,
+when `p` is monotone on `box`, it is the exact range of `p` plus `Δ`; this is
+the N-dimensional version of the monotone branch of `bound_taylor1`.
+"""
+function monotonicity_bounder(tm::TaylorModelN{N,T,S},
+        box::AbstractVector{Interval{S}} = centered_dom(tm)) where {N,T,S}
+    @assert iscontained(box, tm)
+    p = polynomial(tm)
+    blo = collect(box)              # box for the lower bound
+    bhi = collect(box)              # box for the upper bound
+    for j in 1:N
+        dp = TS.differentiate(p, j)
+        glo, ghi = dp(blo), dp(bhi)
+        if !isnai(glo) && !in_interval(zero(S), glo)        # monotone on blo
+            blo[j] = interval(inf(glo) > 0 ? inf(box[j]) : sup(box[j]))
+        end
+        if !isnai(ghi) && !in_interval(zero(S), ghi)        # monotone on bhi
+            bhi[j] = interval(inf(ghi) > 0 ? sup(box[j]) : inf(box[j]))
+        end
+    end
+    tight = interval(inf(p(blo)), sup(p(bhi))) + remainder(tm)
+    naive = p(box) + remainder(tm)
+    return intersect_interval(tight, naive)
 end
