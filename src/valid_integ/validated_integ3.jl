@@ -5,7 +5,7 @@ const _DEF_MINABSTOL = 1.0e-50
 
 """
     picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN::Vector{TaylorModel1{T,S}}, params, t)
+        xTM1TMN::Vector{TaylorModel1{T,S}}, t, params)
 
 Compute the Picard-Lindelof operator to validate a solution
 of a differential equation.
@@ -15,10 +15,9 @@ function picard_lindelof(f!,
         x1N ::Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
         t1N ::TaylorModel1{TaylorModelN{N,T,S},S},
         params) where {N,T,S}
-    x2N = Vector{TaylorModel1{TaylorModelN{N,T,S},S}}
-    z = zero(x1N[1])
-    x2N .= z
-    picard_lindelof!(f!, x2N, dx1N, x1N, params, t1N)
+    x2N = Vector{TaylorModel1{TaylorModelN{N,T,S},S}}(undef, length(x1N))
+    x2N .= zero.(x1N[1])
+    picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
     return x2N
 end
 
@@ -97,21 +96,17 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
     # Unpack caches
     @unpack tv, xv, xTM1v,
             xaux, t, x, dx, rv, #rv1,
-            t1N, x1N, dx1N, x2N, z1N, vTN, auxN,
+            t1N, x1N, dx1N, x2N, z1N, vTN, auxI,
             xTM1v, x0New, rem1, rem2, rem0,
             vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
             parse_eqs = cacheVI
 
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
-    dof = length(q0)
-    orderT = TS.order(t)
-    # orderQ = TS.order(x[1][0])
-    symIbox = symmetric_box(dof, T)
+    symIbox = symmetric_box(N, T)
     zbox = zero(q0)
     @inbounds xv[1] = q0
     @inbounds tv[1] = t0
-    zz = zero(x[1][0][0][1])
 
     # Integration
     # local normb = false
@@ -129,14 +124,20 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         # Validated step of the integration
         rem0 .= remainder.(vTMN) # store old remainder
         (_success, δt, red_abstol) = _validation3!(
-            VV, f!, t, x,
+            f!, t, x,
             t1N, x1N, dx1N, x2N, z1N, #rv1,
-            δt, sign_tstep,
+            δt, tmax, sign_tstep,
             rem1, rem2, rem0, zbox,
             # symIbox, orderT,
             abstol, params,
             adaptive, minabstol, # absorb, check_property
             )
+
+        # Unsuccessful step: exit without storing the failed integration step
+        if !_success
+            @warn("Exiting due to unsuccessful step", _success, t0)
+            break
+        end
 
         # Output
         nsteps += 1
@@ -146,25 +147,20 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         for ind in eachindex(x)
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
             # Evaluate in place x1N at δt (new TMN initial condition with remainder)
-            TM.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
+            TM.__evaluate_rig!(vTMN[ind], x1N[ind], δt, auxI)
         end
         _update_output!(view(xTM1v, :, nsteps), x1N)
 
         # Use qr-precondition to set new initial condition (leftTMN)
-        qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
-        # shrink_wrapping!(rightTMN)
-        # affine_compose!(vTMN, leftTMN, rightTMN)
+        # qrprecondition_rig!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+        # Rigorous QR preconditioning (new initial condition leftTMN)
+        if !qrprecondition_rig!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+            @warn("QR preconditioning could not be verified; exiting", t0 + δt)
+            break
+        end
 
         # Update initial state
         _update_inicond!(x, dx, x1N, leftTMN)
-        # if normb && dof == 1
-        #     # No issue with the wrapping effect in 1-d
-        #     x0New .= evaluate.(vTMN, (symIbox,))
-        #     normalize_taylorNs!(vTN, x0New)
-        #     TI.init_expansions!(x, dx, vTN, orderT)
-        # else
-        #    _update_inicond!(x, dx, x1N, vTMN)
-        # end
 
         # Update time
         t0 += δt
@@ -174,15 +170,6 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
             red_abstol = min(abstol, 10*red_abstol)
-        end
-
-        # If the integration step is unsuccessfull, break with a warning; note that the
-        # last integration step (which was not successfull) is returned
-        if !_success
-            @warn("""
-            Exiting due to unsuccessfull step
-            """, _success, t0)
-            break
         end
 
         if nsteps > maxsteps
@@ -210,10 +197,11 @@ function validated_step3!(vB::Val{B}, f!,
         abstol::T, params,) where {B,T}
     # One step integration (non-validated)
     δt = TI.taylorstep!(vB, f!, t, x, dx, xaux, abstol, params, rv)
-    # f!(dx, x, params, t)  # Update last t coeff `dx[:][orderT]`
     # Step size
     δt = min(δt, sign_tstep*(tmax-t0))
     δt = sign_tstep * δt
+    # Representable step: t0 + δt exact in floating point
+    δt = _exact_step(t0, δt, tmax, sign_tstep)
     return δt
 end
 
@@ -221,7 +209,7 @@ end
 """
     _validation3!
 """
-function _validation3!(VV, f!,
+function _validation3!(f!,
         t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}},
         t1N::TaylorModel1{TaylorModelN{N,T,T},T},
@@ -230,7 +218,7 @@ function _validation3!(VV, f!,
         x2N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
         z1N::TaylorModel1{TaylorModelN{N,T,T},T},
         # rv1::TI.RetAlloc{Taylor1{TaylorModelN{N,T,T}}},
-        δt::T, sign_tstep::Int,
+        δt::T, tmax::T, sign_tstep::Int,
         rem1::Vector{Interval{T}},
         rem2::Vector{Interval{T}},
         rem0::Vector{Interval{T}},
@@ -282,6 +270,7 @@ function _validation3!(VV, f!,
             # Include remainder of initial condition
             x1N[i].pol.coeffs[1].rem = z#rem0[i]
         end
+        rem0 = zero.(rem0)
         # Verify Picard contraction
         for _ in 1:50
             rem1 .= remainder.(x1N) .+ rem0
@@ -309,7 +298,8 @@ function _validation3!(VV, f!,
                 bool_red = reduced_abstol > minabstol
                 if bool_red
                     reduced_abstol = reduced_abstol/10
-                    δt = δt / 2 #* 0.1^(1/orderT)
+                    δt = δt / 2
+                    δt = _exact_step(t[0], δt, tmax, sign_tstep)
                     continue
                 end
                 @warn("Minimum absolute tolerance reached: ",
@@ -346,6 +336,7 @@ function _validation3!(VV, f!,
         #     issatisfied = check_property(t[0]+δt, xvv)
         #     if !issatisfied
         #         # δt = δt/2
+        #         # δt = _exact_step(t[0], δt, tmax, sign_tstep)
         #         bool_red = reduced_abstol > minabstol
         #         @info("issatisfied: ", bool_red, δt)
         #         if bool_red
