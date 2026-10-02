@@ -213,26 +213,6 @@ end
 
 
 """
-    qrprecondition(vTMN::Vector{TaylorModelN{N,T,S}})
-
-Returns the left and right preconditioned TaylorModelN's from `vTMN`,
-following the explanation of Neher et al (2007).
-
-Ref: M. Neher, K.R. Jackson and N.S. Nedialkov, "On Taylor Model based integration
-of ODEs", SIAM J. NUMER. ANAL. 45 (1), pp. 236-262 (2007).
-https://doi.org/10.1137/050638448
-"""
-function qrprecondition(vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-    leftTMN = zero.(vTMN)
-    rightTMN = zero.(vTMN)
-    linTN = zero(Array{T}(undef, N, N))
-    rems = zero.(remainder.(vTMN))
-    scaleV = zero.(mag.(remainder.(vTMN)))
-    qrprecondition!(leftTMN, rightTMN, linTN, rems, scaleV, vTMN)
-    return leftTMN, rightTMN
-end
-
-"""
     qrprecondition!(leftTMN::Vector{TaylorModelN{N,T,S}}, rightTMN::Vector{TaylorModelN{N,T,S}},
         linTN::Matrix{T}, rems::Vector{Interval{S}}, scaleV::Vector{T},
         vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
@@ -314,6 +294,7 @@ function qrprecondition!(
         leftTMN[ind].dom = vTMN[ind].dom
         rightTMN[ind].dom = vTMN[ind].dom
     end
+    # @assert _right_in_box(rightTMN) "qrprecondition!: ρ(B) ⊄ B"
     return nothing
 end
 
@@ -386,38 +367,36 @@ function _update_output!(xTM1v::AbstractVector{<:TaylorModel1}, x1N)
 end
 
 
-function affine_compose(leftTMN::Vector{TaylorModelN{N,T,S}},
-        rightTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-    res = zero.(leftTMN)
-    affine_compose!(res, leftTMN, rightTMN)
-    return res
+# The following is used to get an exact, floating number representation,
+# of the step size δt and of the accumulated time
+# Knuth's TwoSum: s + e == a + b exactly
+@inline function _two_sum(a::T, b::T) where {T<:AbstractFloat}
+    s = a + b
+    bb = s - a
+    e = (a - (s - bb)) + (b - bb)
+    return s, e
 end
 
-function affine_compose!(w::Vector{TaylorModelN{N,T,S}},
-        leftTMN::Vector{TaylorModelN{N,T,S}},
-        z::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-    @assert w !== z "w and z must not alias"
-    @inbounds for i in eachindex(w)
-        for ordQ in eachindex(w[i].pol.coeffs)
-            for hp in eachindex(w[i].pol.coeffs[ordQ].coeffs)
-                w[i].pol.coeffs[ordQ].coeffs[hp] = zero(w[i].pol.coeffs[ordQ].coeffs[hp])
-            end
+"""
+    _exact_step(t0, δt, tmax, sign_tstep) -> δt′
+
+Step with `t0 + δt′` exact in floating point and `|δt′| ≤ |δt|`, except that
+a step reaching `tmax` lands exactly on it. `sign_tstep = ±1` (forward/backward).
+"""
+function _exact_step(t0::T, δt::T, tmax::T, sign_tstep::Int) where {T<:AbstractFloat}
+    t1 = t0 + δt
+    sign_tstep*t1 >= sign_tstep*tmax && (t1 = tmax)
+    for _ in 1:8
+        δt1 = t1 - t0
+        s, e = _two_sum(t0, δt1)
+        if s == t1 && iszero(e)                         # t0 + δt1 == t1 exactly
+            (t1 == tmax || sign_tstep*δt1 <= sign_tstep*δt) && return δt1
+            t1 = sign_tstep > 0 ? prevfloat(t1) : nextfloat(t1)   # ½-ulp overshoot
+        else
+            # rare: 0 < |t0| < |δt|; then t0 + sign*|t0| (= 2t0 or 0) is exact
+            t1 = t0 + sign_tstep*abs(t0)
         end
-        w[i].pol.coeffs[1].coeffs[1] = leftTMN[i].pol.coeffs[1].coeffs[1]
-        wrem = zero(z[1].rem)
-        for j in eachindex(z)
-            Aij = leftTMN[i].pol.coeffs[2].coeffs[j]
-            iszero(Aij) && continue
-            for ordQ in eachindex(z[j].pol.coeffs)
-                for hp in eachindex(z[j].pol.coeffs[ordQ].coeffs)
-                    w[i].pol.coeffs[ordQ].coeffs[hp] += Aij * z[j].pol.coeffs[ordQ].coeffs[hp]
-                end
-            end
-            wrem += Aij * z[j].rem
-        end
-        w[i].rem = wrem
-        w[i].x0  = z[i].x0
-        w[i].dom = z[i].dom
     end
-    return nothing
+    error("_exact_step: no exact step found (t0 = $t0, δt = $δt)")
 end
+_exact_step(t0::Real, δt::Real, tmax::Real, ::Int) = δt     # exact types (e.g. Rational)
