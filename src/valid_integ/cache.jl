@@ -123,7 +123,7 @@ struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
     x2N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
     z1N::TaylorModel1{TaylorModelN{N,T,U}}
     vTN::Vector{TaylorN{T}}
-    auxN::TaylorN{T}
+    auxI::TaylorN{Interval{U}}
     x0New::Vector{Interval{U}}
     rem1::Vector{Interval{U}}
     rem2::Vector{Interval{U}}
@@ -160,7 +160,6 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     # Initialize the vector of Taylor1{TaylorN{U}} expansions explicitly
     vTN .= mid.(x0) .+ variables(localsp; order=orderQ) .* radius.(x0)
     t, x, dx = TI.init_expansions(t0, vTN, orderT)
-    auxN = zero(vTN[1])
     # Determine if specialized jetcoeffs! method exists/works
     parse_eqsX, rv = TI._determine_parsing!(parse_eqs, f!, t, x, dx, params)
     if parse_eqsX
@@ -216,6 +215,7 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     end
     linTN = zeros(T, N, N)
     scaleV = zeros(T, N)
+    auxI = TM._aux_horner(vTMN[1])
 
     # Initialize cache
     return VectorCacheVI3{N,T,U}(
@@ -224,7 +224,7 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
             xTM1v,
             Array{Taylor1{TaylorN{U}}}(undef, N), #xaux
             t, x, dx, rv,
-            t1N, x1N, dx1N, x2N, z1N, vTN, auxN,
+            t1N, x1N, dx1N, x2N, z1N, vTN, auxI,
             x0New, rem1, rem2, rem0,
             vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
             parse_eqsX)
