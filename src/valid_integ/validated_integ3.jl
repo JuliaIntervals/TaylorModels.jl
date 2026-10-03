@@ -147,14 +147,14 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         for ind in eachindex(x)
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
             # Evaluate in place x1N at δt (new TMN initial condition with remainder)
-            TM.__evaluate_rig!(vTMN[ind], x1N[ind], δt, auxI)
+            TM.__evaluate!(vTMN[ind], x1N[ind], δt, auxI)
         end
         _update_output!(view(xTM1v, :, nsteps), x1N)
 
         # Use qr-precondition to set new initial condition (leftTMN)
-        # qrprecondition_rig!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+        # qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
         # Rigorous QR preconditioning (new initial condition leftTMN)
-        if !qrprecondition_rig!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+        if !qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
             @warn("QR preconditioning could not be verified; exiting", t0 + δt)
             break
         end

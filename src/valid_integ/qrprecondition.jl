@@ -2,7 +2,7 @@
 #
 # Contents
 #   _right_in_box(rightTMN)            : check ρ(B) ⊆ B (remainder included)
-#   qrprecondition_rig!(...)           : rigorous QR preconditioning
+#   qrprecondition!(...)           : rigorous QR preconditioning
 #   reconstruct_rho(sol)               : rebuild ρ_k from a TMSol3
 #
 # Types: TaylorModelN{N,T,U}, with coefficient type T ∈ {U, Interval{U}} and
@@ -33,7 +33,7 @@ end
     _right_in_box(rightTMN) -> Bool
 
 `true` iff the range enclosure `monotonicity_bounder` of each `rightTMN[i]`
-is contained in `[-1,1]`. Must use the same bounder as `qrprecondition_rig!`.
+is contained in `[-1,1]`. Must use the same bounder as `qrprecondition!`.
 """
 function _right_in_box(rightTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
     B = domain(rightTMN[1])
@@ -200,7 +200,7 @@ cannot be verified in `maxiter` inflations of `scaleV`.
 - S. M. Rump, "Verification methods: Rigorous results using floating-point
   arithmetic", Acta Numerica 19, 287-449 (2010). [verified inverse]
 """
-function qrprecondition_rig!(
+function qrprecondition!(
         leftTMN::Vector{TaylorModelN{N,T,U}}, rightTMN::Vector{TaylorModelN{N,T,U}},
         linTN::Matrix{T}, rems::Vector{Interval{U}}, scaleV::Vector{U},
         vTMN::Vector{TaylorModelN{N,T,U}};
@@ -220,7 +220,7 @@ function qrprecondition_rig!(
     end
     Amid = _midU.(linTN)                    # QR frame from mid(A) (Q need not be exact)
     if !all(isfinite, Amid) || !all(isfinite, c)
-        verbose && @warn "qrprecondition_rig!: non-finite centre or Jacobian" c Amid
+        verbose && @warn "qrprecondition!: non-finite centre or Jacobian" c Amid
         return false
     end
     Q = Matrix(qr(Amid).Q)
@@ -229,7 +229,7 @@ function qrprecondition_rig!(
     # (1) Rigorous scale: s_i ≥ sup_B |(Q^{-1}(v-c))_i|
     Qinv = _verified_inv(Q, Qt)
     if Qinv === nothing
-        verbose && @warn "qrprecondition_rig!: stage 1, verified inv(Q) failed" Amid Q
+        verbose && @warn "qrprecondition!: stage 1, verified inv(Q) failed" Amid Q
         return false
     end
     _imatvec_tmn!(rightTMN, Qinv, vTMN, c)
@@ -253,7 +253,7 @@ function qrprecondition_rig!(
     verbose && println("stage 1: cond(mid A) = ", cond(Amid), "  scaleV = ", repr(scaleV))
     smax = maximum(scaleV)
     if !isfinite(smax)
-        verbose && @warn "qrprecondition_rig!: stage 1, non-finite scale" scaleV
+        verbose && @warn "qrprecondition!: stage 1, non-finite scale" scaleV
         return false
     elseif iszero(smax)                 # v is constant: any s > 0 is sound
         scaleV .= one(U)
@@ -287,7 +287,7 @@ function qrprecondition_rig!(
         end
         Qhinv = _verified_inv(Qhat, Qt)
         if Qhinv === nothing
-            verbose && @warn "qrprecondition_rig!: stage 2, verified inv(Q̂) failed" it scaleV
+            verbose && @warn "qrprecondition!: stage 2, verified inv(Q̂) failed" it scaleV
             return false
         end
         @inbounds for i in 1:N, j in 1:N
@@ -311,7 +311,7 @@ function qrprecondition_rig!(
         end
         ok && return true
     end
-    verbose && @warn "qrprecondition_rig!: ρ(B) ⊆ B not verified after maxiter" maxiter scaleV
+    verbose && @warn "qrprecondition!: ρ(B) ⊆ B not verified after maxiter" maxiter scaleV
     return false
 end
 
@@ -322,8 +322,8 @@ end
 Returns `ρ` (size `N × length(sol)`) with `ρ[:,k]` the right factor of step `k`:
 `Φ_k(h_k, σ) ⊆ L_{k+1}(ρ[:,k](σ))`, `σ ∈ B`, `ρ[:,k](B) ⊆ B`. Column 1 is the identity.
 
-It recomputes `v_k = Φ_k(h_k, ·)` with `__evaluate_rig!` (`h_k` exact, from
-`domain(sol, k)`) and calls `qrprecondition_rig!` with its default keywords —
+It recomputes `v_k = Φ_k(h_k, ·)` with `__evaluate!` (`h_k` exact, from
+`domain(sol, k)`) and calls `qrprecondition!` with its default keywords —
 the same calls, with the same keywords, as `validated_integ3` (consistency:
 if the integrator ever passes non-default keywords, they must be passed here
 too). It asserts `ρ[:,k](B) ⊆ B` and that `L_{k+1}` equals, bit-wise, the τ^0
@@ -345,7 +345,7 @@ function reconstruct_rho(sol::TMSol3{N,T,U}) where {N,T,U}
     linTN  = zeros(CT, N, N)
     rems   = fill(zero(Interval{U}), N)
     scaleV = zeros(U, N)
-    aux    = TM._aux_horner(proto)                    # workspace for __evaluate_rig!
+    aux    = TM._aux_horner(proto)                    # workspace for __evaluate!
 
     ρ = Matrix{typeof(proto)}(undef, N, nk)
     for i in 1:N                                   # identity in column 1
@@ -361,10 +361,10 @@ function reconstruct_rho(sol::TMSol3{N,T,U}) where {N,T,U}
         dom = domain(xTM[1,k])                     # sign*interval(0, sign*δt)
         h = sup(dom) > 0 ? sup(dom) : inf(dom)     # exact δt
         for i in 1:N
-            TM.__evaluate_rig!(vTMN[i], xTM[i,k], h, aux)
+            TM.__evaluate!(vTMN[i], xTM[i,k], h, aux)
         end
-        qrprecondition_rig!(left, right, linTN, rems, scaleV, vTMN) ||
-            error("reconstruct_rho: qrprecondition_rig! failed at step $k")
+        qrprecondition!(left, right, linTN, rems, scaleV, vTMN) ||
+            error("reconstruct_rho: qrprecondition! failed at step $k")
         @assert _right_in_box(right) "reconstruct_rho: ρ(B) ⊄ B at step $k"
         if k < nk
             @assert all(_pol_equal(polynomial(xTM[i,k+1][0]), polynomial(left[i])) for i in 1:N) """

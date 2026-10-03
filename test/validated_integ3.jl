@@ -3,7 +3,7 @@
 #   1. _exact_step            representable time steps
 #   2. picard_lindelof        no aliasing, exact Picard iterates, argument order
 #   3. monotonicity_bounder   range enclosure (soundness, tightness)
-#   4. qrprecondition_rig!    (⋆) and v ∈ L∘ρ, exact in BigFloat, T ∈ {Float64, Interval}
+#   4. qrprecondition!    (⋆) and v ∈ L∘ρ, exact in BigFloat, T ∈ {Float64, Interval}
 #   5. integration            completion, pointwise containment x(t;x0) ∈ Φ_k(τ, σ_k(ξ))
 #                             with exact times, tdrift == 0, tightness
 #
@@ -161,14 +161,14 @@ function pointwise_check(sol, fexact, X0; rng, nsamples = 100, ntau = 10)
         σ = interval.(ξ)
         for k in 2:lastindex(sol)
             for τ in tau_samples(rng, domain(sol, k), ntau)
-                xk = [evaluate(TM.__evaluate_rig!(deepcopy(sol[k][i][0]), sol[k][i], τ), σ)
+                xk = [evaluate(TM.__evaluate!(deepcopy(sol[k][i][0]), sol[k][i], τ), σ)
                       for i in 1:N]
                 st, gap = classify(fexact(interval(ts[k] + big(τ)), x0), xk)
                 st === :fail && (nfail += 1; @warn "pointwise FAILURE" k τ ξ gap)
                 st === :inconclusive && (ninc += 1)
                 maxdiam = max(maxdiam, maximum(diam.(xk)))
             end
-            # same bounder as qrprecondition_rig!; ∩ B is sound since ρ_k(B) ⊆ B is proved
+            # same bounder as qrprecondition!; ∩ B is sound since ρ_k(B) ⊆ B is proved
             σ = [intersect_interval(monotonicity_bounder(ρ[i,k], σ), Bx[i]) for i in 1:N]
             @assert !any(isempty_interval, σ)
         end
@@ -198,7 +198,7 @@ end
 # Rigorous range of Φ_k(τ, ·) over B, per component
 function step_range(sol, k, τ)
     B = symmetric_box(length(sol[k]), Float64)
-    return [monotonicity_bounder(TM.__evaluate_rig!(deepcopy(sol[k][i][0]), sol[k][i], τ), B)
+    return [monotonicity_bounder(TM.__evaluate!(deepcopy(sol[k][i][0]), sol[k][i], τ), B)
             for i in eachindex(sol[k])]
 end
 
@@ -317,7 +317,7 @@ function check_precond(v, rng, tmpl; nsamples = 50)
     N = length(v)
     left, right = zero.(v), zero.(v)
     CT = typeof(v[1].pol.coeffs[1].coeffs[1])
-    VI.qrprecondition_rig!(left, right, zeros(CT, N, N), zeros(Interval{Float64}, N), zeros(N), v) ||
+    VI.qrprecondition!(left, right, zeros(CT, N, N), zeros(Interval{Float64}, N), zeros(N), v) ||
         return :declined
     all(isfin, vcat((coeflist(polynomial(tm)) for tm in vcat(left, right))...)) || return :nonfinite
     VI._right_in_box(right) || return :rho_not_in_B
@@ -461,7 +461,7 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
         end
     end
 
-    @testset "qrprecondition_rig!" begin
+    @testset "qrprecondition!" begin
         with_default_space(JetSpace(8, ["σ₁", "σ₂"])) do sp
             X = variables(sp; order = 4)
             tmpl = 0.0 * X[1]
@@ -480,7 +480,7 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
                         counts[st] = get(counts, st, 0) + 1
                     end
                     @test get(counts, :ok, 0) == 100
-                    get(counts, :ok, 0) == 100 || @info "qrprecondition_rig!" name T counts
+                    get(counts, :ok, 0) == 100 || @info "qrprecondition!" name T counts
                 end
             end
         end

@@ -117,9 +117,9 @@ evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::AbstractVector{Interval{S}}) where 
 for D in (:S, :(Interval{S}))
     @eval begin
         evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::$D) where {N,T,S<:AbstractFloat} =
-            _horner_rig!(deepcopy(a[0]), a, dx, _aux_horner(a[0]))
+            _horner!(deepcopy(a[0]), a, dx, _aux_horner(a[0]))
         evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::$D) where {N,T,S<:AbstractFloat} =
-            __evaluate_rig!(deepcopy(tm[0]), tm, dx)
+            __evaluate!(deepcopy(tm[0]), tm, dx)
     end
 end
 function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, v::AbstractVector{R}) where {N,T,S,R}
@@ -147,30 +147,30 @@ end
 
 
 """
-    __evaluate_rig!(tmn, tm::TaylorModel1{TaylorModelN}, dx[, aux]) -> tmn
+    __evaluate!(tmn, tm::TaylorModel1{TaylorModelN}, dx[, aux]) -> tmn
 
 In-place rigorous evaluation: `tmn ⊇ tm(dx)` (all remainders included), `dx`
 an `S` or an `Interval{S}` within the centred domain of `tm`. `aux` is an
 optional `TaylorN{Interval{S}}` workspace (see `_aux_horner`); without it, one
 is allocated.
 """
-function __evaluate_rig!(tmn::TaylorModelN{N,T,S},
+function __evaluate!(tmn::TaylorModelN{N,T,S},
         tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::Union{S,Interval{S}},
         aux::TaylorN{Interval{S}}) where {N,T,S}
     @assert issubset_interval(interval(dx), centered_dom(tm))
-    _horner_rig!(tmn, polynomial(tm), dx, aux)
+    _horner!(tmn, polynomial(tm), dx, aux)
     tmn.rem += remainder(tm)
     return tmn
 end
-__evaluate_rig!(tmn::TaylorModelN{N,T,S},
+__evaluate!(tmn::TaylorModelN{N,T,S},
         tm::TaylorModel1{TaylorModelN{N,T,S},S},
         dx::Union{S,Interval{S}}) where {N,T,S} =
-    __evaluate_rig!(tmn, tm, dx, _aux_horner(tm[0]))
+    __evaluate!(tmn, tm, dx, _aux_horner(tm[0]))
 
 
 
 """
-    _horner_rig!(tmn, a::Taylor1{TaylorModelN}, dx, aux) -> tmn
+    _horner!(tmn, a::Taylor1{TaylorModelN}, dx, aux) -> tmn
 
 Rigorous `tmn ⊇ Σ_k a[k] dx^k`, including the remainders of the TMN
 coefficients, for `dx` an `S` or an `Interval{S}` (a displacement of the
@@ -182,7 +182,7 @@ residuals are kept in `aux` and bounded over `centered_dom(tmn)` (as in
 `tmn` provides expansion point and domain; it must not alias any `a[k]`, and
 `aux` must not alias anything.
 """
-function _horner_rig!(tmn::TaylorModelN{N,T,S}, a::Taylor1{TaylorModelN{N,T,S}},
+function _horner!(tmn::TaylorModelN{N,T,S}, a::Taylor1{TaylorModelN{N,T,S}},
         dx::Union{S,Interval{S}}, aux::TaylorN{Interval{S}}) where {N,T,S}
     zI = zero(Interval{S})
     dxI = interval(dx)
