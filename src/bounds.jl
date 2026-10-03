@@ -142,7 +142,9 @@ function bound_taylor1(fT::Taylor1, I::Interval)
 
     # Bound the range of fT using the roots and end points
     num_roots = length(rootsder)
-    num_roots == 0 && return fT(I)
+    # num_roots == 0 && return fT(I)
+    num_roots == 0 &&
+        return hull(fT(interval(inf(I))), fT(interval(sup(I))); dec = :auto)
     rangepoly = hull( fT(interval(inf(I))), fT(interval(sup(I))); dec=:auto )
     @inbounds for ind in 1:num_roots
         rangepoly = hull(rangepoly, fT(rootsder[ind].region); dec=:auto)
@@ -161,12 +163,12 @@ a definite sign.
 
 """
 function bound_taylor1(fT::Taylor1{T}, fTd::Taylor1{T}, I::Interval{T}) where {T}
-    I_lo = inf(I)
-    I_hi = sup(I)
-    if inf(fTd(I)) > 0
-        return interval(fT(I_lo), fT(I_hi))
-    elseif sup(fTd(I)) < 0
-        return interval(fT(I_hi), fT(I_lo))
+    # Rigorous endpoint values
+    flo = fT(interval(inf(I)))
+    fhi = fT(interval(sup(I)))
+    # Monotonicity
+    if inf(fTd(I)) > 0 || sup(fTd(I)) < 0
+        return hull(flo, fhi; dec = :auto)
     end
     return fT(I)
 end
