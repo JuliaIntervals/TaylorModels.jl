@@ -232,7 +232,8 @@ end
 # bounds on the number of steps and on the pointwise enclosure width.
 # Returns sol (or nothing). Sampling is seeded (reproducible bounds).
 function check_problem(name, f!, fex, X0, tini, tend, orderQ, orderT, abstol, names;
-        maxlen, maxdiam, seed = 42, nsamples = 100, printinfo = false, kwargs...)
+        maxlen, maxdiam, seed = 42, nsamples = 100, printinfo = false,
+        testbroken = false, kwargs...)
     sol = run_integ3(f!, X0, tini, tend, orderQ, orderT, abstol,
                      JetSpace(2*orderQ, names); kwargs...)
     sol === nothing && return nothing
@@ -240,7 +241,11 @@ function check_problem(name, f!, fex, X0, tini, tend, orderQ, orderT, abstol, na
     @test reached_end(sol, tend)
     pw = pointwise_check(sol, fex, X0; rng, nsamples)
     fp = flowpipe_check(sol, fex, X0; rng, nsamples)
-    @test pw.nfail == 0
+    if testbroken
+        @test_broken pw.nfail == 0
+    else
+        @test pw.nfail == 0
+    end
     @test fp.nfail == 0
     @test pw.tdrift == 0
     @test length(sol) <= maxlen
@@ -495,10 +500,21 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
                 dx[2] = -one(x[1])
                 nothing
             end
-            fex(t, x0) = [x0[1] + x0[2]*t - t^2/2, x0[2] - t]
+            # elapsed time since tini
+            τ(t) = t - interval(big(tini))
+            fex(t, x0) = [x0[1] + x0[2]*τ(t) - τ(t)^2/2, x0[2] - τ(t)]
+
+            # Forward integration
+            tini, tend = 0.0, 10.0
             X0 = [10.0, 0.0] .+ 0.25 .* symmetric_box(2)
-            check_problem("falling ball", falling_ball!, fex, X0, 0.0, 10.0, 2, 4, 1e-20,
+            check_problem("falling ball", falling_ball!, fex, X0, tini, tend, 2, 4, 1e-20,
                           ["ξₓ", "ξᵥ"]; maxlen = 8, maxdiam = 1e-13, printinfo)
+
+            # Backward integration
+            tini, tend = 10.0, 0.0
+            X0 = [-40.0, -10.0] .+ 0.25 .* symmetric_box(2)                # state at t = 10
+            check_problem("falling ball backward", falling_ball!, fex, X0, tini, tend,
+                          2, 4, 1e-20, ["ξₓ", "ξᵥ"]; maxlen = 9, maxdiam = 1e-13, printinfo)
         end
 
         @testset "x_square (1D)" begin
@@ -536,12 +552,27 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
                 du[1] = cos(tt)
                 return nothing
             end
-            fex(t, x0) = [sin(t) + x0[1]]
+            # Exact sol writen aiming numerical stability
+            fex(t, x0) = [x0[1] +
+                2 * cos((t + interval(big(tini)))/2) * sin((t - interval(big(tini)))/2)]
+
+            # Forward integration
+            tini, tend = 0.0, 5.0
             X0 = [0.0] .+ 0.1 .* symmetric_box(1)
-            sol = check_problem("cos(t)", cost!, fex, X0, 0.0, 5.0, 1, 15, 1e-15, ["ξ"];
+            sol = check_problem("cos(t)", cost!, fex, X0, tini, tend, 1, 15, 1e-15, ["ξ"];
                                 maxlen = 13, maxdiam = 1e-14,
                                 adaptive = true, minabstol = 1e-50, printinfo)
             check_tightness_1d("cos(t)", sol, fex, X0; maxratio = 1 + 1.e-12, printinfo)
+
+            # Backward integration
+            tini, tend = 5.0, 0.0
+            X0 = [0.0] .+ 0.1 .* symmetric_box(1)
+            # One known broken test; maybe related to Picard iteration
+            sol = check_problem("cos(t) backward", cost!, fex, X0, tini, tend, 1, 15, 1e-15,
+                                ["ξ"]; maxlen = 13, maxdiam = 1e-13,
+                                adaptive = true, minabstol = 1e-50, printinfo,
+                                testbroken = true)
+            check_tightness_1d("cos(t) backward", sol, fex, X0; maxratio = 1 + 1e-12, printinfo)
         end
 
         @testset "limit cycle (2D, rotation + nonlinear)" begin
