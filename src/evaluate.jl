@@ -13,17 +13,31 @@ _split(::Type{Interval{S}}, acc::Interval{S}) where {S<:AbstractFloat} =
 
 
 for TM in tupleTMs
-    # Evaluates the TM1{T,S} at a::T; the computation includes the remainder
-    @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
+    # Evaluates the $TM at an interval `a`; the computation includes the remainder
+    @eval function evaluate(tm::$TM{T,S}, a::Interval) where {T,S}
         @assert iscontained(a, tm)
-        _order = TS.order(tm)
-
         if $(TM) == TaylorModel1
             Δ = remainder(tm)
         else
+            _order = TS.order(tm)
             Δ = remainder(tm) * Base.literal_pow(^, a, Val(_order+1))
         end
+        return tm.pol(a) + Δ
+    end
 
+    # Real point: enclose it first, so that the rounding of the evaluation of
+    # the polynomial and remainder are enclosed.
+    @eval evaluate(tm::$TM{T,S}, a::Real) where {T,S} = evaluate(tm, interval(S, a))
+
+    # Other arguments: unchanged behaviour
+    @eval function evaluate(tm::$TM{T,S}, a) where {T,S}
+        @assert iscontained(a, tm)
+        if $(TM) == TaylorModel1
+            Δ = remainder(tm)
+        else
+            _order = TS.order(tm)
+            Δ = remainder(tm) * Base.literal_pow(^, a, Val(_order+1))
+        end
         return tm.pol(a) + Δ
     end
 
@@ -91,9 +105,7 @@ end
 
 function evaluate(tm::TaylorModelN{N,T,S}, a::AbstractVector{R}) where {N,T,S,R<:Real}
     @assert iscontained(a, tm)
-    # _order = TS.order(tm)
-    Δ = remainder(tm)
-    return tm.pol(a) + Δ
+    return evaluate(tm, interval.(Ref(S), a))
 end
 
 (tm::TaylorModelN{N,T,S})(a::AbstractVector{R}) where {N,T,S,R} = evaluate(tm, a)

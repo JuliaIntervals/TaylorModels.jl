@@ -133,6 +133,19 @@ end
         @test issubset_interval((centered_dom(ym)[2])^4, remainder(ym^4))
     end
 
+    @testset "Rigorous point evaluation" begin
+        sp = JetSpace(4, ["x", "y"])
+        x, y = variables(sp)
+        c = [0.1, 1/3, 2/7 ]          # the Float64 coefficients
+        tmn = TaylorModelN(sum( c.* [one(x), x, x*y]), interval(0.0),
+                    interval.(SVector(0.0, 0.0)), symmetric_box(2, Float64))
+        a = [0.7, -0.3]
+        Q(z) = Rational{BigInt}(z)
+        exactval = Q(c[1]) + Q(c[2])*Q(a[1]) + Q(c[3])*Q(a[1])*Q(a[2])   # exact, no rounding
+        r = evaluate(tmn, a)
+        @test inf(r) <= exactval <= sup(r)
+    end
+
     @testset "RPAs, functions and remainders" begin
         xm = TaylorModelN(jspace, 1, _order, b1, ib1)
         ym = TaylorModelN(jspace, 2, _order, b1, ib1)

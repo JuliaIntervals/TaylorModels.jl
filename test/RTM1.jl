@@ -214,6 +214,22 @@ end
             remainder(tm)*(domain(tm)-expansion_point(tm))/(orderT+2), x00, dom)
     end
 
+    @testset "Rigorous point evaluation" begin
+        setprecision(BigFloat, 256) do
+            c = [0.1, 1/3, 2/7, -1/11]                        # non-representable coefficients
+            exactval(a) = sum(big(c[k+1]) * big(a)^k for k in 0:3)
+            for a in (0.7, -0.3, 1/3)
+                rtm = RTaylorModel1(Taylor1(c, 3), interval(0.0), interval(0.0), interval(-1.0, 1.0))
+                r = rtm(a)
+                @test inf(r) <= exactval(a) <= sup(r)
+            end
+            # Rational point: outward-rounded enclosure of the point
+            tm = RTaylorModel1(Taylor1(c, 3), interval(0.0), interval(0.0), interval(-1.0, 1.0))
+            r = tm(1//3)
+            @test inf(r) <= sum(big(c[k+1]) * big(1//3)^k for k in 0:3) <= sup(r)
+        end
+    end
+
     @testset "RPAs, functions and remainders" begin
         @test rpa(x->5+zero(x), RTaylorModel1(4, x0, ii0)) ==
             RTaylorModel1(interval(5.0), 4, x0, ii0)
