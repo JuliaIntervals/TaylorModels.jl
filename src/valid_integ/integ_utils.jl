@@ -389,12 +389,24 @@ function _exact_step(t0::T, δt::T, tmax::T, sign_tstep::Int) where {T<:Abstract
     for _ in 1:8
         δt1 = t1 - t0
         s, e = _two_sum(t0, δt1)
-        if s == t1 && iszero(e)                         # t0 + δt1 == t1 exactly
+        if s == t1 && iszero(e)                          # t0 + δt1 == t1 exactly
+            if iszero(δt1)                               # request < ½ ulp(t0): one ulp
+                t1 = sign_tstep > 0 ? nextfloat(t0) : prevfloat(t0)
+                return t1 - t0
+            end
             (t1 == tmax || sign_tstep*δt1 <= sign_tstep*δt) && return δt1
-            t1 = sign_tstep > 0 ? prevfloat(t1) : nextfloat(t1)   # ½-ulp overshoot
+            t1 = sign_tstep > 0 ? prevfloat(t1) : nextfloat(t1)    # ½-ulp overshoot
         else
-            # rare: 0 < |t0| < |δt|; then t0 + sign*|t0| (= 2t0 or 0) is exact
-            t1 = t0 + sign_tstep*abs(t0)
+            # t1 - t0 not representable (t1 not within a factor 2 of t0): take an
+            # exact shorter step; later steps reach tmax exactly (Sterbenz).
+            if sign_tstep*t0 > 0                         # away from 0: at most doubling
+                δt = sign_tstep * min(abs(δt1), abs(t0))
+            elseif sign_tstep*tmax >= 0 && abs(t0) <= abs(δt)   # 0 lies on the way
+                δt = -t0                                 # stop exactly at 0
+            else                                         # toward 0, tmax before 0
+                δt = sign_tstep * min(abs(δt1), abs(t0)) / 2
+            end
+            t1 = t0 + δt
         end
     end
     error("_exact_step: no exact step found (t0 = $t0, δt = $δt)")
