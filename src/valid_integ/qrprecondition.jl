@@ -15,8 +15,6 @@
 
 
 # --- coefficient-type helpers -------------------------------------------------
-_midU(x::Interval) = mid(x)
-_midU(x::AbstractFloat) = x
 _asT(::Type{T}, x::T) where {T<:AbstractFloat} = x
 _asT(::Type{Interval{U}}, x::U) where {U<:AbstractFloat} = interval(x)
 _coef_equal(x::AbstractFloat, y::AbstractFloat) = x === y
@@ -213,12 +211,12 @@ function qrprecondition!(
     # centre c and (mid of) Jacobian A; float QR
     c = Vector{U}(undef, N)
     @inbounds for i in 1:N
-        c[i] = _midU(vTMN[i].pol.coeffs[1].coeffs[1])
+        c[i] = mid(vTMN[i].pol.coeffs[1].coeffs[1])
         for j in 1:N
             linTN[i,j] = vTMN[i].pol.coeffs[2].coeffs[j]     # A, type T
         end
     end
-    Amid = _midU.(linTN)                    # QR frame from mid(A) (Q need not be exact)
+    Amid = mid.(linTN)                    # QR frame from mid(A) (Q need not be exact)
     if !all(isfinite, Amid) || !all(isfinite, c)
         verbose && @warn "qrprecondition!: non-finite centre or Jacobian" c Amid
         return false
