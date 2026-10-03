@@ -35,12 +35,13 @@ function test_integ(fexact, t0, qTM, q0, δq0; bbroken::Bool=false)
     if bb
         @test bb
     else
-        # @show(t0, domt, remainder.(qTM),
-        #     δt, δtI, q0ξ, q0ξB, q, qq,
-        #     fexact(t0+δtI, q0 .+ q0ξB), n)
         if bbroken
             @test_broken bb
         else
+            # @show(t0, domt, remainder.(qTM),
+            #     δt, δtI, q0ξ, q0ξB, q, #qq,
+            #     fexact(t0+δtI, q0 .+ q0ξB), #n
+            #     )
             @test bb
         end
     end
@@ -472,8 +473,8 @@ end
         tini, tend = 0.0, 3.0
         normalized_box = symmetric_box(1)
         abstol = 1e-20
-        orderQ = 2
-        orderT = 13
+        orderQ = 3
+        orderT = 18
         params = nothing
         q0 = [0.5]
         δq0 = 0.3 * normalized_box
@@ -526,6 +527,9 @@ end
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
+            @test !(qTM[1,2].pol.coeffs[1].pol.coeffs[1].coeffs ===
+                qTM[1,3].pol.coeffs[1].pol.coeffs[1].coeffs)
+
             sol2 = validated_integ3(ff!, X0, tini, tend, orderQ, orderT, abstol,
                 spCS; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
@@ -540,6 +544,9 @@ end
                 n = rand(1:end_idx)
                 test_integ((t,x)->exactsol(t,x), tTM[n], sol1[n], q0, δq0)
             end
+            @test !(qTM2[1,2].pol.coeffs[1].pol.coeffs[1].coeffs ===
+                qTM2[1,3].pol.coeffs[1].pol.coeffs[1].coeffs)
+
         end
     end
 
@@ -692,5 +699,10 @@ end
         @test all(issubset_interval.(ene0, ene_pendulum.(flowpipe(sol))))
         qTM = getfield(sol, 3)
         @test all(isbounded.(remainder.(qTM)))
+
+        for ind = 1:3
+            @test !(qTM[ind,2].pol.coeffs[1].pol.coeffs[1].coeffs ===
+                qTM[ind,3].pol.coeffs[1].pol.coeffs[1].coeffs)
+        end
     end
 end

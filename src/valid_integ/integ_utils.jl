@@ -122,7 +122,7 @@ for TT in (:T, :(Interval{T}))
         oI = one($TT)
         @inbounds for i in eachindex(xTMN)
             pol = polynomial(xTMN[i])
-            tmn = TaylorModelN(pol(X), zI, x0, B )
+            tmn = TM.unsafe_TaylorModelN(pol(X), zI, x0, B )
             ppol = fp_rpa(tmn) * oI
             bb = issubset_interval(xTMN[i](B), ppol(B)) ||
                     isequal_interval(xTMN[i](B), ppol(B))
@@ -180,7 +180,7 @@ function absorb_remainder(a::TaylorModelN{N,T,T}) where {N,T}
         end
     end
 
-    return unsafe_TaylorModelN(bpol, rem, expansion_point(a), domain(a))
+    return TM.unsafe_TaylorModelN(bpol, rem, expansion_point(a), domain(a))
 end
 
 
@@ -213,138 +213,115 @@ end
 
 
 """
-    qrprecondition(vTMN::Vector{TaylorModelN{N,T,S}})
+    _update_inicond!(x, dx, x1N, vTMN)
 
-Returns the left and right preconditioned TaylorModelN's from `vTMN`,
-following the explanation of Neher et al (2007).
-
-Ref: M. Neher, K.R. Jackson and N.S. Nedialkov, "On Taylor Model based integration
-of ODEs", SIAM J. NUMER. ANAL. 45 (1), pp. 236-262 (2007).
-https://doi.org/10.1137/050638448
+In-place update the initial conditions in `x` and `dx` (the latter reset
+to zero) from `vTMN`; `x1N` stores the remainder.
 """
-function qrprecondition(vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-    leftTMN = zero.(vTMN)
-    rightTMN = zero.(vTMN)
-    linTN = zero(Array{T}(undef, N, N))
-    rems = zero.(remainder.(vTMN))
-    scaleV = zero.(mag.(remainder.(vTMN)))
-    qrprecondition!(leftTMN, rightTMN, linTN, rems, scaleV, vTMN)
-    return leftTMN, rightTMN
-end
-
-"""
-    qrprecondition!(leftTMN::Vector{TaylorModelN{N,T,S}}, rightTMN::Vector{TaylorModelN{N,T,S}},
-        linTN::Matrix{T}, rems::Vector{Interval{S}}, scaleV::Vector{T},
-        vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-
-In-place implementation of qrprecondition.
-"""
-function qrprecondition!(
-        leftTMN::Vector{TaylorModelN{N,T,S}}, rightTMN::Vector{TaylorModelN{N,T,S}},
-        linTN::Matrix{T}, rems::Vector{Interval{S}}, scaleV::Vector{T},
-        vTMN::Vector{TaylorModelN{N,T,S}}) where {N,T,S}
-    # Initialize TMN polynomials
-    for ind in eachindex(vTMN)
-        for ordQ in eachindex(vTMN[ind].pol.coeffs)
-            for hp in eachindex(vTMN[ind].pol.coeffs[ordQ].coeffs)
-                leftTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    zero(leftTMN[ind].pol.coeffs[ordQ].coeffs[hp])
-                rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    zero(rightTMN[ind].pol.coeffs[ordQ].coeffs[hp])
-            end
-        end
-    end
-    # Linear matrix: TS.jacobian(linear_polynomial(vTMN))
-    for jind in eachindex(vTMN)
-        for ind in eachindex(vTMN)
-            linTN[ind, jind] = vTMN[ind].pol.coeffs[2].coeffs[jind]
-        end
-    end
-    # QR factorization of linTN
-    qqr = qr(linTN)
-    linTN .= qqr.Q * I # Reuse memory
-    # Transform remainders
-    mul!(rems, linTN', remainder.(vTMN))
-    # Get scaling vector, so range of rightTMN is contained in [-1,1]
-    for ind in eachindex(vTMN)
-        # Constant term
-        leftTMN[ind].pol.coeffs[1].coeffs[1] = vTMN[ind].pol.coeffs[1].coeffs[1]
-        # Linear corrections
-        for hp in eachindex(vTMN[ind].pol.coeffs[2])
-            leftTMN[ind].pol.coeffs[2].coeffs[hp] = linTN[ind, hp]
-            rightTMN[ind].pol.coeffs[2].coeffs[hp] = qqr.R[ind, hp]
-        end
-        # Higher order terms (rightTMN)
-        for jind in eachindex(vTMN)
-            for ordQ in eachindex(vTMN[ind].pol.coeffs)
-                ordQ < 3 && continue
-                for hp in eachindex(vTMN[ind].pol.coeffs[ordQ].coeffs)
-                    rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] +=
-                        linTN[jind, ind] * vTMN[jind].pol.coeffs[ordQ].coeffs[hp]
-                end
-            end
-        end
-        # Scaling vector
-        scaleV[ind] = mag(evaluate(rightTMN[ind].pol, domain(vTMN[ind])) + rems[ind])
-    end
-    # Exploit the scaled vars
-    for ind in eachindex(vTMN)
-        # Constant terms remains unchanged
-        # Linear corrections
-        for hp in eachindex(vTMN[ind].pol.coeffs[2])
-            leftTMN[ind].pol.coeffs[2].coeffs[hp] = linTN[ind, hp] * scaleV[hp]
-            rightTMN[ind].pol.coeffs[2].coeffs[hp] *= inv(scaleV[ind])
-        end
-        # Higher order terms (rightTMN)
-        for ordQ in eachindex(vTMN[ind].pol.coeffs)
-            ordQ < 3 && continue
-            for hp in eachindex(vTMN[ind].pol.coeffs[2])
-                rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] *= inv(scaleV[ind])
-            end
-        end
-    end
-    # Output
-    for ind in eachindex(vTMN)
-        for ordQ in eachindex(vTMN[ind].pol.coeffs)
-            for hp in eachindex(vTMN[ind].pol.coeffs[ordQ].coeffs)
-                leftTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    leftTMN[ind].pol.coeffs[ordQ].coeffs[hp]
-                rightTMN[ind].pol.coeffs[ordQ].coeffs[hp] =
-                    rightTMN[ind].pol.coeffs[ordQ].coeffs[hp]
-            end
-        end
-        leftTMN[ind].rem = zero(rems[ind])
-        rightTMN[ind].rem = rems[ind]
-        leftTMN[ind].x0 = vTMN[ind].x0
-        rightTMN[ind].x0 = vTMN[ind].x0
-        leftTMN[ind].dom = vTMN[ind].dom
-        rightTMN[ind].dom = vTMN[ind].dom
-    end
-    return nothing
-end
-
-
 function _update_inicond!(x, dx, x1N, vTMN)
     zz = zero(x[1][0][0][1])
     for ind in eachindex(x)
-        x1N[ind].rem = vTMN[ind].rem # Store remainder
+        src1 = vTMN[ind]
+        src2 = x1N[ind]
+        src2.rem = src1.rem # Store remainder
         # Zero everything
-        for ordT in eachindex(x1N[ind].pol.coeffs)
-            for ordQ in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs)
-                for h in eachindex(x1N[ind].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
+        for ordT in eachindex(src2.pol.coeffs)
+            src2_ordT = src2.pol.coeffs[ordT]
+            for ordQ in eachindex(src2_ordT.pol.coeffs)
+                for h in eachindex(src2_ordT.pol.coeffs[ordQ].coeffs)
                     x[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
                     # dx[ind].coeffs[ordT].coeffs[ordQ].coeffs[h] = zz
                 end
             end
         end
         # Update constant coeff (new initial condition)
-        for ordQ in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs)
-            for h in eachindex(x1N[ind].pol.coeffs[1].pol.coeffs[ordQ].coeffs)
+        src2_ordT1 = src2.pol.coeffs[1]
+        for ordQ in eachindex(src2_ordT1.pol.coeffs)
+            for h in eachindex(src2_ordT1.pol.coeffs[ordQ].coeffs)
                 x[ind].coeffs[1].coeffs[ordQ].coeffs[h] =
-                    vTMN[ind].pol.coeffs[ordQ].coeffs[h]
+                    src1.pol.coeffs[ordQ].coeffs[h]
                 dx[ind].coeffs[1].coeffs[ordQ].coeffs[h] = zz
             end
         end
     end
     return nothing
 end
+
+
+"""
+    _update_output!(xTM1v::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}},
+        x1N::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}})
+
+In-place update of `xTM1v` with the contents of `x1N`, to avoid `deepcopy`.
+Assumes same shape of both entries.
+"""
+function _update_output!(xTM1v::AbstractVector{<:TaylorModel1}, x1N)
+    @inbounds for ind in eachindex(x1N)
+        src = x1N[ind]
+        tgt = xTM1v[ind]
+        tgt.rem = src.rem
+        tgt.x0  = src.x0
+        tgt.dom = src.dom
+        for ordT in eachindex(src.pol.coeffs)
+            src_ordT = src.pol.coeffs[ordT]  # a TaylorModelN
+            tgt_ordT = tgt.pol.coeffs[ordT]
+            tgt_ordT.rem = src_ordT.rem
+            tgt_ordT.x0  = src_ordT.x0
+            tgt_ordT.dom = src_ordT.dom
+            for ordQ in eachindex(src_ordT.pol.coeffs)
+                for h in eachindex(src_ordT.pol.coeffs[ordQ].coeffs)
+                    tgt_ordT.pol.coeffs[ordQ].coeffs[h] =
+                        src_ordT.pol.coeffs[ordQ].coeffs[h]
+                end
+            end
+        end
+    end
+    return nothing
+end
+
+
+# The following is used to get an exact, floating number representation,
+# of the step size δt and of the accumulated time
+# Knuth's TwoSum: s + e == a + b exactly
+@inline function _two_sum(a::T, b::T) where {T<:AbstractFloat}
+    s = a + b
+    bb = s - a
+    e = (a - (s - bb)) + (b - bb)
+    return s, e
+end
+
+"""
+    _exact_step(t0, δt, tmax, sign_tstep) -> δt′
+
+Step with `t0 + δt′` exact in floating point and `|δt′| ≤ |δt|`, except that
+a step reaching `tmax` lands exactly on it. `sign_tstep = ±1` (forward/backward).
+"""
+function _exact_step(t0::T, δt::T, tmax::T, sign_tstep::Int) where {T<:AbstractFloat}
+    t1 = t0 + δt
+    sign_tstep*t1 >= sign_tstep*tmax && (t1 = tmax)
+    for _ in 1:8
+        δt1 = t1 - t0
+        s, e = _two_sum(t0, δt1)
+        if s == t1 && iszero(e)                          # t0 + δt1 == t1 exactly
+            if iszero(δt1)                               # request < ½ ulp(t0): one ulp
+                t1 = sign_tstep > 0 ? nextfloat(t0) : prevfloat(t0)
+                return t1 - t0
+            end
+            (t1 == tmax || sign_tstep*δt1 <= sign_tstep*δt) && return δt1
+            t1 = sign_tstep > 0 ? prevfloat(t1) : nextfloat(t1)    # ½-ulp overshoot
+        else
+            # t1 - t0 not representable (t1 not within a factor 2 of t0): take an
+            # exact shorter step; later steps reach tmax exactly (Sterbenz).
+            if sign_tstep*t0 > 0                         # away from 0: at most doubling
+                δt = sign_tstep * min(abs(δt1), abs(t0))
+            elseif sign_tstep*tmax >= 0 && abs(t0) <= abs(δt)   # 0 lies on the way
+                δt = -t0                                 # stop exactly at 0
+            else                                         # toward 0, tmax before 0
+                δt = sign_tstep * min(abs(δt1), abs(t0)) / 2
+            end
+            t1 = t0 + δt
+        end
+    end
+    error("_exact_step: no exact step found (t0 = $t0, δt = $δt)")
+end
+_exact_step(t0::Real, δt::Real, tmax::Real, ::Int) = δt     # exact types (e.g. Rational)
