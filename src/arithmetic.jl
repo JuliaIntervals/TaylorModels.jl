@@ -602,6 +602,11 @@ end
 
 # Division by numbers
 /(a::TaylorModelN, b::T) where {T<:Number} = a * inv(b)
+# Real divisor: divide coefficients and remainder directly (no rounded `inv(b)`).
+# With T = Interval{S} the coefficients of the result enclose the exact quotient by
+# `b`; with T = S they are rounded, as in every T = S operation.
+/(a::TaylorModelN{N,T,S}, b::Real) where {N,T,S} =
+    unsafe_TaylorModelN(a.pol / b, remainder(a) / b, expansion_point(a), domain(a))
 /(b::T, a::TaylorModelN) where {T<:NumberNotSeries} = b * inv(a)
 
 
@@ -688,27 +693,33 @@ for f in (:+, :-)
         return unsafe_TaylorModel1(c, ($f)(remainder(a), remainder(b)),
             expansion_point(a), domain(a))
     end
+    # The number only affects the τ⁰ coefficient (it used to be applied to all of them)
     @eval function ($f)(b::T, a::TaylorModel1{TaylorModelN{N,R,S}}) where
             {N,R,S,T<:NumberNotSeries}
         c = Taylor1(zero(($f)(b, a[0])), TS.order(a))
-        for i in eachindex(a)
-            c[i] = ($f)(b, a[i])
+        c[0] = ($f)(b, a[0])
+        for i in 1:TS.order(a)
+            c[i] = ($f)(zero(a[i]), a[i])        # ±a[i], a new object
         end
         return unsafe_TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
     end
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S}}, b::T) where
             {N,R,S,T<:NumberNotSeries}
         c = Taylor1(zero(($f)(a[0], b)), TS.order(a))
-        for i in eachindex(a)
-            c[i] = ($f)(a[i], b)
+        c[0] = ($f)(a[0], b)
+        for i in 1:TS.order(a)
+            c[i] = ($f)(a[i], zero(a[i]))        # a[i], a new object
         end
-        return TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
+        # a ± b keeps the remainder of `a` (it was ±remainder(a): wrong sign for `-`)
+        return unsafe_TaylorModel1(c, remainder(a), expansion_point(a), domain(a))
     end
 end
 
 function *(a::TaylorModel1{TaylorModelN{N,T,S},S}, b::TaylorModelN{N,T,S}) where {N,T,S}
     res = polynomial(a)*b
-    return unsafe_TaylorModel1(res, remainder(a), expansion_point(a), domain(a))
+    # (p + Δ)·b = p·b + Δ·b, with b ∈ b(σ-box) (remainder of b included)
+    Δ = remainder(a) * evaluate(b, centered_dom(b))
+    return unsafe_TaylorModel1(res, Δ, expansion_point(a), domain(a))
 end
 *(b::TaylorModelN{N,T,S}, a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S} = a * b
 

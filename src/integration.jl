@@ -88,13 +88,14 @@ function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
         a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}, δI) where {N,T,S}
     integrate!(res, a, δI)
-    # Update integration constant constant term
+    # Update integration constant constant term (polynomial and remainder)
     for ordQ in eachindex(res.pol.coeffs[1].pol.coeffs)
         for h in eachindex(res.pol.coeffs[1].pol.coeffs[ordQ].coeffs)
             res.pol.coeffs[1].pol.coeffs[ordQ].coeffs[h] =
                 c0.pol.coeffs[ordQ].coeffs[h]
         end
     end
+    res.pol.coeffs[1].rem = c0.rem
     return nothing
 end
 
