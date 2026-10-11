@@ -122,6 +122,11 @@ struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
     dx1N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
     x2N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
     z1N::TaylorModel1{TaylorModelN{N,T,U}}
+    t1NI::TaylorModel1{TaylorModelN{N,Interval{U},U},U}
+    x1NI::Vector{TaylorModel1{TaylorModelN{N,Interval{U},U},U}}
+    dx1NI::Vector{TaylorModel1{TaylorModelN{N,Interval{U},U},U}}
+    x2NI::Vector{TaylorModel1{TaylorModelN{N,Interval{U},U},U}}
+    z1NI::TaylorModel1{TaylorModelN{N,Interval{U},U},U}
     vTN::Vector{TaylorN{T}}
     auxI::TaylorN{Interval{U}}
     x0New::Vector{Interval{U}}
@@ -171,6 +176,17 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     uN = TM.unsafe_TaylorModelN( one(x[1][0]), zI, zbox, symIbox)
     t1N = TM.unsafe_TaylorModel1(Taylor1([zN, uN], orderT), zI, 0.0, zI)
     z1N = zero(t1N)
+    t1N.pol.coeffs[1].pol.coeffs[1].coeffs[1] = t0   # t1N = t0 + τ
+    # Interval workspaces for the Picard operator
+    zNI = TM.unsafe_TaylorModelN(interval(zero(U)) * zero(x[1][0]), zI, zbox, symIbox)
+    uNI = TM.unsafe_TaylorModelN(interval(one(U)) * one(x[1][0]), zI, zbox, symIbox)
+    t1NI = TM.unsafe_TaylorModel1(Taylor1([zNI, uNI], orderT), zI, 0.0, zI)
+    z1NI = zero(t1NI)
+    t1NI.pol.coeffs[1].pol.coeffs[1].coeffs[1] = interval(t0)
+    TTI = TaylorModel1{TaylorModelN{N,Interval{U},U}, U}
+    x1NI = Array{TTI}(undef, N)
+    dx1NI = Array{TTI}(undef, N)
+    x2NI = Array{TTI}(undef, N)
     # and initializations
     TT = TaylorModel1{TaylorModelN{N,T,U}, U}
     x1N = Array{TT}(undef, N)
@@ -224,7 +240,9 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
             xTM1v,
             Array{Taylor1{TaylorN{U}}}(undef, N), #xaux
             t, x, dx, rv,
-            t1N, x1N, dx1N, x2N, z1N, vTN, auxI,
+            t1N, x1N, dx1N, x2N, z1N,
+            t1NI, x1NI, dx1NI, x2NI, z1NI,
+            vTN, auxI,
             x0New, rem1, rem2, rem0,
             vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
             parse_eqsX)

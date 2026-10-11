@@ -35,6 +35,22 @@ function picard_lindelof!(f!,
     return nothing
 end
 
+# Run `f()` with the settings of the arithmetic of the Picard operator (the global
+# settings are restored afterwards, also if `f` throws). All the entry points of
+# `validated_integ3` use it, so that they share the same defaults.
+function _with_arith_settings(f, midrad::Bool, tail_exact::Union{Nothing,Int}, joint::Bool)
+    midrad && !isdefined(TS, :mul_midrad) && error(
+        "`midrad = true` needs `mul_midrad` in TaylorSeries (see TaylorSeriesIAExt)")
+    old = (TM._TMN_MIDRAD[], TM._TMN_TAIL_EXACT[], TM._TM1_JOINT[])
+    try
+        TM._TMN_MIDRAD[] = midrad
+        TM._TM1_JOINT[] = joint
+        tail_exact === nothing || (TM._TMN_TAIL_EXACT[] = tail_exact)
+        return f()
+    finally
+        TM._TMN_MIDRAD[], TM._TMN_TAIL_EXACT[], TM._TM1_JOINT[] = old
+    end
+end
 
 function validated_integ3(f!,
         X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
@@ -96,7 +112,7 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
     # Unpack caches
     @unpack tv, xv, xTM1v,
             xaux, t, x, dx, rv, #rv1,
-            t1N, x1N, dx1N, x2N, z1N, vTN, auxI,
+            x1N, t1NI, x1NI, dx1NI, x2NI, z1NI, vTN, auxI,
             xTM1v, x0New, rem1, rem2, rem0,
             vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
             parse_eqs = cacheVI
@@ -107,6 +123,12 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
     zbox = zero(q0)
     @inbounds xv[1] = q0
     @inbounds tv[1] = t0
+    # Time of the Picard operator: t1NI = t0 + τ (also for the first step)
+    t1NI.pol.coeffs[1].pol.coeffs[1].coeffs[1] = interval(t0)
+    # `rem0`: accepted Picard remainder of the previous step (first guess of the
+    # next one), `δt_prev` its step size; zero for the first step
+    rem0 .= zero.(rem0)
+    δt_prev = zero(t0)
 
     # Integration
     # local normb = false
@@ -122,11 +144,10 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
             red_abstol, params)
 
         # Validated step of the integration
-        rem0 .= remainder.(vTMN) # store old remainder
         (_success, δt, red_abstol) = _validation3!(
             f!, t, x,
-            t1N, x1N, dx1N, x2N, z1N, #rv1,
-            δt, tmax, sign_tstep,
+            t1NI, x1N, x1NI, dx1NI, x2NI, z1NI, auxI,
+            δt, δt_prev, tmax, sign_tstep,
             rem1, rem2, rem0, zbox,
             # symIbox, orderT,
             abstol, params,
@@ -138,6 +159,10 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
             @warn("Exiting due to unsuccessful step", _success, t0)
             break
         end
+
+        # Store the accepted remainder and the step size (guess for the next step)
+        rem0 .= rem1
+        δt_prev = δt
 
         # Output
         nsteps += 1
@@ -165,7 +190,7 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         # Update time
         t0 += δt
         t[0] = t0
-        t1N.pol.coeffs[1].pol.coeffs[1].coeffs[1] = t0
+        t1NI.pol.coeffs[1].pol.coeffs[1].coeffs[1] = interval(t0)
 
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
@@ -207,27 +232,37 @@ end
 
 
 """
-    _validation3!
+    _validation3!(f!, t, x, t1NI, x1N, x1NI, dx1NI, x2NI, z1NI, auxI, δt, δt_prev,
+        tmax, sign_tstep, rem1, rem2, rem0, zbox, abstol, params, adaptive, minabstol)
+
+Picard validation of the candidate `x1N` = p₁ + Δ₁, p₁ the (floating-point)
+Taylor polynomial `x` of TaylorIntegration. The Picard operator is evaluated on
+`x1NI` (p₁ with `Interval` coefficients) in the `Interval` workspaces, so the
+arithmetic of `f!` and the integration enclose every rounding; its result is
+p₂ + Δ₂ with an interval polynomial p₂ ≠ p₁ in general. Self-map condition:
+`Δ₂ + R(p₂ - p₁) ⊆ Δ₁`, `R` a rigorous range over the τ-domain and the σ-box
+(`_poldiff_bound`). On success `x1N.rem` is that enclosure. The iteration starts
+from `_guess_rem(rem0, δt, δt_prev)`, `rem0` being the accepted remainder of the
+previous step (zero in the first step); a loose accepted candidate is polished
+(`_polish_rem!`).
 """
 function _validation3!(f!,
         t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}},
-        t1N::TaylorModel1{TaylorModelN{N,T,T},T},
+        t1N::TaylorModel1{TaylorModelN{N,Interval{T},T},T},
         x1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        dx1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        x2N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        z1N::TaylorModel1{TaylorModelN{N,T,T},T},
-        # rv1::TI.RetAlloc{Taylor1{TaylorModelN{N,T,T}}},
-        δt::T, tmax::T, sign_tstep::Int,
+        x1NI::Vector{TaylorModel1{TaylorModelN{N,Interval{T},T},T}},
+        dx1N::Vector{TaylorModel1{TaylorModelN{N,Interval{T},T},T}},
+        x2N::Vector{TaylorModel1{TaylorModelN{N,Interval{T},T},T}},
+        z1N::TaylorModel1{TaylorModelN{N,Interval{T},T},T},
+        auxI::TaylorN{Interval{T}},
+        δt::T, δt_prev::T, tmax::T, sign_tstep::Int,
         rem1::Vector{Interval{T}},
         rem2::Vector{Interval{T}},
         rem0::Vector{Interval{T}},
         zbox::AbstractVector{Interval{T}},
-        # symIbox::AbstractVector{Interval{T}}, orderT::Int,
         abstol::T, params,
         adaptive::Bool, minabstol::T,
-        # absorb::Bool,
-        # check_property::Function=(t, x)->true
         ) where {N,T}
 
     #
@@ -235,8 +270,8 @@ function _validation3!(f!,
     local bool_red = true
     local δtI
     reduced_abstol = abstol
-    local issatisfied = false
     z = zbox[1]
+    rem3 = similar(rem2)
 
     while bool_red
         # Reuse memory
@@ -247,30 +282,34 @@ function _validation3!(f!,
             for ordT in eachindex(x1N[i].pol.coeffs)
                 for ordQ in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs)
                     for h in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
-                        x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
-                            x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
-                        dx1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
-                            z1N.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
+                        c = x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
+                        x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] = c
+                        x1NI[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] = interval(c)
+                        # `dx1N` is not reset: f! rebinds its entries, which may alias
+                        # entries of `x1NI` (e.g. `dx[2] = x[1]`)
                         x2N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
                             z1N.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
                     end
                 end
+                # Candidate: plain polynomial in σ for each τ^k (zero TMN remainders)
+                x1N[i].pol.coeffs[ordT].rem = z
+                x1NI[i].pol.coeffs[ordT].rem = z
             end
-            x1N[i].rem = z
-            x1N[i].x0 = 0.0
-            x1N[i].dom = δtI
-            dx1N[i].rem = z1N.rem
-            dx1N[i].x0 = x1N[i].x0
-            dx1N[i].dom = δtI
+            for y in (x1N[i], x1NI[i])
+                y.rem = z
+                y.x0 = 0.0
+                y.dom = δtI
+            end
             x2N[i].rem = z1N.rem
             x2N[i].x0 = x1N[i].x0
             x2N[i].dom = δtI
             rem1[i] = z
             rem2[i] = z
-            # Include remainder of initial condition
-            x1N[i].pol.coeffs[1].rem = z#rem0[i]
         end
-        rem0 = zero.(rem0)
+        # First guess of the remainder, from the previous step
+        for i in eachindex(x1N)
+            x1N[i].rem = _guess_rem(rem0[i], δt, δt_prev)
+        end
         # Verify Picard contraction
         for _ in 1:50
             rem1 .= remainder.(x1N) .+ rem0
@@ -283,7 +322,6 @@ function _validation3!(f!,
                 end
                 break
             end
-            # x1N .= TaylorModel1.(x1N, 1.1 .* rem2)
             for i in eachindex(x1N)
                 iscontractive(rem2[i], rem1[i]) && continue
                 x1N[i].rem = 1.1 * rem2[i]

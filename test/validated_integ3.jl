@@ -134,14 +134,16 @@ x0_of(X0, ξ) = [interval(big(mid(X0[i])) + big(radius(X0[i])) * big(ξ[i])) for
 tau_samples(rng, d, ntau) =                         # both ends + ntau random points
     vcat(zero(sup(d)), stepsize(d), [inf(d) + rand(rng) * (sup(d) - inf(d)) for _ in 1:ntau])
 
-# xe ⊆ xk -> :pass;  xe ∩ xk = ∅ -> :fail (with the gap);  else :inconclusive
+# xe ⊆ xk -> :pass;  xe ∩ xk = ∅ -> :fail (with the gap and the gap in ulps of
+# the missed endpoint of xk, Float64);  else :inconclusive
 function classify(xe, xk)
     xkB = [interval(BigFloat, inf(x), sup(x)) for x in xk]
-    all(issubset_interval.(xe, xkB)) && return (:pass, 0.0)
-    any(isdisjoint_interval.(xe, xkB)) || return (:inconclusive, 0.0)
-    gap = maximum(Float64(max(inf(xe[i]) - sup(xkB[i]), inf(xkB[i]) - sup(xe[i])))
-                  for i in eachindex(xe))
-    return (:fail, gap)
+    all(issubset_interval.(xe, xkB)) && return (:pass, 0.0, 0.0)
+    any(isdisjoint_interval.(xe, xkB)) || return (:inconclusive, 0.0, 0.0)
+    gaps = [max(inf(xe[i]) - sup(xkB[i]), inf(xkB[i]) - sup(xe[i])) for i in eachindex(xe)]
+    i = argmax(gaps)
+    missed = inf(xe[i]) > sup(xkB[i]) ? sup(xk[i]) : inf(xk[i])
+    return (:fail, Float64(gaps[i]), Float64(gaps[i]) / eps(Float64(missed)))
 end
 
 # Pointwise containment along the whole trajectory, at every step and at
@@ -163,8 +165,8 @@ function pointwise_check(sol, fexact, X0; rng, nsamples = 100, ntau = 10)
             for τ in tau_samples(rng, domain(sol, k), ntau)
                 xk = [evaluate(TM.__evaluate!(deepcopy(sol[k][i][0]), sol[k][i], τ), σ)
                       for i in 1:N]
-                st, gap = classify(fexact(interval(ts[k] + big(τ)), x0), xk)
-                st === :fail && (nfail += 1; @warn "pointwise FAILURE" k τ ξ gap)
+                st, gap, ulps = classify(fexact(interval(ts[k] + big(τ)), x0), xk)
+                st === :fail && (nfail += 1; @warn "pointwise FAILURE" k τ ξ gap ulps)
                 st === :inconclusive && (ninc += 1)
                 maxdiam = max(maxdiam, maximum(diam.(xk)))
             end
@@ -186,8 +188,8 @@ function flowpipe_check(sol, fexact, X0; rng, nsamples = 100, ntau = 10)
         for k in 2:lastindex(sol)
             box = flowpipe(sol, k)
             for τ in tau_samples(rng, domain(sol, k), ntau)
-                st, gap = classify(fexact(interval(ts[k] + big(τ)), x0), box)
-                st === :fail && (nfail += 1; @warn "flowpipe FAILURE" k τ gap)
+                st, gap, ulps = classify(fexact(interval(ts[k] + big(τ)), x0), box)
+                st === :fail && (nfail += 1; @warn "flowpipe FAILURE" k τ gap ulps)
                 st === :inconclusive && (ninc += 1)
             end
         end
@@ -428,6 +430,56 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
         end
     end
 
+    @testset "rounding is enclosed in the Picard arithmetic" begin
+        function chain!(dx, x, p, t)
+            dx[1] = x[2]
+            dx[2] = -one(x[1])
+            nothing
+        end
+        function nonaut!(dx, x, p, t)
+            dx[1] = t + zero(x[1])
+            dx[2] = x[1]
+            nothing
+        end
+        orderQ, orderT = 1, 4
+        X0 = SVector(interval(1.0, 1.1), interval(-0.25, 0.25))
+        with_default_space(JetSpace(2*orderQ, ["ξ₁", "ξ₂"])) do sp
+            # the cache starts the Picard time at t0 (it used to be 0 in the first step)
+            c = VI.init_cache_VI3(nonaut!, 2.0, X0, 2, orderT, orderQ, sp, nothing;
+                                  parse_eqs = true)
+            @test isequal_interval(constant_term(polynomial(c.t1NI[0])), interval(2.0))
+            @test constant_term(polynomial(c.t1N[0])) == 2.0
+
+            # integrate! with Interval coefficients: ∫ τ² = τ³/3, 1/3 not representable
+            c = VI.init_cache_VI3(chain!, 0.0, X0, 2, orderT, orderQ, sp, nothing;
+                                  parse_eqs = true)
+            δtI = interval(0.0, 0.5)
+            a, res = c.x1NI[1], c.x2NI[1]
+            a.dom = δtI; a.x0 = 0.0; res.dom = δtI; res.x0 = 0.0
+            a.pol.coeffs[3].pol.coeffs[1].coeffs[1] = interval(1.0)      # τ² coefficient
+            TM.integrate!(res, a, domain(a[0]))
+            c3 = constant_term(polynomial(res[3]))                       # τ³ coefficient
+            @test inf(c3) <= big(1)/3 <= sup(c3)
+            @test inf(c3) < sup(c3)
+
+            # TMN{Interval} / Int encloses the exact quotient
+            tm = one(a[0]) * 1.0
+            q = tm / 3
+            @test inf(constant_term(polynomial(q))) <= big(1)/3 <= sup(constant_term(polynomial(q)))
+
+            # TM1{TMN} ± number keeps the remainder (it used to negate it for `-`)
+            _, x1N, _, _ = setup(chain!, X0, 0.0, 0.5, orderQ, orderT, sp)
+            x1N[1].rem = interval(-1e-3, 2e-3)
+            @test isequal_interval(remainder(x1N[1] - 1.0), interval(-1e-3, 2e-3))
+            @test isequal_interval(remainder(x1N[1] + 1.0), interval(-1e-3, 2e-3))
+            @test isequal_interval(remainder(1.0 - x1N[1]), interval(-2e-3, 1e-3))
+
+            # TM1{TMN} * TMN scales the remainder by the range of the TMN
+            y = x1N[1] * (one(x1N[1][0]) * 2.0)
+            @test issubset_interval(interval(-2e-3, 4e-3), remainder(y))
+        end
+    end
+
     @testset "monotonicity_bounder" begin
         with_default_space(JetSpace(6, ["σ"])) do sp
             σ = variables(sp; order = 3)[1]
@@ -567,11 +619,11 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
             # Backward integration
             tini, tend = 5.0, 0.0
             X0 = [0.0] .+ 0.1 .* symmetric_box(1)
-            # One known broken test; maybe related to Picard iteration
+            # Formerly @test_broken: the Picard step ignored rounding of the retained
+            # coefficients (and used t = τ instead of t₀ + τ in the first step)
             sol = check_problem("cos(t) backward", cost!, fex, X0, tini, tend, 1, 15, 1e-15,
                                 ["ξ"]; maxlen = 13, maxdiam = 1e-13,
-                                adaptive = true, minabstol = 1e-50, printinfo,
-                                testbroken = true)
+                                adaptive = true, minabstol = 1e-50, printinfo)
             check_tightness_1d("cos(t) backward", sol, fex, X0; maxratio = 1 + 1e-12, printinfo)
         end
 
