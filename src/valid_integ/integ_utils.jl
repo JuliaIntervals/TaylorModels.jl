@@ -248,6 +248,28 @@ function _update_inicond!(x, dx, x1N, vTMN)
 end
 
 
+# Independent copy of a TaylorModel1{TaylorModelN} (the output slot of an accepted step). `deepcopy`
+# goes through the generic machinery (an `IdDict`, one `deepcopy_internal` per field and array); here
+# the coefficient arrays are copied and the objects are assembled with the trusted `TaylorN`
+# constructor of TaylorSeries (no `_coeffsTN`, which would rebuild the coefficients).
+function _copy_tmn(a::TaylorModelN{N,T,S}) where {N,T,S}
+    p = a.pol
+    hps = TS.FixedSizeVectorDefault{HomogeneousPolynomial{T}}(undef, length(p.coeffs))
+    @inbounds for k in eachindex(p.coeffs)
+        hp = p.coeffs[k]
+        hps[k] = HomogeneousPolynomial(hp.space, copy(hp.coeffs), TS.order(hp))
+    end
+    return TM.unsafe_TaylorModelN(TaylorN{T}(hps, p.space), a.rem, a.x0, a.dom)
+end
+
+function _copy_tm1(a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S}
+    cs = TS.FixedSizeVectorDefault{TaylorModelN{N,T,S}}(undef, length(a.pol.coeffs))
+    @inbounds for k in eachindex(a.pol.coeffs)
+        cs[k] = _copy_tmn(a.pol.coeffs[k])
+    end
+    return TM.unsafe_TaylorModel1(Taylor1{TaylorModelN{N,T,S}}(cs), a.rem, a.x0, a.dom)
+end
+
 """
     _update_output!(xTM1v::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}},
         x1N::AbstractVector{TaylorModel1{TaylorModelN{N,T,U}, U}})

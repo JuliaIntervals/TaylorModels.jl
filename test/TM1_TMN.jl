@@ -164,6 +164,51 @@ end
             @test nf == 0
         end
 
+        @testset "integrate! (in place) equals integrate of the polynomial" begin
+            for tm in (a, c.x1N[1])                       # Interval and Float64 coefficients
+                res = deepcopy(tm)
+                TM.integrate!(res, tm, domain(tm[0]))
+                ip = integrate(tm.pol)
+                same = true
+                for k in eachindex(ip.coeffs), q in eachindex(ip.coeffs[k].pol.coeffs),
+                        h in eachindex(ip.coeffs[k].pol.coeffs[q].coeffs)
+                    same &= isequal_interval(interval(res.pol.coeffs[k].pol.coeffs[q].coeffs[h]),
+                                             interval(ip.coeffs[k].pol.coeffs[q].coeffs[h]))
+                end
+                @test same
+                @test all(isequal_interval(res.pol.coeffs[k].rem, ip.coeffs[k].rem) for k in eachindex(ip.coeffs))
+            end
+        end
+
+        @testset "_copy_tm1: an independent copy" begin
+            y = c.x1N[1]                                  # Float64 coefficients
+            for k in eachindex(y.pol.coeffs), q in eachindex(y.pol.coeffs[k].pol.coeffs),
+                    h in eachindex(y.pol.coeffs[k].pol.coeffs[q].coeffs)
+                y.pol.coeffs[k].pol.coeffs[q].coeffs[h] = 10k + q + h / 10
+            end
+            y.rem = interval(-1e-3, 2e-3); y.pol.coeffs[2].rem = interval(-1e-5, 1e-5)
+            y.x0 = 0.25; y.dom = interval(0.0, 0.5)
+            cp = VI._copy_tm1(y)
+            @test typeof(cp) == typeof(y)
+            @test isequal_interval(cp.rem, y.rem) && cp.x0 == y.x0 && isequal_interval(cp.dom, y.dom)
+            same = true
+            for k in eachindex(y.pol.coeffs)
+                same &= isequal_interval(cp.pol.coeffs[k].rem, y.pol.coeffs[k].rem) &&
+                        cp.pol.coeffs[k].x0 == y.pol.coeffs[k].x0 &&
+                        all(isequal_interval.(cp.pol.coeffs[k].dom, y.pol.coeffs[k].dom))
+                for q in eachindex(y.pol.coeffs[k].pol.coeffs)
+                    same &= cp.pol.coeffs[k].pol.coeffs[q].coeffs == y.pol.coeffs[k].pol.coeffs[q].coeffs &&
+                            cp.pol.coeffs[k].pol.coeffs[q].coeffs !== y.pol.coeffs[k].pol.coeffs[q].coeffs
+                end
+                same &= cp.pol.coeffs[k] !== y.pol.coeffs[k]
+            end
+            @test same
+            # modifying the original does not change the copy
+            before = cp.pol.coeffs[2].pol.coeffs[1].coeffs[1]
+            y.pol.coeffs[2].pol.coeffs[1].coeffs[1] += 1.0
+            @test cp.pol.coeffs[2].pol.coeffs[1].coeffs[1] == before
+        end
+
         @testset "TMN tail: exact products up to degree m, ranges above" begin
             for m in (0, 1, typemax(Int))
                 with_settings(; tail_exact = m) do

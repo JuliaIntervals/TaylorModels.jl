@@ -295,7 +295,7 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
             _update_output!(view(xTM1v, :, nsteps), x1N)
         else
             for ind in eachindex(x1N)
-                xTM1v[ind, nsteps] = deepcopy(x1N[ind])
+                xTM1v[ind, nsteps] = _copy_tm1(x1N[ind])
             end
         end
 
