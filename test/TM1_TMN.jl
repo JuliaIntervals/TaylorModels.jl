@@ -210,6 +210,37 @@ end
             end
         end
 
+        # Accumulation of each τ^k coefficient in midpoint-radius form (`TM._TM1_ACC`) against the
+        # pair-by-pair accumulation: both enclose the same set (coefficients overlap, remainders agree)
+        if isdefined(TS, :midrad_poly)
+            @testset "midpoint-radius accumulation of the τ coefficients" begin
+                old = (TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[])
+                try
+                    TM._TMN_MIDRAD[], TM._TM1_JOINT[] = true, true
+                    for (f, nm) in ((*, "a*b"), ((x, y) -> x^2, "a²"), ((x, y) -> x^3, "a³"))
+                        TM._TM1_ACC[] = true;  racc = f(a, b)
+                        TM._TM1_ACC[] = false; rprs = f(a, b)
+                        overlap = true
+                        for k in 0:TS.order(racc.pol), q in eachindex(racc.pol[k].pol.coeffs),
+                                h in eachindex(racc.pol[k].pol.coeffs[q].coeffs)
+                            overlap &= !isdisjoint_interval(racc.pol[k].pol.coeffs[q].coeffs[h],
+                                                            rprs.pol[k].pol.coeffs[q].coeffs[h])
+                        end
+                        @test overlap
+                        @test all(isapprox(diam(remainder(racc.pol[k])), diam(remainder(rprs.pol[k]));
+                                           rtol = 1e-6, atol = 1e-12) for k in 0:TS.order(racc.pol))
+                        @test isapprox(diam(remainder(racc)), diam(remainder(rprs)); rtol = 1e-6, atol = 1e-12)
+                    end
+                    TM._TM1_ACC[] = true
+                    @test nfail_binary(*, *, a, b, rng; name = "a * b, accumulation") == 0
+                    @test nfail_binary((x, y) -> x^2, (x, y) -> x^2, a, b, rng; name = "a², accumulation") == 0
+                    @test nfail_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, accumulation") == 0
+                finally
+                    TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[] = old
+                end
+            end
+        end
+
         @testset "rpa functions (exp, cos)" begin
             a2 = random_tm1!(c.x2NI[1], rng; scale = 0.2, remc = 1e-6, remt = 1e-5)
             @test nfail_binary((x, y) -> exp(x), (x, y) -> exp(x), a2, b, rng; name = "exp") == 0

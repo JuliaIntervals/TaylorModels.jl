@@ -27,6 +27,11 @@
 
 const _TM1_JOINT = Ref(true)
 
+# Accumulate each coefficient in midpoint-radius form (`_cauchy_joint_acc`, below) when
+# `_TMN_MIDRAD[]` and the extension provides it; `false` uses the pair-by-pair accumulation
+# (`_cauchy_joint_pairs`). Mainly for comparisons.
+const _TM1_ACC = Ref(true)
+
 # retained polynomial and neglected degrees Q+1, …, Q+ne of p*q accumulated in place
 @inline function _pair_poly!(ck, T, p, q, Q::Int, ne::Int)
     @inbounds for u in 0:Q, v in 0:Q
@@ -95,8 +100,9 @@ end
     return nothing
 end
 
-# Taylor1{TaylorModelN} of the product a*b (or of the square, if `issquare`)
-function _cauchy_joint(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+# Taylor1{TaylorModelN} of the product a*b (or of the square, if `issquare`); the products of
+# homogeneous pieces are accumulated pair by pair (`_hp_muladd!`)
+function _cauchy_joint_pairs(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
         b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, issquare::Bool) where {N,S}
     pa, pb = a.pol, b.pol
     n = TS.order(pa)
@@ -160,6 +166,100 @@ function _cauchy_joint(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
         cs[k+1] = ck
     end
     return Taylor1(cs, n)
+end
+
+# Same, accumulating each τ^k coefficient in midpoint-radius form (TaylorSeriesIAExt:
+# `TS.midrad_poly`, `TS.mul_midrad_acc!`, `TS.midrad_finalize!`): the polynomials are converted
+# to midpoints and radii once per coefficient, the products of all the pairs and degrees are
+# accumulated in hardware arithmetic (with error-free transformations) and converted to an
+# `Interval` once per coefficient. Returns `nothing` if the midpoint-radius form is not
+# usable (decorations, non finite values): the caller then uses `_cauchy_joint_pairs`.
+function _cauchy_joint_acc(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, issquare::Bool) where {N,S}
+    pa, pb = a.pol, b.pol
+    n = TS.order(pa)
+    a0 = pa[0]
+    Q = TS.order(a0.pol)
+    @assert 2*Q ≤ TS.order(space(a0))
+    z = zero(Interval{S})
+    two = interval(S, 2)
+    twof = S(2)
+    box = centered_dom(a0)
+    ne = max(0, min(_TMN_TAIL_EXACT[], Q))
+    MA = [TS.midrad_poly(pa[i].pol) for i in 0:n]
+    all(TS.midrad_usable, MA) || return nothing
+    if issquare
+        MB = MA
+    else
+        MB = [TS.midrad_poly(pb[i].pol) for i in 0:n]
+        all(TS.midrad_usable, MB) || return nothing
+    end
+    RA = [_hom_ranges(pa[i], box) for i in 0:n]
+    ΔA = [sum(r) for r in RA]
+    ρA = [remainder(pa[i]) for i in 0:n]
+    if issquare
+        RB, ΔB, ρB = RA, ΔA, ρA
+    else
+        RB = [_hom_ranges(pb[i], box) for i in 0:n]
+        ΔB = [sum(r) for r in RB]
+        ρB = [remainder(pb[i]) for i in 0:n]
+    end
+    acc = TS.midrad_acc(a0.pol, Q + ne)
+    T = [HomogeneousPolynomial(space(a0), z, Q + d) for d in 1:ne]
+    cs = Vector{typeof(a0)}(undef, n + 1)
+    for k in 0:n
+        ck = zero(a0)
+        TS.midrad_reset!(acc)
+        Rk = z
+        if issquare
+            Roff = z
+            @inbounds for i in 0:((k-1) >> 1)             # i < j = k-i: counted twice
+                j = k - i
+                TS.mul_midrad_acc!(acc, MA[i+1], MA[j+1], twof)
+                ne < Q && (Roff += _pair_ranges(RA[i+1], RA[j+1], Q, ne))
+                Roff += _pair_cross(ΔA[i+1], ρA[i+1], ΔA[j+1], ρA[j+1])
+            end
+            Rk = two * Roff
+            if iseven(k)                                   # diagonal term
+                i = k >> 1
+                TS.mul_midrad_acc!(acc, MA[i+1], MA[i+1])
+                ne < Q && (Rk += _pair_ranges_sq(RA[i+1], Q, ne))
+                Rk += _pair_cross_sq(ΔA[i+1], ρA[i+1])
+            end
+        else
+            @inbounds for i in 0:k
+                j = k - i
+                TS.mul_midrad_acc!(acc, MA[i+1], MB[j+1])
+                ne < Q && (Rk += _pair_ranges(RA[i+1], RB[j+1], Q, ne))
+                Rk += _pair_cross(ΔA[i+1], ρA[i+1], ΔB[j+1], ρB[j+1])
+            end
+        end
+        # retained polynomial and neglected degrees Q+1, …, Q+ne: one interval per monomial
+        ok = true
+        for d in 0:Q
+            ok &= TS.midrad_finalize!(ck.pol.coeffs[d+1], acc, d)
+        end
+        for d in 1:ne
+            fill!(T[d].coeffs, z)
+            ok &= TS.midrad_finalize!(T[d], acc, Q + d)
+            Rk += T[d](box)
+        end
+        ok || return nothing
+        ck.rem = Rk
+        cs[k+1] = ck
+    end
+    return Taylor1(cs, n)
+end
+
+# Taylor1{TaylorModelN} of the product a*b (or of the square): joint accumulation with the
+# midpoint-radius form if `_TM1_ACC[]`, `_TMN_MIDRAD[]` and it is usable, else pair by pair
+function _cauchy_joint(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, issquare::Bool) where {N,S}
+    if _TM1_ACC[] && _TMN_MIDRAD[] && isdefined(TS, :midrad_poly)
+        res = _cauchy_joint_acc(a, b, issquare)
+        res === nothing || return res
+    end
+    return _cauchy_joint_pairs(a, b, issquare)
 end
 
 # Multiplication
