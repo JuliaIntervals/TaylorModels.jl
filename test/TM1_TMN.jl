@@ -22,14 +22,14 @@ const NSAMPLES = 40                             # samples (σ, τ) per check
 # Run `f()` with the given settings of the arithmetic of TaylorModel1{TaylorModelN{Interval}}
 # (default: the current ones); they are restored afterwards.
 function with_settings(f; midrad = TM._TMN_MIDRAD[], joint = TM._TM1_JOINT[],
-        acc = TM._TM1_ACC[], tail_exact = TM._TMN_TAIL_EXACT[])
-    old = (TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TMN_TAIL_EXACT[])
+        acc = TM._TM1_ACC[], unit = TM._TM1_UNIT[], tail_exact = TM._TMN_TAIL_EXACT[])
+    old = (TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TM1_UNIT[], TM._TMN_TAIL_EXACT[])
     try
-        TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[] = midrad, joint, acc
+        TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TM1_UNIT[] = midrad, joint, acc, unit
         TM._TMN_TAIL_EXACT[] = tail_exact
         return f()
     finally
-        TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TMN_TAIL_EXACT[] = old
+        TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TM1_UNIT[], TM._TMN_TAIL_EXACT[] = old
     end
 end
 
@@ -209,25 +209,32 @@ end
             end
         end
 
-        # Accumulation of each τ^k coefficient in midpoint-radius form (`TM._TM1_ACC`) against the
-        # pair-by-pair accumulation: both enclose the same set (coefficients overlap, remainders agree)
+        # Accumulation of each τ^k coefficient in midpoint-radius form (`TM._TM1_ACC`), with the ranges over
+        # the σ-box from the midpoint-radius data (`TM._TM1_UNIT`), against the pair-by-pair accumulation and
+        # against the interval evaluation of the ranges: they enclose the same set (coefficients overlap,
+        # remainders agree)
         if isdefined(TS, :midrad_poly)
             @testset "midpoint-radius accumulation of the τ coefficients" begin
-                for f in (*, (x, y) -> x^2, (x, y) -> x^3)
-                    racc = with_settings(() -> f(a, b); midrad = true, joint = true, acc = true)
-                    rprs = with_settings(() -> f(a, b); midrad = true, joint = true, acc = false)
+                function agree(r1, r2)
                     overlap = true
-                    for k in 0:TS.order(racc.pol), q in eachindex(racc.pol[k].pol.coeffs),
-                            h in eachindex(racc.pol[k].pol.coeffs[q].coeffs)
-                        overlap &= !isdisjoint_interval(racc.pol[k].pol.coeffs[q].coeffs[h],
-                                                        rprs.pol[k].pol.coeffs[q].coeffs[h])
+                    for k in 0:TS.order(r1.pol), q in eachindex(r1.pol[k].pol.coeffs),
+                            h in eachindex(r1.pol[k].pol.coeffs[q].coeffs)
+                        overlap &= !isdisjoint_interval(r1.pol[k].pol.coeffs[q].coeffs[h],
+                                                        r2.pol[k].pol.coeffs[q].coeffs[h])
                     end
-                    @test overlap
-                    @test all(isapprox(diam(remainder(racc.pol[k])), diam(remainder(rprs.pol[k]));
-                                       rtol = 1e-6, atol = 1e-12) for k in 0:TS.order(racc.pol))
-                    @test isapprox(diam(remainder(racc)), diam(remainder(rprs)); rtol = 1e-6, atol = 1e-12)
+                    return overlap &&
+                        all(isapprox(diam(remainder(r1.pol[k])), diam(remainder(r2.pol[k]));
+                                     rtol = 1e-6, atol = 1e-12) for k in 0:TS.order(r1.pol)) &&
+                        isapprox(diam(remainder(r1)), diam(remainder(r2)); rtol = 1e-6, atol = 1e-12)
                 end
-                with_settings(; midrad = true, joint = true, acc = true) do
+                for f in (*, (x, y) -> x^2, (x, y) -> x^3)
+                    racc = with_settings(() -> f(a, b); midrad = true, joint = true, acc = true, unit = true)
+                    rprs = with_settings(() -> f(a, b); midrad = true, joint = true, acc = false)
+                    rias = with_settings(() -> f(a, b); midrad = true, joint = true, acc = true, unit = false)
+                    @test agree(racc, rprs)          # accumulation against pair by pair
+                    @test agree(racc, rias)          # ranges from midpoint-radius data against interval evaluation
+                end
+                with_settings(; midrad = true, joint = true, acc = true, unit = true) do
                     @test count_failures_binary(*, *, a, b, rng; name = "a * b, accumulation") == 0
                     @test count_failures_binary((x, y) -> x^2, (x, y) -> x^2, a, b, rng; name = "a², accumulation") == 0
                     @test count_failures_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, accumulation") == 0
