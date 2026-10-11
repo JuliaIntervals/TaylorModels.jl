@@ -480,6 +480,47 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
         end
     end
 
+    @testset "range-based τ-tail of TM1{TMN{Interval}} products" begin
+        function chain!(dx, x, p, t)
+            dx[1] = x[2]
+            dx[2] = -one(x[1])
+            nothing
+        end
+        orderQ, orderT = 1, 4
+        X0 = SVector(interval(1.0, 1.1), interval(-0.25, 0.25))
+        rng = MersenneTwister(99)
+        with_default_space(JetSpace(2*orderQ, ["ξ₁", "ξ₂"])) do sp
+            c = VI.init_cache_VI3(chain!, 0.0, X0, 2, orderT, orderQ, sp, nothing;
+                                  parse_eqs = true)
+            a, b = c.x1NI[1], c.x1NI[2]
+            for tm in (a, b)                 # random coefficients, large tail on [0, 1.5]
+                tm.dom = interval(0.0, 1.5); tm.x0 = 0.0; tm.rem = zero(Interval{Float64})
+                for k in 1:orderT+1, q in eachindex(tm.pol.coeffs[k].pol.coeffs),
+                        h in eachindex(tm.pol.coeffs[k].pol.coeffs[q].coeffs)
+                    tm.pol.coeffs[k].pol.coeffs[q].coeffs[h] = interval(randn(rng))
+                end
+            end
+            # the tail goes into the remainder: pointwise containment of the exact product
+            prod, sqr = a * b, TS.square(a)
+            coef(tm, k, σ) = tm.pol[k](interval.(σ))
+            ok = true
+            for _ in 1:30
+                σ = 2 .* rand(rng, 2) .- 1
+                τ = 1.5 * rand(rng); τI = interval(τ)
+                tprod = sum(coef(a, i, σ) * coef(b, j, σ) * τI^(i+j)
+                            for i in 0:orderT, j in 0:orderT)
+                tsqr = sum(coef(a, i, σ) * coef(a, j, σ) * τI^(i+j)
+                           for i in 0:orderT, j in 0:orderT)
+                mprod = evaluate(prod, interval(τ))(interval.(σ))
+                msqr  = evaluate(sqr, interval(τ))(interval.(σ))
+                ok &= !isdisjoint_interval(tprod, mprod) && !isdisjoint_interval(tsqr, msqr)
+                ok &= issubset_interval(interval(inf(tprod) + 0.5*diam(tprod)), mprod)
+            end
+            @test ok
+            @test isbounded(remainder(prod)) && isbounded(remainder(sqr))
+        end
+    end
+
     @testset "monotonicity_bounder" begin
         with_default_space(JetSpace(6, ["σ"])) do sp
             σ = variables(sp; order = 3)[1]

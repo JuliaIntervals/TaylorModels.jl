@@ -681,6 +681,90 @@ function Base.power_by_squaring(x::TaylorModelN, p::Integer)
     return y
 end
 
+# Range-based τ-tail for TaylorModel1{TaylorModelN{N,Interval{S},S},S}.
+#
+# The methods below are more specific than the generic ones for
+# TaylorModel1{TaylorModelN{N,T,S},S} above, which are kept unchanged (and still used for
+# T = S); they are selected by dispatch when the coefficients are intervals (as in the
+# Picard operator of `validated_integ3`).
+#
+# The generic methods bound the neglected part (powers τ^k, k > order) by computing all
+# the TaylorModelN products a_i * b_{k-i}, i.e. O(order²) products of TaylorModelN, and then
+# evaluating them. Here each coefficient is first enclosed by its range over the σ-box,
+# [a_i] = a_i(σ-box) (the remainder of the TaylorModelN included), and the tail is
+#     Σ_{k>order} (Σ_{i+j=k} [a_i][b_j]) τ^k ,   τ ∈ centered_dom(a),
+# by scalar interval arithmetic. It is a (rigorous) enclosure of the same set; it is
+# wider only through the dependency between coefficients, and the tail is small.
+# Only the tail changes: the polynomial parts and the remainders of the products
+# (Δa, Δb, cross terms) are computed as in the generic methods.
+
+# Ranges of the TaylorModelN coefficients of `a` over the σ-box `boxN`
+_coeff_ranges(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, boxN) where {N,S} =
+    Interval{S}[a.pol[i](boxN) for i in 0:TS.order(a.pol)]
+
+# Σ_{k>_order} (Σ_{i+j=k} ra[i] rb[j]) aux^k
+function _tail_range(ra::Vector{Interval{S}}, rb::Vector{Interval{S}}, _order::Int,
+        aux::Interval{S}) where {S}
+    a_order = length(ra) - 1
+    b_order = length(rb) - 1
+    Δ = zero(aux)
+    for k in _order+1:a_order+b_order
+        c = zero(aux)
+        @inbounds for i in max(0, k-b_order):min(k, a_order)
+            c += ra[i+1] * rb[k-i+1]
+        end
+        Δ += c * aux^k
+    end
+    return Δ
+end
+
+# Same for the square: uses ra[i]*ra[j] twice and ra[k/2]^2 (tighter than a product)
+function _tail_range_square(ra::Vector{Interval{S}}, _order::Int,
+        aux::Interval{S}) where {S}
+    a_order = length(ra) - 1
+    Δ = zero(aux)
+    for k in _order+1:2*a_order
+        c = zero(aux)
+        @inbounds for i in max(0, k-a_order):((k-1) >> 1)    # i < k-i
+            c += ra[i+1] * ra[k-i+1]
+        end
+        c = interval(S, 2) * c
+        iseven(k) && (@inbounds c += ra[(k >> 1)+1]^2)
+        Δ += c * aux^k
+    end
+    return Δ
+end
+
+function remainder_product(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int) where {N,S}
+    aux = centered_dom(a)
+    auxN = centered_dom(a[0])
+    # Remainder of the neglected terms (range-based)
+    Δnegl = _tail_range(_coeff_ranges(a, auxN), _coeff_ranges(b, auxN), _order, aux)
+    # Evaluate at the TMN centered domain
+    Δa = a.pol(aux)(auxN)
+    Δb = b.pol(aux)(auxN)
+    a_rem = remainder(a)
+    b_rem = remainder(b)
+    Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ2, Δ))
+end
+
+function remainder_square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        _order::Int) where {N,S}
+    aux = centered_dom(a)
+    auxN = centered_dom(a[0])
+    Δnegl = _tail_range_square(_coeff_ranges(a, auxN), _order, aux)
+    Δa = a.pol(aux)(auxN)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + Base.literal_pow(^, a_rem, Val(2))
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+
+
 # Operations involving TaylorModel1{TaylorModelN}
 for f in (:+, :-)
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S},S},
