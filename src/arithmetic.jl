@@ -492,13 +492,13 @@ function truncate_taylormodel(a::RTaylorModel1, m::Integer)
 end
 
 
-# Same as above, for TaylorModelN
-zero(a::TaylorModelN) = unsafe_TaylorModelN(
-    TaylorN(space(a), zero(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
-        zero(remainder(a)), expansion_point(a), domain(a))
-one(a::TaylorModelN) = unsafe_TaylorModelN(
-    TaylorN(space(a), one(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
-        zero(remainder(a)), expansion_point(a), domain(a))
+zero(a::TaylorModelN) = unsafe_TaylorModelN(zero(a.pol), zero(remainder(a)),
+      expansion_point(a), domain(a))
+function one(a::TaylorModelN)
+    z = zero(a)
+    z.pol.coeffs[1].coeffs[1] = one(z.pol.coeffs[1].coeffs[1])
+    return z
+end
 # zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), TS.order(a))
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
@@ -900,11 +900,14 @@ for f in (:+, :-)
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S},S},
             b::TaylorModel1{TaylorModelN{N,R1,S1},S1}) where {N,R,S,R1,S1}
         a, b = fixorder(a,b)
-        c = Taylor1(zero(a[0])+zero(b[0]), TS.order(a))
-        for i in eachindex(a)
-            c[i] = ($f)(a[i], b[i])
+        # the coefficients are built directly (no zero temporaries, nor `Taylor1(x, order)`)
+        c0 = ($f)(a[0], b[0])
+        cs = TS.FixedSizeVectorDefault{typeof(c0)}(undef, TS.order(a) + 1)
+        cs[1] = c0
+        @inbounds for i in 1:TS.order(a)
+            cs[i+1] = ($f)(a[i], b[i])
         end
-        return unsafe_TaylorModel1(c, ($f)(remainder(a), remainder(b)),
+        return unsafe_TaylorModel1(Taylor1{typeof(c0)}(cs), ($f)(remainder(a), remainder(b)),
             expansion_point(a), domain(a))
     end
     # The number only affects the τ⁰ coefficient (it used to be applied to all of them)

@@ -209,6 +209,28 @@ end
             @test cp.pol.coeffs[2].pol.coeffs[1].coeffs[1] == before
         end
 
+        @testset "zero and one of a TaylorModelN" begin
+            for w in (a.pol[1], c.x1N[1].pol[2])          # Interval and Float64 coefficients
+                z, o = zero(w), one(w)
+                @test typeof(z) == typeof(w) && typeof(o) == typeof(w)
+                @test TS.order(z.pol) == TS.order(w.pol) && length(z.pol.coeffs) == length(w.pol.coeffs)
+                @test all(iszero(mid(interval(x))) && iszero(radius(interval(x)))
+                          for hp in z.pol.coeffs for x in hp.coeffs)
+                @test isequal_interval(interval(o.pol.coeffs[1].coeffs[1]), interval(1.0)) &&
+                      all(iszero(mid(interval(x))) && iszero(radius(interval(x)))
+                          for (k, hp) in enumerate(o.pol.coeffs) for (i, x) in enumerate(hp.coeffs)
+                          if !(k == 1 && i == 1))
+                @test isequal_interval(z.rem, zero(Interval{Float64})) && isequal_interval(o.rem, z.rem)
+                @test all(isequal_interval.(expansion_point(z), expansion_point(w))) &&
+                      all(isequal_interval.(domain(z), domain(w)))
+                # independent objects and arrays
+                @test all(z.pol.coeffs[k] !== w.pol.coeffs[k] && z.pol.coeffs[k].coeffs !== w.pol.coeffs[k].coeffs &&
+                          z.pol.coeffs[k].coeffs !== o.pol.coeffs[k].coeffs for k in eachindex(w.pol.coeffs))
+                z.pol.coeffs[1].coeffs[1] = one(z.pol.coeffs[1].coeffs[1])
+                @test iszero(mid(interval(o.pol.coeffs[1].coeffs[1])) - 1.0)     # `o` is not affected
+            end
+        end
+
         @testset "TMN tail: exact products up to degree m, ranges above" begin
             for m in (0, 1, typemax(Int))
                 with_settings(; tail_exact = m) do
