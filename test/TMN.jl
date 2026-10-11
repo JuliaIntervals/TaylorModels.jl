@@ -159,7 +159,21 @@ end
             remainder(rpa(x->5*x^4, xm)))
         @test 5*xm^4 == TaylorModelN(zero(xT), remT, b1, ib1)
         remT = 5 * (ib1[1]-b1[1])^2 * (2*(ib1[2]-b1[2])+(ib1[2]-b1[2])^2)
-        @test rpa(x->5*x^2, xm*ym) == TaylorModelN( 5*xT^2, remT, b1, ib1)
+        # The neglected terms of the products of TaylorModelN{Interval}: the exact (generic)
+        # computation is `_TMN_TAIL_EXACT[] = typemax(Int)`; the default (1) bounds the degrees
+        # above order+1 by products of ranges, which is rigorous but wider here: the degree 4
+        # term 5ξ₁²ξ₂² = (5ξ₁ξ₂)*(ξ₁ξ₂) becomes [-0.3125, 0.3125] instead of [0, 0.3125]
+        old_m = TM._TMN_TAIL_EXACT[]
+        try
+            TM._TMN_TAIL_EXACT[] = typemax(Int)
+            @test rpa(x->5*x^2, xm*ym) == TaylorModelN( 5*xT^2, remT, b1, ib1)
+            TM._TMN_TAIL_EXACT[] = 1
+            tmr = rpa(x->5*x^2, xm*ym)
+            @test polynomial(tmr) == 5*xT^2
+            @test issubset_interval(remT, remainder(tmr))
+        finally
+            TM._TMN_TAIL_EXACT[] = old_m
+        end
 
         # Testing remainders of an RPA
         ftest = x -> exp(x)-1

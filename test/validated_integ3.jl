@@ -35,11 +35,13 @@ function with_default_space(f, sp)
 end
 
 # validated_integ3 with no warnings allowed; `nothing` if it throws
+# Run the whole file with the midpoint-radius kernels: `TM_TEST_MIDRAD=true julia ...`
+const _TEST_MIDRAD = get(ENV, "TM_TEST_MIDRAD", "false") == "true"
 run_integ3(f!, X0, tini, tend, orderQ, orderT, abstol, sp; kwargs...) =
     with_default_space(sp) do splocal
         @test_logs min_level=Logging.Warn validated_integ3(
             f!, X0, tini, tend, orderQ, orderT, abstol, splocal;
-            parse_eqs = true, maxsteps = 2000, kwargs...)
+            parse_eqs = true, maxsteps = 2000, midrad = _TEST_MIDRAD, kwargs...)
     end
 
 # Cache objects for one validated step, as validated_integ3 builds them:
@@ -666,6 +668,34 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
                                 ["ξ"]; maxlen = 13, maxdiam = 1e-13,
                                 adaptive = true, minabstol = 1e-50, printinfo)
             check_tightness_1d("cos(t) backward", sol, fex, X0; maxratio = 1 + 1e-12, printinfo)
+        end
+
+        @testset "polynomial chain (3D): rounding coefficients (τ³/6)" begin
+            # x₁' = x₂, x₂' = x₃, x₃' = -1: the flow is polynomial, but the τ³
+            # coefficient -1/6 is not representable in Float64. orderT = 5: the step
+            # size estimate uses the coefficients of orders orderT-1 and orderT, which
+            # vanish here (with orderT = 4 the τ³ coefficient forces h ≈ 2e-5).
+            TI.@taylorize2 function chain3!(dx, x, p, t)
+                dx[1] = x[2]
+                dx[2] = x[3]
+                dx[3] = -one(x[1])
+                nothing
+            end
+            τ(t) = t - interval(big(tini))
+            fex(t, x0) = [x0[1] + x0[2]*τ(t) + x0[3]*τ(t)^2/2 - τ(t)^3/6,
+                          x0[2] + x0[3]*τ(t) - τ(t)^2/2,
+                          x0[3] - τ(t)]
+            names = ["ξ₁", "ξ₂", "ξ₃"]
+            # NOTE: maxlen/maxdiam are placeholders; set them from `printinfo = true`
+            # Forward
+            tini, tend = 0.0, 3.0
+            X0 = [1.0, -0.5, 0.3] .+ 0.1 .* symmetric_box(3)
+            check_problem("chain3", chain3!, fex, X0, tini, tend, 1, 5, 1e-15, names;
+                          maxlen = 20, maxdiam = 1e-8, printinfo)
+            # Backward (X0 is the state at t = 3)
+            tini, tend = 3.0, 0.0
+            check_problem("chain3 backward", chain3!, fex, X0, tini, tend, 1, 5, 1e-15,
+                          names; maxlen = 20, maxdiam = 1e-8, printinfo)
         end
 
         @testset "limit cycle (2D, rotation + nonlinear)" begin
