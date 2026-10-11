@@ -32,7 +32,7 @@ RecipesBase = "1"
 Reexport = "1"
 StaticArrays = "1.9"
 TaylorIntegration = "0.18.12"
-TaylorSeries = "0.22.2"
+TaylorSeries = "0.23"
 Test = "1"
 julia = "1.10"
 
