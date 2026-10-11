@@ -212,6 +212,27 @@ function _horner!(tmn::TaylorModelN{N,T,S}, a::Taylor1{TaylorModelN{N,T,S}},
     return tmn
 end
 
+# Range over the σ-box `boxN` of Σ_k a[k] dx^k, `dx` an interval (the polynomial parts and the
+# remainders of the TMN coefficients included). Horner's scheme runs coefficientwise in `Interval{S}`
+# as in `_horner!`, and the result is evaluated once over the box: no TaylorModelN is built.
+function _range_horner(a::Taylor1{TaylorModelN{N,Interval{S},S}}, dx::Interval{S},
+        boxN) where {N,S}
+    aux = _aux_horner(a[0])
+    zI = zero(Interval{S})
+    @inbounds for q in eachindex(aux.coeffs), h in eachindex(aux.coeffs[q].coeffs)
+        aux.coeffs[q].coeffs[h] = zI
+    end
+    rem = zI
+    @inbounds for k in reverse(eachindex(a))
+        rem = rem * dx + remainder(a[k])
+        ck = a[k].pol
+        for q in eachindex(aux.coeffs), h in eachindex(aux.coeffs[q].coeffs)
+            aux.coeffs[q].coeffs[h] = aux.coeffs[q].coeffs[h] * dx + ck.coeffs[q].coeffs[h]
+        end
+    end
+    return aux(boxN) + rem
+end
+
 # Interval workspace with the structure of the coefficients of `a`
 _aux_horner(a::TaylorModelN{N,T,S}) where {N,T,S} =
     interval(zero(S)) * zero(polynomial(a))     # TaylorN{Interval{S}}

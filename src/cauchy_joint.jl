@@ -204,7 +204,10 @@ function _cauchy_joint_pairs(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
         ck.rem = Rk
         cs[k+1] = ck
     end
-    return Taylor1(cs, n)
+    # ranges of the coefficients (polynomial part and remainder) over the σ-box, for the τ-tail
+    ra = ΔA .+ ρA
+    rb = issquare ? ra : ΔB .+ ρB
+    return Taylor1(cs, n), ra, rb
 end
 
 # Same, accumulating each τ^k coefficient in midpoint-radius form (TaylorSeriesIAExt:
@@ -293,11 +296,15 @@ function _cauchy_joint_acc(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
         ck.rem = Rk
         cs[k+1] = ck
     end
-    return Taylor1(cs, n)
+    # ranges of the coefficients (polynomial part and remainder) over the σ-box, for the τ-tail
+    ra = ΔA .+ ρA
+    rb = issquare ? ra : ΔB .+ ρB
+    return Taylor1(cs, n), ra, rb
 end
 
-# Taylor1{TaylorModelN} of the product a*b (or of the square): joint accumulation with the
-# midpoint-radius form if `_TM1_ACC[]`, `_TMN_MIDRAD[]` and it is usable, else pair by pair
+# (Taylor1{TaylorModelN} of the product a*b (or of the square), ranges of the coefficients of a and of b):
+# joint accumulation with the midpoint-radius form if `_TM1_ACC[]`, `_TMN_MIDRAD[]` and it is usable,
+# else pair by pair
 function _cauchy_joint(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
         b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, issquare::Bool) where {N,S}
     if _TM1_ACC[] && _TMN_MIDRAD[] && isdefined(TS, :midrad_poly)
@@ -312,17 +319,23 @@ function *(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
         b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}) where {N,S}
     @assert all(isequal_interval.(tmdata(a), tmdata(b)))
     if _TM1_JOINT[] && TS.order(a.pol) == TS.order(b.pol)
-        res = _cauchy_joint(a, b, false)
+        res, ra, rb = _cauchy_joint(a, b, false)
+        Δ = remainder_product(a, b, TS.order(res), ra, rb)     # ranges already computed
     else
         res = a.pol * b.pol
+        Δ = remainder_product(a, b, TS.order(res))
     end
-    Δ = remainder_product(a, b, TS.order(res))
     return unsafe_TaylorModel1(res, Δ, expansion_point(a), domain(a))
 end
 
 # Square
 function TS.square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S}) where {N,S}
-    res = _TM1_JOINT[] ? _cauchy_joint(a, a, true) : TS.square(a.pol)
-    Δ = remainder_square(a, TS.order(res))
+    if _TM1_JOINT[]
+        res, ra, _ = _cauchy_joint(a, a, true)
+        Δ = remainder_square(a, TS.order(res), ra)             # ranges already computed
+    else
+        res = TS.square(a.pol)
+        Δ = remainder_square(a, TS.order(res))
+    end
     return unsafe_TaylorModel1(res, Δ, expansion_point(a), domain(a))
 end

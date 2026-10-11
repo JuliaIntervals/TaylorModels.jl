@@ -735,15 +735,18 @@ function _tail_range_square(ra::Vector{Interval{S}}, _order::Int,
     return Δ
 end
 
+# `ra`, `rb`: ranges of the TaylorModelN coefficients of `a`, `b` over the σ-box (polynomial part and
+# remainder), as `_coeff_ranges`; the joint accumulation (`_cauchy_joint`) has them already
 function remainder_product(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
-        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int) where {N,S}
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int,
+        ra::Vector{Interval{S}}, rb::Vector{Interval{S}}) where {N,S}
     aux = centered_dom(a)
     auxN = centered_dom(a[0])
     # Remainder of the neglected terms (range-based)
-    Δnegl = _tail_range(_coeff_ranges(a, auxN), _coeff_ranges(b, auxN), _order, aux)
-    # Evaluate at the TMN centered domain
-    Δa = a.pol(aux)(auxN)
-    Δb = b.pol(aux)(auxN)
+    Δnegl = _tail_range(ra, rb, _order, aux)
+    # Ranges over the centered domains
+    Δa = _range_horner(a.pol, aux, auxN)
+    Δb = _range_horner(b.pol, aux, auxN)
     a_rem = remainder(a)
     b_rem = remainder(b)
     Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
@@ -752,17 +755,26 @@ function remainder_product(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
     return _intersect_reminders((Δ1, Δ2, Δ))
 end
 
+function remainder_product(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int) where {N,S}
+    auxN = centered_dom(a[0])
+    return remainder_product(a, b, _order, _coeff_ranges(a, auxN), _coeff_ranges(b, auxN))
+end
+
 function remainder_square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
-        _order::Int) where {N,S}
+        _order::Int, ra::Vector{Interval{S}}) where {N,S}
     aux = centered_dom(a)
     auxN = centered_dom(a[0])
-    Δnegl = _tail_range_square(_coeff_ranges(a, auxN), _order, aux)
-    Δa = a.pol(aux)(auxN)
+    Δnegl = _tail_range_square(ra, _order, aux)
+    Δa = _range_horner(a.pol, aux, auxN)
     a_rem = remainder(a)
     Δ = Δnegl + interval(2) * Δa * a_rem + Base.literal_pow(^, a_rem, Val(2))
     Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
     return _intersect_reminders((Δ1, Δ))
 end
+
+remainder_square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int) where {N,S} =
+    remainder_square(a, _order, _coeff_ranges(a, centered_dom(a[0])))
 
 
 # Neglected part of the TaylorModelN products and squares, for T = Interval{S}.

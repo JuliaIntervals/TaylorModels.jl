@@ -242,6 +242,26 @@ end
             end
         end
 
+        # The ranges of the coefficients computed by the joint accumulation (polynomial part + remainder) are
+        # reused in the τ-tail of products and squares: they agree with the evaluation over the σ-box
+        @testset "τ-tail: ranges of the coefficients from the joint computation" begin
+            auxN = TM.centered_dom(a[0])
+            eva = [a.pol[i](auxN) for i in 0:orderT]
+            evb = [b.pol[i](auxN) for i in 0:orderT]
+            near(x, y) = !isdisjoint_interval(x, y) && isapprox(diam(x), diam(y); rtol = 1e-6, atol = 1e-12)
+            for midrad in (false, isdefined(TS, :mul_midrad)), unit in (false, true)
+                with_settings(; midrad, joint = true, unit) do
+                    _, ra, rb = TM._cauchy_joint(a, b, false)
+                    @test all(near(ra[i+1], eva[i+1]) && near(rb[i+1], evb[i+1]) for i in 0:orderT)
+                    # remainders with the reused ranges against the ones that evaluate them
+                    @test isapprox(diam(remainder(a * b)), diam(TM.remainder_product(a, b, orderT));
+                                   rtol = 1e-6, atol = 1e-12)
+                    @test isapprox(diam(remainder(TS.square(a))), diam(TM.remainder_square(a, orderT));
+                                   rtol = 1e-6, atol = 1e-12)
+                end
+            end
+        end
+
         @testset "rpa functions (exp, cos)" begin
             a2 = random_tm1!(c.x2NI[1], rng; scale = 0.2, remc = 1e-6, remt = 1e-5)
             @test count_failures_binary((x, y) -> exp(x), (x, y) -> exp(x), a2, b, rng; name = "exp") == 0
