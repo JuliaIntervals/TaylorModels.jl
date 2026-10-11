@@ -408,19 +408,22 @@ function monotonicity_bounder(tm::TaylorModelN{N,T,S},
         box::AbstractVector{Interval{S}} = centered_dom(tm)) where {N,T,S}
     @assert iscontained(box, tm)
     p = polynomial(tm)
-    blo = collect(box)              # box for the lower bound
-    bhi = collect(box)              # box for the upper bound
+    # Static boxes: `evaluate` splats a vector into a tuple whose length is only known at run time
+    # (dynamic dispatch and allocation at every call), but it is known for `SVector`/`MVector`
+    bx = SVector{N,Interval{S}}(box)
+    blo = MVector{N,Interval{S}}(bx)              # box for the lower bound
+    bhi = MVector{N,Interval{S}}(bx)              # box for the upper bound
     for j in 1:N
         dp = TS.differentiate(p, j)
         glo, ghi = dp(blo), dp(bhi)
         if !isnai(glo) && !in_interval(zero(S), glo)        # monotone on blo
-            blo[j] = interval(inf(glo) > 0 ? inf(box[j]) : sup(box[j]))
+            blo[j] = interval(inf(glo) > 0 ? inf(bx[j]) : sup(bx[j]))
         end
         if !isnai(ghi) && !in_interval(zero(S), ghi)        # monotone on bhi
-            bhi[j] = interval(inf(ghi) > 0 ? sup(box[j]) : inf(box[j]))
+            bhi[j] = interval(inf(ghi) > 0 ? sup(bx[j]) : inf(bx[j]))
         end
     end
     tight = interval(inf(p(blo)), sup(p(bhi))) + remainder(tm)
-    naive = p(box) + remainder(tm)
+    naive = p(bx) + remainder(tm)
     return intersect_interval(tight, naive)
 end
