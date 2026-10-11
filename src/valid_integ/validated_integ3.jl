@@ -174,7 +174,14 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
             # Evaluate in place x1N at δt (new TMN initial condition with remainder)
             TM.__evaluate!(vTMN[ind], x1N[ind], δt, auxI)
         end
-        _update_output!(view(xTM1v, :, nsteps), x1N)
+        # Output slots are allocated lazily (only the steps actually done)
+        if all(i -> isassigned(xTM1v, i, nsteps), eachindex(x1N))
+            _update_output!(view(xTM1v, :, nsteps), x1N)
+        else
+            for ind in eachindex(x1N)
+                xTM1v[ind, nsteps] = deepcopy(x1N[ind])
+            end
+        end
 
         # Use qr-precondition to set new initial condition (leftTMN)
         # qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)

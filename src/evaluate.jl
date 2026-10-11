@@ -116,10 +116,12 @@ evaluate(tm::Vector{TaylorModelN{N,T,S}}, a::AbstractVector{Interval{S}}) where 
 
 for D in (:S, :(Interval{S}))
     @eval begin
+        # `_horner!` overwrites all the coefficients and the remainder of its first argument,
+        # which only provides shape, expansion point and domain: `zero` instead of `deepcopy`
         evaluate(a::Taylor1{TaylorModelN{N,T,S}}, dx::$D) where {N,T,S<:AbstractFloat} =
-            _horner!(deepcopy(a[0]), a, dx, _aux_horner(a[0]))
+            _horner!(zero(a[0]), a, dx, _aux_horner(a[0]))
         evaluate(tm::TaylorModel1{TaylorModelN{N,T,S},S}, dx::$D) where {N,T,S<:AbstractFloat} =
-            __evaluate!(deepcopy(tm[0]), tm, dx)
+            __evaluate!(zero(tm[0]), tm, dx)
     end
 end
 function evaluate(a::Taylor1{TaylorModelN{N,T,S}}, v::AbstractVector{R}) where {N,T,S,R}
