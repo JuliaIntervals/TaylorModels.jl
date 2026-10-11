@@ -613,6 +613,35 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
                           names; maxlen = 20, maxdiam = 1e-8, printinfo)
         end
 
+        # Issue #208
+        @testset "Geodesic flow on the sphere (6D, point components)" begin
+            # x' = v, v' = -(|v|²/|x|²) x. From x0 = e_z with v0 = (v1, v2, 0), c = |v0|, the solution is
+            # x(t) = cos(ct) e_z + sin(ct) v0/c and v(t) = x'(t), for every point of the box. Four components
+            # of X0 are points (rank-deficient directions of the preconditioning). The stored models are
+            # functions of σ_k, not of ξ (σ_2 = ξ, σ_{k+1} = ρ_k(σ_k)): the pointwise check composes with ρ,
+            # while evaluating the models of the later steps at ξ would (wrongly) fail.
+            function spray!(dx, x, p, t)
+                q = (x[4]^2 + x[5]^2 + x[6]^2) / (x[1]^2 + x[2]^2 + x[3]^2)
+                dx[1] = x[4]; dx[2] = x[5]; dx[3] = x[6]
+                dx[4] = -q * x[1]; dx[5] = -q * x[2]; dx[6] = -q * x[3]
+                nothing
+            end
+            function fex(t, x0)
+                v1, v2 = x0[4], x0[5]
+                c = sqrt(v1^2 + v2^2)
+                s, co = sin(c * t), cos(c * t)
+                return [s * v1 / c, s * v2 / c, co, co * v1, co * v2, -c * s]
+            end
+            A, B = 0.7, 0.7 + 2π / 256
+            X0 = [interval(0.0), interval(0.0), interval(1.0),
+                  interval(cos(B), cos(A)), interval(sin(A), sin(B)), interval(0.0)]
+            # NOTE: maxlen/maxdiam are placeholders (3 steps and remainders of 1e-8 to 1e-6 were observed);
+            # set them from `printinfo = true`
+            check_problem("geodesic flow", spray!, fex, X0, 0.0, 0.5, 2, 12, 1e-15,
+                          ["ξ$i" for i in 1:6]; maxlen = 6, maxdiam = 1e-4, nsamples = 30,
+                          printinfo, maxsteps=100)
+        end
+
         @testset "limit cycle (2D, rotation + nonlinear)" begin
             # x' = x - y - x r², y' = x + y - y r²; in polar r' = r(1-r²), θ' = 1
             function limcyc!(dx, x, p, t)
