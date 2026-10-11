@@ -571,16 +571,14 @@ end
         spCost = JetSpace(2*orderQ, ["ξₓ"])
 
         @testset "Forward integration 1" begin
-            # TS.default_space[] is needed here to avoid an error (related to promotion)
-            TS.set_default_space!(spCost)
             sol1 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
-                TS.default_space[]; parse_eqs=false,
+                spCost; parse_eqs=false,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM, qv, qTM = getfield.((sol1,), 1:3)
             @test isequal_interval(domain(sol1,1), zI)
             @test all(isbounded.(remainder.(qTM)))
             sol2 = validated_integ(cost!, X0, tini, tend, orderQ, orderT, abstol,
-                TS.default_space[]; parse_eqs=true,
+                spCost; parse_eqs=true,
                 maxsteps=2000, adaptive=true, minabstol=1e-50, absorb=false);
             tTM2, qv2, qTM2 = getfield.((sol2,), 1:3)
             @test isequal_interval(domain(sol2,1), zI)
@@ -596,10 +594,8 @@ end
         end
 
         # @testset "Forward integration 2" begin
-        #     # TS.default_space[] is needed here to avoid an error (related to promotion)
-        #     TS.set_default_space!(spCost)
         #     sol2 = validated_integ2(cost!, X0, tini, tend, orderQ, orderT, abstol,
-        #         TS.default_space[];
+        #         spCost;
         #         maxsteps=2000, absorb=false, adaptive=true, minabstol=1e-50,
         #         validatesteps=30, ε=1e-10, δ=1e-10, absorb_steps=3)
         #     tTM, qv, qTM = getfield.((sol2,), 1:3)

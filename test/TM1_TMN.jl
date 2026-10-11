@@ -11,30 +11,31 @@
 #
 # Note: the TMN coefficients are `Interval`s, so rounding is enclosed.
 
-module TM1TMNTests
-
 using TaylorModels, TaylorModels.ValidatedInteg
 using Test, Random, StaticArrays
 
 const TM = TaylorModels
 const VI = TaylorModels.ValidatedInteg
-const orderQ, orderT = 2, 4
-const H = 1.0                                   # τ ∈ [0, H]
-const NS = 40                                   # samples per check
+const TAUMAX = 1.0                              # the τ-domain of the models is [0, TAUMAX]
+const NSAMPLES = 40                             # samples (σ, τ) per check
 
-function with_space(f, sp)
-    old = TS.default_space[]
-    TS.set_default_space!(sp; nowarn=true)
+# Run `f()` with the given settings of the arithmetic of TaylorModel1{TaylorModelN{Interval}}
+# (default: the current ones); they are restored afterwards.
+function with_settings(f; midrad = TM._TMN_MIDRAD[], joint = TM._TM1_JOINT[],
+        acc = TM._TM1_ACC[], tail_exact = TM._TMN_TAIL_EXACT[])
+    old = (TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TMN_TAIL_EXACT[])
     try
-        return f(TS.default_space[])
+        TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[] = midrad, joint, acc
+        TM._TMN_TAIL_EXACT[] = tail_exact
+        return f()
     finally
-        TS.set_default_space!(old; nowarn=true)
+        TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[], TM._TMN_TAIL_EXACT[] = old
     end
 end
 
 # fill `tm` (in place) with random interval coefficients, TMN remainders and TM1 remainder
 function random_tm1!(tm, rng; scale = 1.0, remc = 1e-4, remt = 1e-3)
-    tm.dom = interval(0.0, H); tm.x0 = 0.0
+    tm.dom = interval(0.0, TAUMAX); tm.x0 = 0.0
     tm.rem = interval(-remt*rand(rng), remt*rand(rng))
     for k in eachindex(tm.pol.coeffs)
         coef = tm.pol.coeffs[k]
@@ -61,23 +62,20 @@ fval(s, τI) = sum(interval(s.v[i+1]) * τI^i for i in 0:length(s.v)-1) + interv
 model_val(res, τ, σ) = evaluate(res, interval(τ))(interval.(σ))
 
 # samples (σ, τ): τ at both ends and random
-function samples(rng, n)
+function sample_στ(rng, n)
     out = Tuple{Vector{Float64},Float64}[]
     for k in 1:n
-        τ = k == 1 ? 0.0 : (k == 2 ? H : H * rand(rng))
+        τ = k == 1 ? 0.0 : (k == 2 ? TAUMAX : TAUMAX * rand(rng))
         push!(out, (2 .* rand(rng, 2) .- 1, τ))
     end
     return out
 end
 
-# number of failures of  truth(f_a, f_b) ⊆ model(a, b)(τ, σ)
-function nfail_binary(model, truth, a, b, rng; name = "")
-    res = model(a, b)
+# number of the samples (σ, τ) with  truth ⊄ model,  (truth, model) = case(σ, τ)
+function count_failures(case, rng; name = "", n = NSAMPLES)
     nf = 0
-    for (σ, τ) in samples(rng, NS)
-        τI = interval(τ)
-        sa, sb = draw(a, σ, rng), draw(b, σ, rng)
-        t, m = truth(fval(sa, τI), fval(sb, τI)), model_val(res, τ, σ)
+    for (σ, τ) in sample_στ(rng, n)
+        t, m = case(σ, τ)
         if !issubset_interval(t, m)
             nf += 1
             nf == 1 && @warn "pointwise failure" name σ τ truth = t model = m
@@ -86,36 +84,47 @@ function nfail_binary(model, truth, a, b, rng; name = "")
     return nf
 end
 
+# the same for  truth(f_a, f_b) ⊆ model(a, b)(τ, σ),  f_a, f_b represented functions of a, b
+function count_failures_binary(model, truth, a, b, rng; name = "")
+    res = model(a, b)
+    return count_failures(rng; name) do σ, τ
+        τI = interval(τ)
+        sa, sb = draw(a, σ, rng), draw(b, σ, rng)
+        return truth(fval(sa, τI), fval(sb, τI)), model_val(res, τ, σ)
+    end
+end
+
 @testset "TaylorModel1{TaylorModelN{Interval}} arithmetic" begin
+    orderQ, orderT = 2, 4
     X0 = SVector(interval(1.0, 1.1), interval(-0.25, 0.25))
     function f!(dx, x, p, t)
         dx[1] = x[2]
         dx[2] = -one(x[1])
         nothing
     end
-    with_space(JetSpace(2*orderQ, ["ξ₁", "ξ₂"])) do sp
+    let sp = JetSpace(2*orderQ, ["ξ₁", "ξ₂"])
         rng = MersenneTwister(2024)
         c = VI.init_cache_VI3(f!, 0.0, X0, 2, orderT, orderQ, sp, nothing; parse_eqs = true)
         a = random_tm1!(c.x1NI[1], rng)
         b = random_tm1!(c.x1NI[2], rng)
 
         @testset "TM1 ± TM1, TM1 * TM1, square, powers" begin
-            @test nfail_binary(+, +, a, b, rng; name = "a + b") == 0
-            @test nfail_binary(-, -, a, b, rng; name = "a - b") == 0
-            @test nfail_binary(*, *, a, b, rng; name = "a * b") == 0
-            @test nfail_binary((x, y) -> TS.square(x), (x, y) -> x^2, a, b, rng; name = "a²") == 0
-            @test nfail_binary((x, y) -> x^3, (x, y) -> x * x * x, a, b, rng; name = "a³") == 0
-            @test nfail_binary((x, y) -> x^4, (x, y) -> (x * x) * (x * x), a, b, rng; name = "a⁴") == 0
+            @test count_failures_binary(+, +, a, b, rng; name = "a + b") == 0
+            @test count_failures_binary(-, -, a, b, rng; name = "a - b") == 0
+            @test count_failures_binary(*, *, a, b, rng; name = "a * b") == 0
+            @test count_failures_binary((x, y) -> TS.square(x), (x, y) -> x^2, a, b, rng; name = "a²") == 0
+            @test count_failures_binary((x, y) -> x^3, (x, y) -> x * x * x, a, b, rng; name = "a³") == 0
+            @test count_failures_binary((x, y) -> x^4, (x, y) -> (x * x) * (x * x), a, b, rng; name = "a⁴") == 0
         end
 
         @testset "TM1 ± number, number ± TM1, TM1 / number" begin
             for num in (0.7, 2, -1.3)
                 nI = interval(num)
-                @test nfail_binary((x, y) -> x + num, (x, y) -> x + nI, a, b, rng; name = "a + $num") == 0
-                @test nfail_binary((x, y) -> x - num, (x, y) -> x - nI, a, b, rng; name = "a - $num") == 0
-                @test nfail_binary((x, y) -> num + x, (x, y) -> nI + x, a, b, rng; name = "$num + a") == 0
-                @test nfail_binary((x, y) -> num - x, (x, y) -> nI - x, a, b, rng; name = "$num - a") == 0
-                @test nfail_binary((x, y) -> x / num, (x, y) -> x / nI, a, b, rng; name = "a / $num") == 0
+                @test count_failures_binary((x, y) -> x + num, (x, y) -> x + nI, a, b, rng; name = "a + $num") == 0
+                @test count_failures_binary((x, y) -> x - num, (x, y) -> x - nI, a, b, rng; name = "a - $num") == 0
+                @test count_failures_binary((x, y) -> num + x, (x, y) -> nI + x, a, b, rng; name = "$num + a") == 0
+                @test count_failures_binary((x, y) -> num - x, (x, y) -> nI - x, a, b, rng; name = "$num - a") == 0
+                @test count_failures_binary((x, y) -> x / num, (x, y) -> x / nI, a, b, rng; name = "a / $num") == 0
             end
             # polynomial part: the number only goes to the τ⁰ coefficient (Float64 TMN)
             y = c.x1N[1]
@@ -131,13 +140,10 @@ end
         @testset "TM1 * TMN" begin
             w = deepcopy(b.pol[0])                       # TMN with remainder
             res = a * w
-            nf = 0
-            for (σ, τ) in samples(rng, NS)
-                τI = interval(τ)
+            nf = count_failures(rng; name = "a * w") do σ, τ
                 sa = draw(a, σ, rng)
                 wv = pick(rng, w(interval.(σ)))
-                t = fval(sa, τI) * interval(wv)
-                nf += !issubset_interval(t, model_val(res, τ, σ))
+                return fval(sa, interval(τ)) * interval(wv), model_val(res, τ, σ)
             end
             @test nf == 0
         end
@@ -147,66 +153,59 @@ end
             c0.rem = interval(-1e-3, 2e-3)               # c0.rem must be kept
             res = deepcopy(a)
             TM.integrate!(res, a, c0, domain(a[0]))
-            nf = 0
-            for (σ, τ) in samples(rng, NS)
+            nf = count_failures(rng; name = "integrate!") do σ, τ
                 τI = interval(τ)
                 sa = draw(a, σ, rng)
                 wv = pick(rng, c0(interval.(σ)))
                 t = interval(wv) + interval(sa.r) * τI +
                     sum(interval(sa.v[i+1]) * τI^(i+1) / interval(i+1) for i in 0:orderT)
-                nf += !issubset_interval(t, model_val(res, τ, σ))
+                return t, model_val(res, τ, σ)
             end
             @test nf == 0
         end
 
         @testset "TMN tail: exact products up to degree m, ranges above" begin
-            old = TM._TMN_TAIL_EXACT[]
-            try
-                for m in (0, 1, typemax(Int))
-                    TM._TMN_TAIL_EXACT[] = m
-                    # TM1 products and squares go through the TMN ones
-                    @test nfail_binary(*, *, a, b, rng; name = "a * b, m = $m") == 0
-                    @test nfail_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, m = $m") == 0
+            for m in (0, 1, typemax(Int))
+                with_settings(; tail_exact = m) do
+                    # TM1 products and powers go through the TMN ones
+                    @test count_failures_binary(*, *, a, b, rng; name = "a * b, m = $m") == 0
+                    @test count_failures_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, m = $m") == 0
                     # TMN * TMN and TMN²
                     w1, w2 = deepcopy(a.pol[1]), deepcopy(b.pol[2])
-                    nf = 0
-                    for (σ, τ) in samples(rng, NS)
+                    nf = count_failures(rng; name = "TMN * TMN, m = $m") do σ, τ
                         σI = interval.(σ)
                         v1, v2 = pick(rng, w1(σI)), pick(rng, w2(σI))
-                        nf += !issubset_interval(interval(v1) * interval(v2), (w1 * w2)(σI))
-                        nf += !issubset_interval(interval(v1)^2, TS.square(w1)(σI))
+                        return interval(v1) * interval(v2), (w1 * w2)(σI)
+                    end
+                    @test nf == 0
+                    nf = count_failures(rng; name = "TMN², m = $m") do σ, τ
+                        σI = interval.(σ)
+                        return interval(pick(rng, w1(σI)))^2, TS.square(w1)(σI)
                     end
                     @test nf == 0
                 end
-            finally
-                TM._TMN_TAIL_EXACT[] = old
             end
         end
 
         # Joint Cauchy accumulation (`TM._TM1_JOINT`) and explicit midpoint-radius kernels
         # (`TM._TMN_MIDRAD`, TaylorSeriesIAExt): pointwise soundness of products, squares, powers
         @testset "joint accumulation and midpoint-radius kernels" begin
-            old_m, old_j = TM._TMN_MIDRAD[], TM._TM1_JOINT[]
-            try
-                for midrad in (false, isdefined(TS, :mul_midrad)), joint in (false, true)
-                    TM._TMN_MIDRAD[], TM._TM1_JOINT[] = midrad, joint
+            for midrad in (false, isdefined(TS, :mul_midrad)), joint in (false, true)
+                with_settings(; midrad, joint) do
                     tag = "midrad = $midrad, joint = $joint"
-                    @test nfail_binary(*, *, a, b, rng; name = "a * b, $tag") == 0
-                    @test nfail_binary((x, y) -> x^2, (x, y) -> x^2, a, b, rng; name = "a², $tag") == 0
-                    @test nfail_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, $tag") == 0
-                    @test nfail_binary((x, y) -> x^4, (x, y) -> x^4, a, b, rng; name = "a⁴, $tag") == 0
+                    @test count_failures_binary(*, *, a, b, rng; name = "a * b, $tag") == 0
+                    @test count_failures_binary((x, y) -> x^2, (x, y) -> x^2, a, b, rng; name = "a², $tag") == 0
+                    @test count_failures_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, $tag") == 0
+                    @test count_failures_binary((x, y) -> x^4, (x, y) -> x^4, a, b, rng; name = "a⁴, $tag") == 0
                 end
-                # the joint remainders are not wider than the generic ones
-                TM._TMN_MIDRAD[] = false
-                for (f, nm) in ((*, "a*b"), ((x, y) -> x^2, "a²"))
-                    TM._TM1_JOINT[] = true;  rj = f(a, b)
-                    TM._TM1_JOINT[] = false; rg = f(a, b)
-                    @test all(diam(remainder(rj.pol[k])) <= diam(remainder(rg.pol[k])) + 1e-12
-                              for k in 0:TS.order(rj.pol))
-                    @test diam(remainder(rj)) <= diam(remainder(rg)) + 1e-12
-                end
-            finally
-                TM._TMN_MIDRAD[], TM._TM1_JOINT[] = old_m, old_j
+            end
+            # the joint remainders are not wider than the generic ones
+            for f in (*, (x, y) -> x^2)
+                rj = with_settings(() -> f(a, b); midrad = false, joint = true)
+                rg = with_settings(() -> f(a, b); midrad = false, joint = false)
+                @test all(diam(remainder(rj.pol[k])) <= diam(remainder(rg.pol[k])) + 1e-12
+                          for k in 0:TS.order(rj.pol))
+                @test diam(remainder(rj)) <= diam(remainder(rg)) + 1e-12
             end
         end
 
@@ -214,39 +213,32 @@ end
         # pair-by-pair accumulation: both enclose the same set (coefficients overlap, remainders agree)
         if isdefined(TS, :midrad_poly)
             @testset "midpoint-radius accumulation of the τ coefficients" begin
-                old = (TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[])
-                try
-                    TM._TMN_MIDRAD[], TM._TM1_JOINT[] = true, true
-                    for (f, nm) in ((*, "a*b"), ((x, y) -> x^2, "a²"), ((x, y) -> x^3, "a³"))
-                        TM._TM1_ACC[] = true;  racc = f(a, b)
-                        TM._TM1_ACC[] = false; rprs = f(a, b)
-                        overlap = true
-                        for k in 0:TS.order(racc.pol), q in eachindex(racc.pol[k].pol.coeffs),
-                                h in eachindex(racc.pol[k].pol.coeffs[q].coeffs)
-                            overlap &= !isdisjoint_interval(racc.pol[k].pol.coeffs[q].coeffs[h],
-                                                            rprs.pol[k].pol.coeffs[q].coeffs[h])
-                        end
-                        @test overlap
-                        @test all(isapprox(diam(remainder(racc.pol[k])), diam(remainder(rprs.pol[k]));
-                                           rtol = 1e-6, atol = 1e-12) for k in 0:TS.order(racc.pol))
-                        @test isapprox(diam(remainder(racc)), diam(remainder(rprs)); rtol = 1e-6, atol = 1e-12)
+                for f in (*, (x, y) -> x^2, (x, y) -> x^3)
+                    racc = with_settings(() -> f(a, b); midrad = true, joint = true, acc = true)
+                    rprs = with_settings(() -> f(a, b); midrad = true, joint = true, acc = false)
+                    overlap = true
+                    for k in 0:TS.order(racc.pol), q in eachindex(racc.pol[k].pol.coeffs),
+                            h in eachindex(racc.pol[k].pol.coeffs[q].coeffs)
+                        overlap &= !isdisjoint_interval(racc.pol[k].pol.coeffs[q].coeffs[h],
+                                                        rprs.pol[k].pol.coeffs[q].coeffs[h])
                     end
-                    TM._TM1_ACC[] = true
-                    @test nfail_binary(*, *, a, b, rng; name = "a * b, accumulation") == 0
-                    @test nfail_binary((x, y) -> x^2, (x, y) -> x^2, a, b, rng; name = "a², accumulation") == 0
-                    @test nfail_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, accumulation") == 0
-                finally
-                    TM._TMN_MIDRAD[], TM._TM1_JOINT[], TM._TM1_ACC[] = old
+                    @test overlap
+                    @test all(isapprox(diam(remainder(racc.pol[k])), diam(remainder(rprs.pol[k]));
+                                       rtol = 1e-6, atol = 1e-12) for k in 0:TS.order(racc.pol))
+                    @test isapprox(diam(remainder(racc)), diam(remainder(rprs)); rtol = 1e-6, atol = 1e-12)
+                end
+                with_settings(; midrad = true, joint = true, acc = true) do
+                    @test count_failures_binary(*, *, a, b, rng; name = "a * b, accumulation") == 0
+                    @test count_failures_binary((x, y) -> x^2, (x, y) -> x^2, a, b, rng; name = "a², accumulation") == 0
+                    @test count_failures_binary((x, y) -> x^3, (x, y) -> x^3, a, b, rng; name = "a³, accumulation") == 0
                 end
             end
         end
 
         @testset "rpa functions (exp, cos)" begin
             a2 = random_tm1!(c.x2NI[1], rng; scale = 0.2, remc = 1e-6, remt = 1e-5)
-            @test nfail_binary((x, y) -> exp(x), (x, y) -> exp(x), a2, b, rng; name = "exp") == 0
-            @test nfail_binary((x, y) -> cos(x), (x, y) -> cos(x), a2, b, rng; name = "cos") == 0
+            @test count_failures_binary((x, y) -> exp(x), (x, y) -> exp(x), a2, b, rng; name = "exp") == 0
+            @test count_failures_binary((x, y) -> cos(x), (x, y) -> cos(x), a2, b, rng; name = "cos") == 0
         end
     end
 end
-
-end # module

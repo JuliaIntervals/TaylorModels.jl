@@ -2,10 +2,15 @@
 #
 #   1. _exact_step            representable time steps
 #   2. picard_lindelof        no aliasing, exact Picard iterates, argument order
-#   3. monotonicity_bounder   range enclosure (soundness, tightness)
-#   4. qrprecondition!    (⋆) and v ∈ L∘ρ, exact in BigFloat, T ∈ {Float64, Interval}
-#   5. integration            completion, pointwise containment x(t;x0) ∈ Φ_k(τ, σ_k(ξ))
+#   3. cache                  the Picard time of the first step is t0
+#   4. monotonicity_bounder   range enclosure (soundness, tightness)
+#   5. qrprecondition!    (⋆) and v ∈ L∘ρ, exact in BigFloat, T ∈ {Float64, Interval}
+#   6. integration            completion, pointwise containment x(t;x0) ∈ Φ_k(τ, σ_k(ξ))
 #                             with exact times, tdrift == 0, tightness
+#
+# The arithmetic of TaylorModel1{TaylorModelN} (products, squares, numbers, integration) is
+# tested in `TM1_TMN.jl`. Every problem uses its own `JetSpace`; the default space is not set.
+# `TM_TEST_MIDRAD=true` runs the integrations with the midpoint-radius kernels.
 #
 # Notation as in report_validated_integ3.md.
 
@@ -21,28 +26,14 @@ const TI = TaylorIntegration
 
 stepsize(d) = sup(d) > 0 ? sup(d) : inf(d)          # exact h_k from a τ-domain
 
-# Run f(sp′) where sp′ is the stored default space (pass sp′, not sp, to the integrator).
-# This is needed for non-autonomous f!, due to a promotion in t (::Taylor1) to Taylor1{TaylorN}
-# which happens to use the default space. On exit restores the previous default.
-function with_default_space(f, sp)
-    old = TS.default_space[]
-    TS.set_default_space!(sp; nowarn=true)
-    try
-        return f(TS.default_space[])
-    finally
-        TS.set_default_space!(old; nowarn=true)
-    end
-end
-
-# validated_integ3 with no warnings allowed; `nothing` if it throws
-# Run the whole file with the midpoint-radius kernels: `TM_TEST_MIDRAD=true julia ...`
+# Settings of the integrator in the tests
 const _TEST_MIDRAD = get(ENV, "TM_TEST_MIDRAD", "false") == "true"
+
+# validated_integ3 with no warnings allowed
 run_integ3(f!, X0, tini, tend, orderQ, orderT, abstol, sp; kwargs...) =
-    with_default_space(sp) do splocal
-        @test_logs min_level=Logging.Warn validated_integ3(
-            f!, X0, tini, tend, orderQ, orderT, abstol, splocal;
-            parse_eqs = true, maxsteps = 2000, midrad = _TEST_MIDRAD, kwargs...)
-    end
+    @test_logs min_level=Logging.Warn validated_integ3(
+        f!, X0, tini, tend, orderQ, orderT, abstol, sp;
+        parse_eqs = true, maxsteps = 2000, midrad = _TEST_MIDRAD, kwargs...)
 
 # Cache objects for one validated step, as validated_integ3 builds them:
 # x1N (= L, constant in τ), dx1N, t1N (= t0 + τ), on τ ∈ [0, δt].
@@ -61,7 +52,6 @@ end
 
 # --- coefficient access (T = Float64 or Interval{Float64}) -----------------
 coeflist(p) = [p.coeffs[k].coeffs[h] for k in eachindex(p.coeffs) for h in eachindex(p.coeffs[k].coeffs)]
-# isfin(x::Interval) = isfinite(inf(x)) && isfinite(sup(x)); isfin(x::Real) = isfinite(x)
 isfin(x::Interval) = isbounded(x); isfin(x::Real) = isfinite(x)
 cpoly(tm1, k) = polynomial(tm1[k])           # TaylorN of the τ^k coefficient
 constpoly(x, ref) = x + zero(ref)            # constant TaylorN like ref
@@ -395,7 +385,7 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
         end
         orderQ, orderT = 2, 4
         X0 = SVector(interval(9.75, 10.25), interval(-0.25, 0.25))
-        with_default_space(JetSpace(2*orderQ, ["ξ₁", "ξ₂"])) do sp
+        let sp = JetSpace(2*orderQ, ["ξ₁", "ξ₂"])
             c, x1N, dx1N, t1N = setup(fb!, X0, 0.0, 0.5, orderQ, orderT, sp)
             @test no_alias(c.x1N) && no_alias(c.dx1N) && no_alias(c.x2N)
             @test disjoint(c.x1N, c.dx1N) && disjoint(c.x1N, c.x2N) && disjoint(c.dx1N, c.x2N)
@@ -432,12 +422,7 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
         end
     end
 
-    @testset "rounding is enclosed in the Picard arithmetic" begin
-        function chain!(dx, x, p, t)
-            dx[1] = x[2]
-            dx[2] = -one(x[1])
-            nothing
-        end
+    @testset "cache: the Picard time of the first step is t0" begin
         function nonaut!(dx, x, p, t)
             dx[1] = t + zero(x[1])
             dx[2] = x[1]
@@ -445,86 +430,16 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
         end
         orderQ, orderT = 1, 4
         X0 = SVector(interval(1.0, 1.1), interval(-0.25, 0.25))
-        with_default_space(JetSpace(2*orderQ, ["ξ₁", "ξ₂"])) do sp
-            # the cache starts the Picard time at t0 (it used to be 0 in the first step)
+        let sp = JetSpace(2*orderQ, ["ξ₁", "ξ₂"])
             c = VI.init_cache_VI3(nonaut!, 2.0, X0, 2, orderT, orderQ, sp, nothing;
                                   parse_eqs = true)
-            @test isequal_interval(constant_term(polynomial(c.t1NI[0])), interval(2.0))
+            @test isequal_interval(constant_term(polynomial(c.t1NI[0])), interval(2.0))   # it was 0
             @test constant_term(polynomial(c.t1N[0])) == 2.0
-
-            # integrate! with Interval coefficients: ∫ τ² = τ³/3, 1/3 not representable
-            c = VI.init_cache_VI3(chain!, 0.0, X0, 2, orderT, orderQ, sp, nothing;
-                                  parse_eqs = true)
-            δtI = interval(0.0, 0.5)
-            a, res = c.x1NI[1], c.x2NI[1]
-            a.dom = δtI; a.x0 = 0.0; res.dom = δtI; res.x0 = 0.0
-            a.pol.coeffs[3].pol.coeffs[1].coeffs[1] = interval(1.0)      # τ² coefficient
-            TM.integrate!(res, a, domain(a[0]))
-            c3 = constant_term(polynomial(res[3]))                       # τ³ coefficient
-            @test inf(c3) <= big(1)/3 <= sup(c3)
-            @test inf(c3) < sup(c3)
-
-            # TMN{Interval} / Int encloses the exact quotient
-            tm = one(a[0]) * 1.0
-            q = tm / 3
-            @test inf(constant_term(polynomial(q))) <= big(1)/3 <= sup(constant_term(polynomial(q)))
-
-            # TM1{TMN} ± number keeps the remainder (it used to negate it for `-`)
-            _, x1N, _, _ = setup(chain!, X0, 0.0, 0.5, orderQ, orderT, sp)
-            x1N[1].rem = interval(-1e-3, 2e-3)
-            @test isequal_interval(remainder(x1N[1] - 1.0), interval(-1e-3, 2e-3))
-            @test isequal_interval(remainder(x1N[1] + 1.0), interval(-1e-3, 2e-3))
-            @test isequal_interval(remainder(1.0 - x1N[1]), interval(-2e-3, 1e-3))
-
-            # TM1{TMN} * TMN scales the remainder by the range of the TMN
-            y = x1N[1] * (one(x1N[1][0]) * 2.0)
-            @test issubset_interval(interval(-2e-3, 4e-3), remainder(y))
-        end
-    end
-
-    @testset "range-based τ-tail of TM1{TMN{Interval}} products" begin
-        function chain!(dx, x, p, t)
-            dx[1] = x[2]
-            dx[2] = -one(x[1])
-            nothing
-        end
-        orderQ, orderT = 1, 4
-        X0 = SVector(interval(1.0, 1.1), interval(-0.25, 0.25))
-        rng = MersenneTwister(99)
-        with_default_space(JetSpace(2*orderQ, ["ξ₁", "ξ₂"])) do sp
-            c = VI.init_cache_VI3(chain!, 0.0, X0, 2, orderT, orderQ, sp, nothing;
-                                  parse_eqs = true)
-            a, b = c.x1NI[1], c.x1NI[2]
-            for tm in (a, b)                 # random coefficients, large tail on [0, 1.5]
-                tm.dom = interval(0.0, 1.5); tm.x0 = 0.0; tm.rem = zero(Interval{Float64})
-                for k in 1:orderT+1, q in eachindex(tm.pol.coeffs[k].pol.coeffs),
-                        h in eachindex(tm.pol.coeffs[k].pol.coeffs[q].coeffs)
-                    tm.pol.coeffs[k].pol.coeffs[q].coeffs[h] = interval(randn(rng))
-                end
-            end
-            # the tail goes into the remainder: pointwise containment of the exact product
-            prod, sqr = a * b, TS.square(a)
-            coef(tm, k, σ) = tm.pol[k](interval.(σ))
-            ok = true
-            for _ in 1:30
-                σ = 2 .* rand(rng, 2) .- 1
-                τ = 1.5 * rand(rng); τI = interval(τ)
-                tprod = sum(coef(a, i, σ) * coef(b, j, σ) * τI^(i+j)
-                            for i in 0:orderT, j in 0:orderT)
-                tsqr = sum(coef(a, i, σ) * coef(a, j, σ) * τI^(i+j)
-                           for i in 0:orderT, j in 0:orderT)
-                mprod = evaluate(prod, interval(τ))(interval.(σ))
-                msqr  = evaluate(sqr, interval(τ))(interval.(σ))
-                ok &= !isdisjoint_interval(tprod, mprod) && !isdisjoint_interval(tsqr, msqr)
-                ok &= issubset_interval(interval(inf(tprod) + 0.5*diam(tprod)), mprod)
-            end
-            @test ok
-            @test isbounded(remainder(prod)) && isbounded(remainder(sqr))
         end
     end
 
     @testset "monotonicity_bounder" begin
-        with_default_space(JetSpace(6, ["σ"])) do sp
+        let sp = JetSpace(6, ["σ"])
             σ = variables(sp; order = 3)[1]
             B = symmetric_box(1); zB = zero(B)
             # linear-dominated 1D: exact range [p(-1), p(1)] + Δ
@@ -541,7 +456,7 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
             @test issubset_interval(r2, evaluate(tm2, B))
         end
         # 2D soundness on random polynomials (BigFloat samples)
-        with_default_space(JetSpace(8, ["σ₁", "σ₂"])) do sp
+        let sp = JetSpace(8, ["σ₁", "σ₂"])
             X = variables(sp; order = 4)
             rng = MersenneTwister(7)
             ok = true
@@ -562,7 +477,7 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
     end
 
     @testset "qrprecondition!" begin
-        with_default_space(JetSpace(8, ["σ₁", "σ₂"])) do sp
+        let sp = JetSpace(8, ["σ₁", "σ₂"])
             X = variables(sp; order = 4)
             tmpl = 0.0 * X[1]
             cases = [

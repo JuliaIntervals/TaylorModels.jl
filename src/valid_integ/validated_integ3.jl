@@ -37,7 +37,7 @@ end
 
 
 # Tunable parameters of the Picard remainder iteration
-# Params calibrated by
+# Params calibrated by benchmarking
 const _GUESS_FACTOR = Ref(1.1)   # margin of the first guess
 const _GUESS_POWER  = Ref(0)     # exponent of the step-size ratio in the first guess
 const _POLISH_TOL   = Ref(0.5)   # polish while diam(image) < tol * diam(candidate)
