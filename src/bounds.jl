@@ -376,7 +376,8 @@ function quadratic_fast_bounder(fT::TaylorModelN)
         P1 = -P[1].coeffs
         xn = H \ P1
         x = variables(space(fT); order=TS.order(fT))
-        Qxn = 0.5 * (x - xn)' * H * (x - xn)
+        d = x - xn
+        Qxn = 0.5 * sum(H[i, j] * (d[i] * d[j]) for j in eachindex(d), i in eachindex(d))
         bound_qfb = (P - Qxn)(dom - x0)
         hi = sup(P(dom - x0))
         bound_qfb = interval(inf(bound_qfb), hi) + remainder(fT)
