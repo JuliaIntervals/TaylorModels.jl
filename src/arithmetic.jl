@@ -765,6 +765,109 @@ function remainder_square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
 end
 
 
+# Neglected part of the TaylorModelN products and squares, for T = Interval{S}.
+#
+# The generic methods (kept, used for T = S) compute the polynomial product up to degree
+# a_order + b_order (homogeneous products a_i * b_{k-i}) and bound the degrees k above the
+# order of the result. Here, the neglected degrees k = order+1, …, order+_TMN_TAIL_EXACT[]
+# are computed in that way, and the higher ones are bounded by products of the ranges of
+# the homogeneous pieces over the box, Σ_{i+j=k} [a_i][b_j] (no polynomial products, but
+# the correlation between the monomials is lost, so the bound is wider). All values give
+# rigorous enclosures: typemax is the generic behaviour; 0 uses only ranges.
+# Default 1: the remainders agree with the generic ones to ~1e-5 (relative) and the Picard
+# pass is ~20% faster; with 0 the pass is ~35% faster, but the remainders are ~1.5x larger
+# and the tightness tests of `validated_integ3` (x_cube, Christian's test, limit cycle) fail.
+const _TMN_TAIL_EXACT = Ref(1)
+
+_hom_ranges(a::TaylorModelN{N,Interval{S},S}, aux) where {N,S} =
+    Interval{S}[a.pol[i](aux) for i in 0:TS.order(a.pol)]
+
+# Products and squares of TaylorModelN{Interval}: if `_TMN_MIDRAD[]`, the polynomial part and the
+# tail products use the explicit midpoint-radius kernel of TaylorSeriesIAExt (`TS.mul_midrad`,
+# `TS.mul_midrad!`); else the generic interval arithmetic (default). The enclosures are
+# rigorous in both cases.
+const _TMN_MIDRAD = Ref(false)
+
+# c += x * y of homogeneous polynomials (tail products), with the explicit midpoint-radius
+# kernel if `_TMN_MIDRAD[]`
+@inline _hp_muladd!(c, x, y) = _TMN_MIDRAD[] ? TS.mul_midrad!(c, x, y) : TS.mul!(c, x, y)
+
+function remainder_product(a::TaylorModelN{N,Interval{S},S},
+        b::TaylorModelN{N,Interval{S},S}, _order::Int) where {N,S}
+    a_order = TS.order(a.pol)
+    b_order = TS.order(b.pol)
+    aux = centered_dom(a)
+    z = zero(Interval{S})
+    nexact = _TMN_TAIL_EXACT[]
+    # Remainder of the neglected terms
+    Δnegl = z
+    # Ranges of the homogeneous pieces; they are also used to enclose a.pol and b.pol
+    use_ranges = _order + 1 <= a_order + b_order && nexact < a_order + b_order - _order
+    ra = use_ranges ? _hom_ranges(a, aux) : Interval{S}[]
+    rb = use_ranges ? _hom_ranges(b, aux) : Interval{S}[]
+    if _order + 1 <= a_order + b_order
+        for k in _order+1:a_order+b_order
+            if k - _order <= nexact
+                tmp = HomogeneousPolynomial(space(a), z, k)
+                @inbounds for i in max(0, k-b_order):min(k, a_order)
+                    _hp_muladd!(tmp, a.pol[i], b.pol[k-i])
+                end
+                Δnegl += tmp(aux)
+            else
+                c = z
+                @inbounds for i in max(0, k-b_order):min(k, a_order)
+                    c += ra[i+1] * rb[k-i+1]
+                end
+                Δnegl += c
+            end
+        end
+    end
+    # Remainder of product
+    Δa = use_ranges ? sum(ra) : a.pol(aux)
+    Δb = use_ranges ? sum(rb) : b.pol(aux)
+    a_rem = remainder(a)
+    b_rem = remainder(b)
+    Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ2, Δ))
+end
+
+function remainder_square(a::TaylorModelN{N,Interval{S},S}, _order::Int) where {N,S}
+    a_order = TS.order(a.pol)
+    aux = centered_dom(a)
+    z = zero(Interval{S})
+    nexact = _TMN_TAIL_EXACT[]
+    Δnegl = z
+    use_ranges = _order + 1 <= 2*a_order && nexact < 2*a_order - _order
+    ra = use_ranges ? _hom_ranges(a, aux) : Interval{S}[]
+    if _order + 1 <= 2*a_order
+        for k in _order+1:2*a_order
+            if k - _order <= nexact
+                tmp = HomogeneousPolynomial(space(a), z, k)
+                @inbounds for i in max(0, k-a_order):min(k, a_order)
+                    _hp_muladd!(tmp, a.pol[i], a.pol[k-i])
+                end
+                Δnegl += tmp(aux)
+            else
+                c = z
+                @inbounds for i in max(0, k-a_order):((k-1) >> 1)    # i < k-i
+                    c += ra[i+1] * ra[k-i+1]
+                end
+                c = interval(S, 2) * c
+                iseven(k) && (@inbounds c += ra[(k >> 1)+1]^2)
+                Δnegl += c
+            end
+        end
+    end
+    Δa = use_ranges ? sum(ra) : a.pol(aux)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + Base.literal_pow(^, a_rem, Val(2))
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+
+
 # Operations involving TaylorModel1{TaylorModelN}
 for f in (:+, :-)
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S},S},
