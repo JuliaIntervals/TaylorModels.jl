@@ -792,6 +792,21 @@ const _TMN_MIDRAD = Ref(false)
 # kernel if `_TMN_MIDRAD[]`
 @inline _hp_muladd!(c, x, y) = _TMN_MIDRAD[] ? TS.mul_midrad!(c, x, y) : TS.mul!(c, x, y)
 
+function TS.square(a::TaylorModelN{N,Interval{S},S}) where {N,S}
+    @assert 2*TS.order(a) ≤ TS.order(space(a))
+    res = _TMN_MIDRAD[] ? TS.mul_midrad(a.pol, a.pol) : TS.square(a.pol)
+    Δ = remainder_square(a, TS.order(res))
+    return unsafe_TaylorModelN(res, Δ, expansion_point(a), domain(a))
+end
+
+function *(a::TaylorModelN{N,Interval{S},S}, b::TaylorModelN{N,Interval{S},S}) where {N,S}
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
+    @assert TS.order(a)+TS.order(b) ≤ TS.order(space(a))
+    res = _TMN_MIDRAD[] ? TS.mul_midrad(a.pol, b.pol) : a.pol * b.pol
+    Δ = remainder_product(a, b, TS.order(res))
+    return unsafe_TaylorModelN(res, Δ, expansion_point(a), domain(a))
+end
+
 function remainder_product(a::TaylorModelN{N,Interval{S},S},
         b::TaylorModelN{N,Interval{S},S}, _order::Int) where {N,S}
     a_order = TS.order(a.pol)
