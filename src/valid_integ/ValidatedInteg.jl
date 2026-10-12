@@ -14,8 +14,9 @@ using StaticArrays
 import TaylorSeries: space
 export TMSol, TMSol3, flowpipe, get_xTM
 export shrink_wrapping!, absorb_remainder
+export qrprecondition, reconstruct_rho
 export validated_integ, validated_integ2, validated_integ3
-export iscontractive, picard_lindelof, picard_lindelof!
+export iscontractive, picard_lindelof
 export mince_in_time
 
 const TI = TaylorIntegration
@@ -25,6 +26,7 @@ const IANumTypes = IA.NumTypes
 include("cache.jl")
 include("TMSol.jl")
 include("integ_utils.jl")
+include("qrprecondition.jl")
 include("validated_integ.jl")
 include("validated_integ2.jl")
 include("validated_integ3.jl")

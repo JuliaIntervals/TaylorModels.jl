@@ -492,13 +492,13 @@ function truncate_taylormodel(a::RTaylorModel1, m::Integer)
 end
 
 
-# Same as above, for TaylorModelN
-zero(a::TaylorModelN) = unsafe_TaylorModelN(
-    TaylorN(space(a), zero(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
-        zero(remainder(a)), expansion_point(a), domain(a))
-one(a::TaylorModelN) = unsafe_TaylorModelN(
-    TaylorN(space(a), one(a.pol.coeffs[1].coeffs[1]), TS.order(a.pol)),
-        zero(remainder(a)), expansion_point(a), domain(a))
+zero(a::TaylorModelN) = unsafe_TaylorModelN(zero(a.pol), zero(remainder(a)),
+      expansion_point(a), domain(a))
+function one(a::TaylorModelN)
+    z = zero(a)
+    z.pol.coeffs[1].coeffs[1] = one(z.pol.coeffs[1].coeffs[1])
+    return z
+end
 # zero(a::Taylor1{TaylorModelN{N,T,S}}) where {N,T,S} = Taylor1(zero(a[0]), TS.order(a))
 
 # iszero(a::TaylorModelN) = iszero(a.pol) && iszero(zero(remainder(a)))
@@ -602,6 +602,11 @@ end
 
 # Division by numbers
 /(a::TaylorModelN, b::T) where {T<:Number} = a * inv(b)
+# Real divisor: divide coefficients and remainder directly (no rounded `inv(b)`).
+# With T = Interval{S} the coefficients of the result enclose the exact quotient by
+# `b`; with T = S they are rounded, as in every T = S operation.
+/(a::TaylorModelN{N,T,S}, b::Real) where {N,T,S} =
+    unsafe_TaylorModelN(a.pol / b, remainder(a) / b, expansion_point(a), domain(a))
 /(b::T, a::TaylorModelN) where {T<:NumberNotSeries} = b * inv(a)
 
 
@@ -676,39 +681,262 @@ function Base.power_by_squaring(x::TaylorModelN, p::Integer)
     return y
 end
 
+# Range-based τ-tail for TaylorModel1{TaylorModelN{N,Interval{S},S},S}.
+#
+# The methods below are more specific than the generic ones for
+# TaylorModel1{TaylorModelN{N,T,S},S} above, which are kept unchanged (and still used for
+# T = S); they are selected by dispatch when the coefficients are intervals (as in the
+# Picard operator of `validated_integ3`).
+#
+# The generic methods bound the neglected part (powers τ^k, k > order) by computing all
+# the TaylorModelN products a_i * b_{k-i}, i.e. O(order²) products of TaylorModelN, and then
+# evaluating them. Here each coefficient is first enclosed by its range over the σ-box,
+# [a_i] = a_i(σ-box) (the remainder of the TaylorModelN included), and the tail is
+#     Σ_{k>order} (Σ_{i+j=k} [a_i][b_j]) τ^k ,   τ ∈ centered_dom(a),
+# by scalar interval arithmetic. It is a (rigorous) enclosure of the same set; it is
+# wider only through the dependency between coefficients, and the tail is small.
+# Only the tail changes: the polynomial parts and the remainders of the products
+# (Δa, Δb, cross terms) are computed as in the generic methods.
+
+# Ranges of the TaylorModelN coefficients of `a` over the σ-box `boxN`
+_coeff_ranges(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, boxN) where {N,S} =
+    Interval{S}[a.pol[i](boxN) for i in 0:TS.order(a.pol)]
+
+# Σ_{k>_order} (Σ_{i+j=k} ra[i] rb[j]) aux^k
+function _tail_range(ra::Vector{Interval{S}}, rb::Vector{Interval{S}}, _order::Int,
+        aux::Interval{S}) where {S}
+    a_order = length(ra) - 1
+    b_order = length(rb) - 1
+    Δ = zero(aux)
+    for k in _order+1:a_order+b_order
+        c = zero(aux)
+        @inbounds for i in max(0, k-b_order):min(k, a_order)
+            c += ra[i+1] * rb[k-i+1]
+        end
+        Δ += c * aux^k
+    end
+    return Δ
+end
+
+# Same for the square: uses ra[i]*ra[j] twice and ra[k/2]^2 (tighter than a product)
+function _tail_range_square(ra::Vector{Interval{S}}, _order::Int,
+        aux::Interval{S}) where {S}
+    a_order = length(ra) - 1
+    Δ = zero(aux)
+    for k in _order+1:2*a_order
+        c = zero(aux)
+        @inbounds for i in max(0, k-a_order):((k-1) >> 1)    # i < k-i
+            c += ra[i+1] * ra[k-i+1]
+        end
+        c = interval(S, 2) * c
+        iseven(k) && (@inbounds c += ra[(k >> 1)+1]^2)
+        Δ += c * aux^k
+    end
+    return Δ
+end
+
+# `ra`, `rb`: ranges of the TaylorModelN coefficients of `a`, `b` over the σ-box (polynomial part and
+# remainder), as `_coeff_ranges`; the joint accumulation (`_cauchy_joint`) has them already
+function remainder_product(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int,
+        ra::Vector{Interval{S}}, rb::Vector{Interval{S}}) where {N,S}
+    aux = centered_dom(a)
+    auxN = centered_dom(a[0])
+    # Remainder of the neglected terms (range-based)
+    Δnegl = _tail_range(ra, rb, _order, aux)
+    # Ranges over the centered domains
+    Δa = _range_horner(a.pol, aux, auxN)
+    Δb = _range_horner(b.pol, aux, auxN)
+    a_rem = remainder(a)
+    b_rem = remainder(b)
+    Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ2, Δ))
+end
+
+function remainder_product(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        b::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int) where {N,S}
+    auxN = centered_dom(a[0])
+    return remainder_product(a, b, _order, _coeff_ranges(a, auxN), _coeff_ranges(b, auxN))
+end
+
+function remainder_square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S},
+        _order::Int, ra::Vector{Interval{S}}) where {N,S}
+    aux = centered_dom(a)
+    auxN = centered_dom(a[0])
+    Δnegl = _tail_range_square(ra, _order, aux)
+    Δa = _range_horner(a.pol, aux, auxN)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + Base.literal_pow(^, a_rem, Val(2))
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+
+remainder_square(a::TaylorModel1{TaylorModelN{N,Interval{S},S},S}, _order::Int) where {N,S} =
+    remainder_square(a, _order, _coeff_ranges(a, centered_dom(a[0])))
+
+
+# Neglected part of the TaylorModelN products and squares, for T = Interval{S}.
+#
+# The generic methods (kept, used for T = S) compute the polynomial product up to degree
+# a_order + b_order (homogeneous products a_i * b_{k-i}) and bound the degrees k above the
+# order of the result. Here, the neglected degrees k = order+1, …, order+_TMN_TAIL_EXACT[]
+# are computed in that way, and the higher ones are bounded by products of the ranges of
+# the homogeneous pieces over the box, Σ_{i+j=k} [a_i][b_j] (no polynomial products, but
+# the correlation between the monomials is lost, so the bound is wider). All values give
+# rigorous enclosures: typemax is the generic behaviour; 0 uses only ranges.
+# Default 1: the remainders agree with the generic ones to ~1e-5 (relative) and the Picard
+# pass is ~20% faster; with 0 the pass is ~35% faster, but the remainders are ~1.5x larger
+# and the tightness tests of `validated_integ3` (x_cube, Christian's test, limit cycle) fail.
+const _TMN_TAIL_EXACT = Ref(1)
+
+_hom_ranges(a::TaylorModelN{N,Interval{S},S}, aux) where {N,S} =
+    Interval{S}[a.pol[i](aux) for i in 0:TS.order(a.pol)]
+
+# Products and squares of TaylorModelN{Interval}: if `_TMN_MIDRAD[]`, the polynomial part and the
+# tail products use the explicit midpoint-radius kernel of TaylorSeriesIAExt (`TS.mul_midrad`,
+# `TS.mul_midrad!`); else the generic interval arithmetic (default). The enclosures are
+# rigorous in both cases.
+const _TMN_MIDRAD = Ref(false)
+
+# c += x * y of homogeneous polynomials (tail products), with the explicit midpoint-radius
+# kernel if `_TMN_MIDRAD[]`
+@inline _hp_muladd!(c, x, y) = _TMN_MIDRAD[] ? TS.mul_midrad!(c, x, y) : TS.mul!(c, x, y)
+
+function TS.square(a::TaylorModelN{N,Interval{S},S}) where {N,S}
+    @assert 2*TS.order(a) ≤ TS.order(space(a))
+    res = _TMN_MIDRAD[] ? TS.mul_midrad(a.pol, a.pol) : TS.square(a.pol)
+    Δ = remainder_square(a, TS.order(res))
+    return unsafe_TaylorModelN(res, Δ, expansion_point(a), domain(a))
+end
+
+function *(a::TaylorModelN{N,Interval{S},S}, b::TaylorModelN{N,Interval{S},S}) where {N,S}
+    @assert all(isequal_interval.(tmdata(a), tmdata(b)))
+    @assert TS.order(a)+TS.order(b) ≤ TS.order(space(a))
+    res = _TMN_MIDRAD[] ? TS.mul_midrad(a.pol, b.pol) : a.pol * b.pol
+    Δ = remainder_product(a, b, TS.order(res))
+    return unsafe_TaylorModelN(res, Δ, expansion_point(a), domain(a))
+end
+
+function remainder_product(a::TaylorModelN{N,Interval{S},S},
+        b::TaylorModelN{N,Interval{S},S}, _order::Int) where {N,S}
+    a_order = TS.order(a.pol)
+    b_order = TS.order(b.pol)
+    aux = centered_dom(a)
+    z = zero(Interval{S})
+    nexact = _TMN_TAIL_EXACT[]
+    # Remainder of the neglected terms
+    Δnegl = z
+    # Ranges of the homogeneous pieces; they are also used to enclose a.pol and b.pol
+    use_ranges = _order + 1 <= a_order + b_order && nexact < a_order + b_order - _order
+    ra = use_ranges ? _hom_ranges(a, aux) : Interval{S}[]
+    rb = use_ranges ? _hom_ranges(b, aux) : Interval{S}[]
+    if _order + 1 <= a_order + b_order
+        for k in _order+1:a_order+b_order
+            if k - _order <= nexact
+                tmp = HomogeneousPolynomial(space(a), z, k)
+                @inbounds for i in max(0, k-b_order):min(k, a_order)
+                    _hp_muladd!(tmp, a.pol[i], b.pol[k-i])
+                end
+                Δnegl += tmp(aux)
+            else
+                c = z
+                @inbounds for i in max(0, k-b_order):min(k, a_order)
+                    c += ra[i+1] * rb[k-i+1]
+                end
+                Δnegl += c
+            end
+        end
+    end
+    # Remainder of product
+    Δa = use_ranges ? sum(ra) : a.pol(aux)
+    Δb = use_ranges ? sum(rb) : b.pol(aux)
+    a_rem = remainder(a)
+    b_rem = remainder(b)
+    Δ = Δnegl + Δb * a_rem + Δa * b_rem + a_rem * b_rem
+    Δ1 = Δnegl + Δb * a_rem + (Δa + a_rem) * b_rem
+    Δ2 = Δnegl + Δa * b_rem + (Δb + b_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ2, Δ))
+end
+
+function remainder_square(a::TaylorModelN{N,Interval{S},S}, _order::Int) where {N,S}
+    a_order = TS.order(a.pol)
+    aux = centered_dom(a)
+    z = zero(Interval{S})
+    nexact = _TMN_TAIL_EXACT[]
+    Δnegl = z
+    use_ranges = _order + 1 <= 2*a_order && nexact < 2*a_order - _order
+    ra = use_ranges ? _hom_ranges(a, aux) : Interval{S}[]
+    if _order + 1 <= 2*a_order
+        for k in _order+1:2*a_order
+            if k - _order <= nexact
+                tmp = HomogeneousPolynomial(space(a), z, k)
+                @inbounds for i in max(0, k-a_order):min(k, a_order)
+                    _hp_muladd!(tmp, a.pol[i], a.pol[k-i])
+                end
+                Δnegl += tmp(aux)
+            else
+                c = z
+                @inbounds for i in max(0, k-a_order):((k-1) >> 1)    # i < k-i
+                    c += ra[i+1] * ra[k-i+1]
+                end
+                c = interval(S, 2) * c
+                iseven(k) && (@inbounds c += ra[(k >> 1)+1]^2)
+                Δnegl += c
+            end
+        end
+    end
+    Δa = use_ranges ? sum(ra) : a.pol(aux)
+    a_rem = remainder(a)
+    Δ = Δnegl + interval(2) * Δa * a_rem + Base.literal_pow(^, a_rem, Val(2))
+    Δ1 = Δnegl + (interval(2) * Δa + a_rem) * a_rem
+    return _intersect_reminders((Δ1, Δ))
+end
+
+
 # Operations involving TaylorModel1{TaylorModelN}
 for f in (:+, :-)
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S},S},
             b::TaylorModel1{TaylorModelN{N,R1,S1},S1}) where {N,R,S,R1,S1}
         a, b = fixorder(a,b)
-        c = Taylor1(zero(a[0])+zero(b[0]), TS.order(a))
-        for i in eachindex(a)
-            c[i] = ($f)(a[i], b[i])
+        # the coefficients are built directly (no zero temporaries, nor `Taylor1(x, order)`)
+        c0 = ($f)(a[0], b[0])
+        cs = TS.FixedSizeVectorDefault{typeof(c0)}(undef, TS.order(a) + 1)
+        cs[1] = c0
+        @inbounds for i in 1:TS.order(a)
+            cs[i+1] = ($f)(a[i], b[i])
         end
-        return unsafe_TaylorModel1(c, ($f)(remainder(a), remainder(b)),
+        return unsafe_TaylorModel1(Taylor1{typeof(c0)}(cs), ($f)(remainder(a), remainder(b)),
             expansion_point(a), domain(a))
     end
+    # The number only affects the τ⁰ coefficient (it used to be applied to all of them)
     @eval function ($f)(b::T, a::TaylorModel1{TaylorModelN{N,R,S}}) where
             {N,R,S,T<:NumberNotSeries}
         c = Taylor1(zero(($f)(b, a[0])), TS.order(a))
-        for i in eachindex(a)
-            c[i] = ($f)(b, a[i])
+        c[0] = ($f)(b, a[0])
+        for i in 1:TS.order(a)
+            c[i] = ($f)(zero(a[i]), a[i])        # ±a[i], a new object
         end
         return unsafe_TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
     end
     @eval function ($f)(a::TaylorModel1{TaylorModelN{N,R,S}}, b::T) where
             {N,R,S,T<:NumberNotSeries}
         c = Taylor1(zero(($f)(a[0], b)), TS.order(a))
-        for i in eachindex(a)
-            c[i] = ($f)(a[i], b)
+        c[0] = ($f)(a[0], b)
+        for i in 1:TS.order(a)
+            c[i] = ($f)(a[i], zero(a[i]))        # a[i], a new object
         end
-        return TaylorModel1(c, ($f)(remainder(a)), expansion_point(a), domain(a))
+        # a ± b keeps the remainder of `a` (it was ±remainder(a): wrong sign for `-`)
+        return unsafe_TaylorModel1(c, remainder(a), expansion_point(a), domain(a))
     end
 end
 
 function *(a::TaylorModel1{TaylorModelN{N,T,S},S}, b::TaylorModelN{N,T,S}) where {N,T,S}
     res = polynomial(a)*b
-    return unsafe_TaylorModel1(res, remainder(a), expansion_point(a), domain(a))
+    # (p + Δ)·b = p·b + Δ·b, with b ∈ b(σ-box) (remainder of b included)
+    Δ = remainder(a) * evaluate(b, centered_dom(b))
+    return unsafe_TaylorModel1(res, Δ, expansion_point(a), domain(a))
 end
 *(b::TaylorModelN{N,T,S}, a::TaylorModel1{TaylorModelN{N,T,S},S}) where {N,T,S} = a * b
 

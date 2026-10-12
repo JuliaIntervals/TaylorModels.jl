@@ -71,16 +71,24 @@ function integrate(a::TaylorModel1{TaylorModelN{N,T,S},S},
 end
 function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
         a::TaylorModel1{TaylorModelN{N,T,S},S}, δI) where {N,T,S}
-    integ_pol = integrate(a.pol)
     res.rem = bound_integration(a, centered_dom(a), δI)
-    for ordT in eachindex(res.pol.coeffs)
-        for ordQ in eachindex(res.pol.coeffs[ordT].pol.coeffs)
-            for h in eachindex(res.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
-                res.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
-                    integ_pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
+    # Avoid allocations
+    res0 = res.pol.coeffs[1]
+    for ordQ in eachindex(res0.pol.coeffs)
+        for h in eachindex(res0.pol.coeffs[ordQ].coeffs)
+            res0.pol.coeffs[ordQ].coeffs[h] = zero(T)
+        end
+    end
+    res0.rem = zero(remainder(a))
+    for k in 1:TS.order(a.pol)
+        src, dst = a.pol.coeffs[k], res.pol.coeffs[k+1]
+        @inbounds for ordQ in eachindex(dst.pol.coeffs)
+            cs, cd = src.pol.coeffs[ordQ].coeffs, dst.pol.coeffs[ordQ].coeffs
+            for h in eachindex(cd)
+                cd[h] = cs[h] / k
             end
         end
-        res.pol.coeffs[ordT].rem = integ_pol.coeffs[ordT].rem
+        dst.rem = remainder(src) / k
     end
     return nothing
 end
@@ -88,13 +96,14 @@ function integrate!(res::TaylorModel1{TaylorModelN{N,T,S},S},
         a::TaylorModel1{TaylorModelN{N,T,S},S},
         c0::TaylorModelN{N,T,S}, δI) where {N,T,S}
     integrate!(res, a, δI)
-    # Update integration constant constant term
+    # Update integration constant constant term (polynomial and remainder)
     for ordQ in eachindex(res.pol.coeffs[1].pol.coeffs)
         for h in eachindex(res.pol.coeffs[1].pol.coeffs[ordQ].coeffs)
             res.pol.coeffs[1].pol.coeffs[ordQ].coeffs[h] =
                 c0.pol.coeffs[ordQ].coeffs[h]
         end
     end
+    res.pol.coeffs[1].rem = c0.rem
     return nothing
 end
 

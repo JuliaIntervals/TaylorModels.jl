@@ -107,8 +107,11 @@ function init_cache_VI(t0::T, xTM::Array{TaylorModel1{TaylorN{U},U},1},
 end
 
 struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
+    # Ouput stuff
     tv::Vector{T}
     xv::Vector{Vector{Interval{U}}}
+    xTM1v::Matrix{TaylorModel1{TaylorModelN{N,T,U},U}}
+    # Internals related to the integration
     xaux::Vector{Taylor1{TaylorN{T}}}
     t::Taylor1{T}
     x::Vector{Taylor1{TaylorN{T}}}
@@ -119,14 +122,25 @@ struct VectorCacheVI3{N,T,U} <: TI.AbstractVectorCache
     dx1N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
     x2N::Vector{TaylorModel1{TaylorModelN{N,T,U},U}}
     z1N::TaylorModel1{TaylorModelN{N,T,U}}
+    t1NI::TaylorModel1{TaylorModelN{N,Interval{U},U},U}
+    x1NI::Vector{TaylorModel1{TaylorModelN{N,Interval{U},U},U}}
+    dx1NI::Vector{TaylorModel1{TaylorModelN{N,Interval{U},U},U}}
+    x2NI::Vector{TaylorModel1{TaylorModelN{N,Interval{U},U},U}}
+    z1NI::TaylorModel1{TaylorModelN{N,Interval{U},U},U}
     vTN::Vector{TaylorN{T}}
-    vTMN::Vector{TaylorModelN{N,T,U}}
-    auxN::TaylorN{T}
-    xTM1v::Matrix{TaylorModel1{TaylorModelN{N,T,U},U}}
+    auxI::TaylorN{Interval{U}}
     x0New::Vector{Interval{U}}
     rem1::Vector{Interval{U}}
     rem2::Vector{Interval{U}}
     rem0::Vector{Interval{U}}
+    # Preconditioning stuff
+    vTMN::Vector{TaylorModelN{N,T,U}}
+    leftTMN::Vector{TaylorModelN{N,T,U}}
+    rightTMN::Vector{TaylorModelN{N,T,U}}
+    remsQR::Vector{Interval{U}}
+    linTN::Matrix{T}
+    scaleV::Vector{T}
+    # Param for the integration
     parse_eqs::Bool
 end
 
@@ -142,21 +156,15 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
         maxsteps::Int, orderT::Int, orderQ::Int,
         localsp::JetSpace, params = nothing;
         parse_eqs::Bool = true) where {N,U,T,F}
-    # N = length(x0)
+    # Internal vars for assignements
     @assert N == length(x0) == get_numvars(localsp)
     zI = zero(Interval{U})
     symIbox = symmetric_box(N, U)
     zbox = zero(symIbox)
     vTN = Array{TaylorN{U}}(undef, N)
-
     # Initialize the vector of Taylor1{TaylorN{U}} expansions explicitly
-    # @inbounds for ind in eachindex(vTN)
-    #     vTN[ind] = mid(x0[ind]) + TaylorN(localsp, ind, order=orderQ) * radius(x0[ind])
-    # end
     vTN .= mid.(x0) .+ variables(localsp; order=orderQ) .* radius.(x0)
     t, x, dx = TI.init_expansions(t0, vTN, orderT)
-    auxN = zero(vTN[1])
-
     # Determine if specialized jetcoeffs! method exists/works
     parse_eqsX, rv = TI._determine_parsing!(parse_eqs, f!, t, x, dx, params)
     if parse_eqsX
@@ -168,7 +176,18 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     uN = TM.unsafe_TaylorModelN( one(x[1][0]), zI, zbox, symIbox)
     t1N = TM.unsafe_TaylorModel1(Taylor1([zN, uN], orderT), zI, 0.0, zI)
     z1N = zero(t1N)
-
+    t1N.pol.coeffs[1].pol.coeffs[1].coeffs[1] = t0   # t1N = t0 + τ
+    # Interval workspaces for the Picard operator
+    zNI = TM.unsafe_TaylorModelN(interval(zero(U)) * zero(x[1][0]), zI, zbox, symIbox)
+    uNI = TM.unsafe_TaylorModelN(interval(one(U)) * one(x[1][0]), zI, zbox, symIbox)
+    t1NI = TM.unsafe_TaylorModel1(Taylor1([zNI, uNI], orderT), zI, 0.0, zI)
+    z1NI = zero(t1NI)
+    t1NI.pol.coeffs[1].pol.coeffs[1].coeffs[1] = interval(t0)
+    TTI = TaylorModel1{TaylorModelN{N,Interval{U},U}, U}
+    x1NI = Array{TTI}(undef, N)
+    dx1NI = Array{TTI}(undef, N)
+    x2NI = Array{TTI}(undef, N)
+    # and initializations
     TT = TaylorModel1{TaylorModelN{N,T,U}, U}
     x1N = Array{TT}(undef, N)
     dx1N = Array{TT}(undef, N)
@@ -179,6 +198,9 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
     rem1 = Array{Interval{T}}(undef, N)
     rem2 = Array{Interval{T}}(undef, N)
     rem0 = Array{Interval{T}}(undef, N)
+    leftTMN  = Vector{TaylorModelN{N,T,U}}(undef, N)
+    rightTMN = Vector{TaylorModelN{N,T,U}}(undef, N)
+    remsQR   = Array{Interval{U}}(undef, N)
     for i in eachindex(x1N)
         dx1N[i] = deepcopy(z1N)
         x2N[i]  = deepcopy(z1N)
@@ -189,6 +211,11 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
         # x1N[i] = TaylorModel1(deepcopy(x[i]), zI, 0.0, zI)
         # xTM1v[i, 1] = deepcopy(x1N[i])
         x1N[i] = deepcopy(z1N)
+        x1NI[i] = deepcopy(z1NI)
+        dx1NI[i] = deepcopy(z1NI)
+        x2NI[i] = deepcopy(z1NI)
+        # Only the first slot is allocated here to avoid deepcopy or other problems;
+        # the others are allocated lazily in the integration loop (with deepcopy)
         xTM1v[i, 1] = deepcopy(z1N)
         for it in eachindex(x[i].coeffs)
             for iq in eachindex(x[i].coeffs[it].coeffs)
@@ -201,16 +228,27 @@ function init_cache_VI3(f!::F, t0::T, x0::SVector{N,Interval{U}},
             end
         end
         vTMN[i] = evaluate(polynomial(x1N[i]), 0.0)
+        leftTMN[i] = zero(vTMN[i])
+        rightTMN[i] = zero(vTMN[i])
+        remsQR[i] = zI
     end
+    linTN = zeros(T, N, N)
+    scaleV = zeros(T, N)
+    auxI = TM._aux_horner(vTMN[1])
 
     # Initialize cache
     return VectorCacheVI3{N,T,U}(
             Array{T}(undef, maxsteps + 1), #tv
             Vector{Vector{Interval{U}}}(undef, maxsteps + 1), #xv
+            xTM1v,
             Array{Taylor1{TaylorN{U}}}(undef, N), #xaux
             t, x, dx, rv,
-            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
-            xTM1v, x0New, rem1, rem2, rem0, parse_eqsX)
+            t1N, x1N, dx1N, x2N, z1N,
+            t1NI, x1NI, dx1NI, x2NI, z1NI,
+            vTN, auxI,
+            x0New, rem1, rem2, rem0,
+            vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
+            parse_eqsX)
 end
 
 function init_cache_VI3(f!::F, t0::T,

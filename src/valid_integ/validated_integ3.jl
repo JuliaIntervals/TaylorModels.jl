@@ -5,7 +5,7 @@ const _DEF_MINABSTOL = 1.0e-50
 
 """
     picard_lindelof(f!, dxTM1TMN::Vector{TaylorModel1{T,S}},
-        xTM1TMN::Vector{TaylorModel1{T,S}}, params, t)
+        xTM1TMN::Vector{TaylorModel1{T,S}}, t, params)
 
 Compute the Picard-Lindelof operator to validate a solution
 of a differential equation.
@@ -15,10 +15,9 @@ function picard_lindelof(f!,
         x1N ::Vector{TaylorModel1{TaylorModelN{N,T,S},S}},
         t1N ::TaylorModel1{TaylorModelN{N,T,S},S},
         params) where {N,T,S}
-    x2N = Vector{TaylorModel1{TaylorModelN{N,T,S},S}}
-    z = zero(x1N[1])
-    x2N .= z
-    picard_lindelof!(f!, x2N, dx1N, x1N, params, t1N)
+    x2N = Vector{TaylorModel1{TaylorModelN{N,T,S},S}}(undef, length(x1N))
+    x2N .= zero.(x1N[1])
+    picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
     return x2N
 end
 
@@ -31,11 +30,124 @@ function picard_lindelof!(f!,
     dom = domain(x1N[1][0])
     f!(dx1N, x1N, params, t1N)
     @inbounds for ind in eachindex(x1N)
-        TaylorModels.integrate!(x2N[ind], dx1N[ind], x1N[ind].pol[0], dom)
+        TM.integrate!(x2N[ind], dx1N[ind], x1N[ind].pol[0], dom)
     end
     return nothing
 end
 
+
+# Tunable parameters of the Picard remainder iteration
+# Params calibrated by benchmarking
+const _GUESS_FACTOR = Ref(1.1)   # margin of the first guess
+const _GUESS_POWER  = Ref(0)     # exponent of the step-size ratio in the first guess
+const _POLISH_TOL   = Ref(0.5)   # polish while diam(image) < tol * diam(candidate)
+const _NPOLISH      = Ref(3)     # maximum number of polishing passes
+
+"""
+    _guess_rem(r, δt, δt_prev)
+
+First guess of the Picard remainder of a step of size `δt`, from the accepted
+remainder `r` of the previous step (size `δt_prev`):
+`_GUESS_FACTOR * (δt/δt_prev)^_GUESS_POWER * r`; zero for the first step
+(`δt_prev == 0`). It is only a guess: the validation is done afterwards.
+"""
+function _guess_rem(r::Interval{T}, δt::T, δt_prev::T) where {T}
+    iszero(δt_prev) && return zero(r)
+    return T(_GUESS_FACTOR[] * (abs(δt) / abs(δt_prev))^_GUESS_POWER[]) * r
+end
+
+
+"""
+    _picard_pass!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI, rem1, rem2, params)
+
+One interval Picard pass from the candidate remainders `rem1` (the candidate
+is `p₁ + rem1`, `p₁` the polynomial in `x1N`); the image remainders (including the
+rounding `R(p₂ - p₁)`) are stored in `rem2`.
+"""
+function _picard_pass!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI, rem1, rem2, params)
+    for i in eachindex(x1NI)
+        x1NI[i].rem = rem1[i]
+    end
+    picard_lindelof!(f!, x2N, dx1N, x1NI, t1N, params)
+    for i in eachindex(x2N)
+        rem2[i] = total_remainder(x2N[i]) + _poldiff_bound(x2N[i], x1N[i], auxI)
+    end
+    return nothing
+end
+
+
+"""
+    _polish_rem!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI, rem1, rem2, rem3, params)
+
+On entry `rem2 ⊆ rem1` (a validated step) and `x1N[i].rem == rem2[i]`. If the
+candidate was loose (`diam(rem2) < _POLISH_TOL * diam(rem1)` in some component),
+repeat the pass with `rem2` as the candidate, at most `_NPOLISH[]` times; a pass
+that is not self-mapping is discarded (the previous, valid, `rem2` is kept). The
+accepted remainder is the *image*, so it depends on the candidate only through
+the contraction factor: a loose guess would otherwise widen the result.
+"""
+function _polish_rem!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI, rem1, rem2, rem3, params)
+    for _ in 1:_NPOLISH[]
+        any(diam(rem2[i]) < _POLISH_TOL[] * diam(rem1[i]) for i in eachindex(rem1)) ||
+            break
+        rem1 .= rem2
+        _picard_pass!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI, rem1, rem3, params)
+        iscontractive(rem3, rem1) || break
+        rem2 .= rem3
+        for i in eachindex(x1N)
+            x1N[i].rem = rem2[i]
+        end
+    end
+    return nothing
+end
+
+
+"""
+    _poldiff_bound(a, b, aux) -> Interval
+
+Rigorous enclosure of the range of `polynomial(a) - polynomial(b)` (`Taylor1` in τ
+with `TaylorN` coefficients in σ) for τ ∈ `centered_dom(a)` and σ ∈
+`centered_dom(a[0])`; the remainders are not included. Interval Horner in τ,
+coefficientwise in the workspace `aux::TaylorN{Interval{U}}` (structure of the
+TMN coefficients), then evaluation over the σ-box.
+"""
+function _poldiff_bound(a::TaylorModel1{TaylorModelN{N,TA,U},U},
+        b::TaylorModel1{TaylorModelN{N,TB,U},U},
+        aux::TaylorN{Interval{U}}) where {N,TA,TB,U}
+    @assert TS.order(a) == TS.order(b)
+    δ = centered_dom(a)
+    zI = zero(Interval{U})
+    pa, pb = polynomial(a), polynomial(b)
+    @inbounds for q in eachindex(aux.coeffs), h in eachindex(aux.coeffs[q].coeffs)
+        aux.coeffs[q].coeffs[h] = zI
+    end
+    @inbounds for k in reverse(eachindex(pa))
+        ak, bk = pa[k].pol, pb[k].pol
+        for q in eachindex(aux.coeffs), h in eachindex(aux.coeffs[q].coeffs)
+            aux.coeffs[q].coeffs[h] = aux.coeffs[q].coeffs[h] * δ +
+                (interval(ak.coeffs[q].coeffs[h]) - interval(bk.coeffs[q].coeffs[h]))
+        end
+    end
+    return aux(centered_dom(a[0]))
+end
+
+
+# Run `f()` with the settings of the arithmetic of the Picard operator (the global
+# settings are restored afterwards, also if `f` throws). All the entry points of
+# `validated_integ3` use it, so that they share the same defaults.
+function _with_arith_settings(f, midrad::Bool, tail_exact::Union{Nothing,Int}, joint::Bool)
+    midrad && !isdefined(TS, :mul_midrad) && error(
+        "`midrad = true` needs `mul_midrad` in TaylorSeries (see TaylorSeriesIAExt)")
+    old = (TM._TMN_MIDRAD[], TM._TMN_TAIL_EXACT[], TM._TM1_JOINT[])
+    try
+        TM._TMN_MIDRAD[] = midrad
+        TM._TM1_JOINT[] = joint
+        tail_exact === nothing || (TM._TMN_TAIL_EXACT[] = tail_exact)
+        return f()
+    finally
+        TM._TMN_MIDRAD[], TM._TMN_TAIL_EXACT[], TM._TM1_JOINT[] = old
+    end
+end
 
 function validated_integ3(f!,
         X0::AbstractVector{Interval{U}}, t0::T, tmax::T,
@@ -43,14 +155,17 @@ function validated_integ3(f!,
         localsp::JetSpace = TS.default_space[], params = nothing;
         maxsteps::Int = 2000, parse_eqs::Bool = true,
         adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
-        absorb::Bool = false, check_property::F = Returns(true)
+        absorb::Bool = false, check_property::F = Returns(true),
+        midrad::Bool = isdefined(TS, :mul_midrad), tail_exact::Union{Nothing,Int} = nothing,
+        joint::Bool = true
         ) where {T<:Real, U<:IANumTypes, F}
     # Initialize cache
     return validated_integ3(f!, SVector(X0...), t0, tmax,
         orderQ, orderT, abstol, localsp, params;
         maxsteps = maxsteps, parse_eqs = parse_eqs,
         adaptive = adaptive, minabstol = minabstol,
-        absorb = absorb, check_property = check_property)
+        absorb = absorb, check_property = check_property,
+        midrad = midrad, tail_exact = tail_exact, joint = joint)
 end
 
 function validated_integ3(f!,
@@ -59,15 +174,26 @@ function validated_integ3(f!,
         localsp::JetSpace = TS.default_space[], params = nothing;
         maxsteps::Int = 2000, parse_eqs::Bool = true,
         adaptive::Bool = true, minabstol::T = T(_DEF_MINABSTOL),
-        absorb::Bool = false, check_property::F = Returns(true)
+        absorb::Bool = false, check_property::F = Returns(true),
+        midrad::Bool = isdefined(TS, :mul_midrad), tail_exact::Union{Nothing,Int} = nothing,
+        joint::Bool = true
         ) where {N, T<:Real, U<:IANumTypes, F}
-    # Initialize cache
-    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ,
-        localsp, params; parse_eqs)
-    return _validated_integ3!(f!, X0, t0, tmax, abstol, cacheVI, params,
-        maxsteps, adaptive, minabstol,
-        # absorb, check_property
-        )
+    # `midrad`: use the explicit midpoint-radius kernels (TaylorSeriesIAExt) for the
+    # products of the Picard operator; `tail_exact`: number of neglected degrees (above
+    # `orderQ`) of the TaylorModelN products computed exactly (default: the current value
+    # of `TaylorModels._TMN_TAIL_EXACT`); `joint`: joint Cauchy accumulation of the
+    # products and squares of TaylorModel1{TaylorModelN} (`cauchy_joint.jl`). All of them
+    # change the enclosures at the level of rounding (all are rigorous). The global settings
+    # used by the arithmetic are set for the duration of the call only, and restored afterwards.
+    return _with_arith_settings(midrad, tail_exact, joint) do
+        # Initialize cache
+        cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ,
+            localsp, params; parse_eqs)
+        return _validated_integ3!(f!, X0, t0, tmax, abstol, cacheVI, params,
+            maxsteps, adaptive, minabstol,
+            # absorb, check_property
+            )
+    end
 end
 
 function validated_integ3(f!,
@@ -76,14 +202,19 @@ function validated_integ3(f!,
         localsp::JetSpace = TS.default_space[], params=nothing;
         maxsteps::Int=2000, parse_eqs::Bool=true,
         adaptive::Bool=true, minabstol::T=T(_DEF_MINABSTOL),
-        absorb::Bool=false, check_property::F=(t, x)->true
+        absorb::Bool=false, check_property::F=(t, x)->true,
+        midrad::Bool = isdefined(TS, :mul_midrad), tail_exact::Union{Nothing,Int} = nothing,
+        joint::Bool = true
         ) where {N, T<:Real, U, F}
-    # Initialize cache
-    cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, localsp, params; parse_eqs)
-    q0 = SVector(evaluate(evaluate.(X0, X0[1].x0), X0[1].pol[0].dom)...)
-    return _validated_integ3!(f!, q0, t0, tmax, abstol, cacheVI, params,
-        maxsteps, adaptive, minabstol, #absorb, check_property
-        )
+    # (`midrad`, `tail_exact`, `joint`: see the method for interval initial conditions)
+    return _with_arith_settings(midrad, tail_exact, joint) do
+        # Initialize cache
+        cacheVI = init_cache_VI3(f!, t0, X0, maxsteps, orderT, orderQ, localsp, params; parse_eqs)
+        q0 = SVector(evaluate(evaluate.(X0, X0[1].x0), X0[1].pol[0].dom)...)
+        return _validated_integ3!(f!, q0, t0, tmax, abstol, cacheVI, params,
+            maxsteps, adaptive, minabstol, #absorb, check_property
+            )
+    end
 end
 
 
@@ -95,20 +226,25 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         ) where {N,T,U}
 
     # Unpack caches
-    @unpack tv, xv, xaux, t, x, dx, rv, #rv1,
-            t1N, x1N, dx1N, x2N, z1N, vTN, vTMN, auxN,
-            xTM1v, x0New, rem1, rem2, rem0, parse_eqs = cacheVI
+    @unpack tv, xv, xTM1v,
+            xaux, t, x, dx, rv, #rv1,
+            x1N, t1NI, x1NI, dx1NI, x2NI, z1NI, vTN, auxI,
+            xTM1v, x0New, rem1, rem2, rem0,
+            vTMN, leftTMN, rightTMN, remsQR, linTN, scaleV,
+            parse_eqs = cacheVI
 
     # Initial conditions
     sign_tstep = copysign(1, tmax - t0)
-    dof = length(q0)
-    orderT = TS.order(t)
-    # orderQ = TS.order(x[1][0])
-    symIbox = symmetric_box(dof, T)
+    symIbox = symmetric_box(N, T)
     zbox = zero(q0)
     @inbounds xv[1] = q0
     @inbounds tv[1] = t0
-    zz = zero(x[1][0][0][1])
+    # Time of the Picard operator: t1NI = t0 + τ (also for the first step)
+    t1NI.pol.coeffs[1].pol.coeffs[1].coeffs[1] = interval(t0)
+    # `rem0`: accepted Picard remainder of the previous step (first guess of the
+    # next one), `δt_prev` its step size; zero for the first step
+    rem0 .= zero.(rem0)
+    δt_prev = zero(t0)
 
     # Integration
     # local normb = false
@@ -124,16 +260,25 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
             red_abstol, params)
 
         # Validated step of the integration
-        rem0 .= remainder.(vTMN) # store old remainder
         (_success, δt, red_abstol) = _validation3!(
-            VV, f!, t, x,
-            t1N, x1N, dx1N, x2N, z1N, #rv1,
-            δt, sign_tstep,
+            f!, t, x,
+            t1NI, x1N, x1NI, dx1NI, x2NI, z1NI, auxI,
+            δt, δt_prev, tmax, sign_tstep,
             rem1, rem2, rem0, zbox,
             # symIbox, orderT,
             abstol, params,
             adaptive, minabstol, # absorb, check_property
             )
+
+        # Unsuccessful step: exit without storing the failed integration step
+        if !_success
+            @warn("Exiting due to unsuccessful step", _success, t0)
+            break
+        end
+
+        # Store the accepted remainder and the step size (guess for the next step)
+        rem0 .= rem1
+        δt_prev = δt
 
         # Output
         nsteps += 1
@@ -141,42 +286,38 @@ function _validated_integ3!(f!, q0::SVector{N,Interval{U}},
         tv[nsteps] = t0
         xv[nsteps] = copy(zbox)
         for ind in eachindex(x)
-            xTM1v[ind, nsteps] = deepcopy(x1N[ind])
             xv[nsteps][ind] = evaluate(evaluate(x1N[ind], cdom), symIbox)
-            # Evaluate x1N at δt (new TMN initial condition with remainder)
-            TaylorModels.__evaluate!(vTMN[ind], x1N[ind], δt, auxN)
+            # Evaluate in place x1N at δt (new TMN initial condition with remainder)
+            TM.__evaluate!(vTMN[ind], x1N[ind], δt, auxI)
+        end
+        # Output slots are allocated lazily (only the steps actually done)
+        if all(i -> isassigned(xTM1v, i, nsteps), eachindex(x1N))
+            _update_output!(view(xTM1v, :, nsteps), x1N)
+        else
+            for ind in eachindex(x1N)
+                xTM1v[ind, nsteps] = _copy_tm1(x1N[ind])
+            end
         end
 
-        # Absorb reminders in constant and linear terms (of new init cond)
-        _abs_rems!(vTMN)
+        # Use qr-precondition to set new initial condition (leftTMN)
+        # qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+        # Rigorous QR preconditioning (new initial condition leftTMN)
+        if !qrprecondition!(leftTMN, rightTMN, linTN, remsQR, scaleV, vTMN)
+            @warn("QR preconditioning could not be verified; exiting", t0 + δt)
+            break
+        end
 
         # Update initial state
-        # if normb && dof == 1
-        #     # No issue with the wrapping effect in 1-d
-        #     x0New .= evaluate.(vTMN, (symIbox,))
-        #     normalize_taylorNs!(vTN, x0New)
-        #     TI.init_expansions!(x, dx, vTN, orderT)
-        # else
-            _update_inicond!(x, dx, x1N, vTMN)
-        # end
+        _update_inicond!(x, dx, x1N, leftTMN)
 
         # Update time
         t0 += δt
         t[0] = t0
-        t1N.pol[0].pol[0][1] = t0
+        t1NI.pol.coeffs[1].pol.coeffs[1].coeffs[1] = interval(t0)
 
         # Try to increase `red_abstol` if `adaptive` is true
         if adaptive
             red_abstol = min(abstol, 10*red_abstol)
-        end
-
-        # If the integration step is unsuccessfull, break with a warning; note that the
-        # last integration step (which was not successfull) is returned
-        if !_success
-            @warn("""
-            Exiting due to unsuccessfull step
-            """, _success, t0)
-            break
         end
 
         if nsteps > maxsteps
@@ -204,36 +345,47 @@ function validated_step3!(vB::Val{B}, f!,
         abstol::T, params,) where {B,T}
     # One step integration (non-validated)
     δt = TI.taylorstep!(vB, f!, t, x, dx, xaux, abstol, params, rv)
-    # f!(dx, x, params, t)  # Update last t coeff `dx[:][orderT]`
     # Step size
     δt = min(δt, sign_tstep*(tmax-t0))
     δt = sign_tstep * δt
+    # Representable step: t0 + δt exact in floating point
+    δt = _exact_step(t0, δt, tmax, sign_tstep)
     return δt
 end
 
 
 """
-    _validation3!
+    _validation3!(f!, t, x, t1NI, x1N, x1NI, dx1NI, x2NI, z1NI, auxI, δt, δt_prev,
+        tmax, sign_tstep, rem1, rem2, rem0, zbox, abstol, params, adaptive, minabstol)
+
+Picard validation of the candidate `x1N` = p₁ + Δ₁, p₁ the (floating-point)
+Taylor polynomial `x` of TaylorIntegration. The Picard operator is evaluated on
+`x1NI` (p₁ with `Interval` coefficients) in the `Interval` workspaces, so the
+arithmetic of `f!` and the integration enclose every rounding; its result is
+p₂ + Δ₂ with an interval polynomial p₂ ≠ p₁ in general. Self-map condition:
+`Δ₂ + R(p₂ - p₁) ⊆ Δ₁`, `R` a rigorous range over the τ-domain and the σ-box
+(`_poldiff_bound`). On success `x1N.rem` is that enclosure. The iteration starts
+from `_guess_rem(rem0, δt, δt_prev)`, `rem0` being the accepted remainder of the
+previous step (zero in the first step); a loose accepted candidate is polished
+(`_polish_rem!`).
 """
-function _validation3!(VV, f!,
+function _validation3!(f!,
         t::Taylor1{T},
         x::Vector{Taylor1{TaylorN{T}}},
-        t1N::TaylorModel1{TaylorModelN{N,T,T},T},
+        t1N::TaylorModel1{TaylorModelN{N,Interval{T},T},T},
         x1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        dx1N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        x2N::Vector{TaylorModel1{TaylorModelN{N,T,T},T}},
-        z1N::TaylorModel1{TaylorModelN{N,T,T},T},
-        # rv1::TI.RetAlloc{Taylor1{TaylorModelN{N,T,T}}},
-        δt::T, sign_tstep::Int,
+        x1NI::Vector{TaylorModel1{TaylorModelN{N,Interval{T},T},T}},
+        dx1N::Vector{TaylorModel1{TaylorModelN{N,Interval{T},T},T}},
+        x2N::Vector{TaylorModel1{TaylorModelN{N,Interval{T},T},T}},
+        z1N::TaylorModel1{TaylorModelN{N,Interval{T},T},T},
+        auxI::TaylorN{Interval{T}},
+        δt::T, δt_prev::T, tmax::T, sign_tstep::Int,
         rem1::Vector{Interval{T}},
         rem2::Vector{Interval{T}},
         rem0::Vector{Interval{T}},
         zbox::AbstractVector{Interval{T}},
-        # symIbox::AbstractVector{Interval{T}}, orderT::Int,
         abstol::T, params,
         adaptive::Bool, minabstol::T,
-        # absorb::Bool,
-        # check_property::Function=(t, x)->true
         ) where {N,T}
 
     #
@@ -241,8 +393,8 @@ function _validation3!(VV, f!,
     local bool_red = true
     local δtI
     reduced_abstol = abstol
-    local issatisfied = false
     z = zbox[1]
+    rem3 = similar(rem2)
 
     while bool_red
         # Reuse memory
@@ -253,34 +405,38 @@ function _validation3!(VV, f!,
             for ordT in eachindex(x1N[i].pol.coeffs)
                 for ordQ in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs)
                     for h in eachindex(x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs)
-                        x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
-                            x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
-                        dx1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
-                            z1N.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
+                        c = x[i].coeffs[ordT].coeffs[ordQ].coeffs[h]
+                        x1N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] = c
+                        x1NI[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] = interval(c)
+                        # `dx1N` is not reset: f! rebinds its entries, which may alias
+                        # entries of `x1NI` (e.g. `dx[2] = x[1]`)
                         x2N[i].pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h] =
                             z1N.pol.coeffs[ordT].pol.coeffs[ordQ].coeffs[h]
                     end
                 end
+                # Candidate: plain polynomial in σ for each τ^k (zero TMN remainders)
+                x1N[i].pol.coeffs[ordT].rem = z
+                x1NI[i].pol.coeffs[ordT].rem = z
             end
-            x1N[i].rem = z
-            x1N[i].x0 = 0.0
-            x1N[i].dom = δtI
-            dx1N[i].rem = z1N.rem
-            dx1N[i].x0 = x1N[i].x0
-            dx1N[i].dom = δtI
+            for y in (x1N[i], x1NI[i])
+                y.rem = z
+                y.x0 = 0.0
+                y.dom = δtI
+            end
             x2N[i].rem = z1N.rem
             x2N[i].x0 = x1N[i].x0
             x2N[i].dom = δtI
             rem1[i] = z
             rem2[i] = z
-            # Include remainder of initial condition
-            x1N[i].pol.coeffs[1].rem = z#rem0[i]
+        end
+        # First guess of the remainder, from the previous step
+        for i in eachindex(x1N)
+            x1N[i].rem = _guess_rem(rem0[i], δt, δt_prev)
         end
         # Verify Picard contraction
         for _ in 1:50
-            rem1 .= remainder.(x1N) .+ rem0
-            picard_lindelof!(f!, x2N, dx1N, x1N, t1N, params)
-            rem2 .= total_remainder.(x2N)
+            rem1 .= remainder.(x1N)
+            _picard_pass!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI, rem1, rem2, params)
             if iscontractive(rem2, rem1)
                 # Use `rem2` as new remainder (contraction has been proven already)
                 for i in eachindex(x1N)
@@ -288,13 +444,15 @@ function _validation3!(VV, f!,
                 end
                 break
             end
-            # x1N .= TaylorModel1.(x1N, 1.1 .* rem2)
             for i in eachindex(x1N)
                 iscontractive(rem2[i], rem1[i]) && continue
                 x1N[i].rem = 1.1 * rem2[i]
             end
         end
         _success = iscontractive(rem2, rem1) && all(isbounded.(rem1))
+        # Tighten the remainder if the candidate (guess) was loose
+        _success && _polish_rem!(f!, x2N, dx1N, x1N, x1NI, t1N, auxI,
+                                 rem1, rem2, rem3, params)
         rem1 .= total_remainder.(x1N)
 
         # Shrink stepsize δt if adaptive is true and _success is false
@@ -303,7 +461,8 @@ function _validation3!(VV, f!,
                 bool_red = reduced_abstol > minabstol
                 if bool_red
                     reduced_abstol = reduced_abstol/10
-                    δt = δt / 2 #* 0.1^(1/orderT)
+                    δt = δt / 2
+                    δt = _exact_step(t[0], δt, tmax, sign_tstep)
                     continue
                 end
                 @warn("Minimum absolute tolerance reached: ",
@@ -340,6 +499,7 @@ function _validation3!(VV, f!,
         #     issatisfied = check_property(t[0]+δt, xvv)
         #     if !issatisfied
         #         # δt = δt/2
+        #         # δt = _exact_step(t[0], δt, tmax, sign_tstep)
         #         bool_red = reduced_abstol > minabstol
         #         @info("issatisfied: ", bool_red, δt)
         #         if bool_red

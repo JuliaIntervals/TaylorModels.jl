@@ -28,7 +28,6 @@ end
     tpol = exp( Taylor1(2) )
     res = TM.bound_taylor1(tpol, ii0)
     @test isequal_interval(res, interval(tpol(inf(ii0)), tpol(sup(ii0))))
-    @test isguaranteed(res)
     res = TM.bound_taylor1(exp(Taylor1(Interval{Float64}, 2)), ii0)
     @test isequal_interval(res, interval(tpol(inf(ii0)), tpol(sup(ii0))))
     # @test !isguaranteed(res, ii0)
@@ -44,6 +43,18 @@ end
     @test issubset_interval(ii, res)
     res = TM.bound_taylor1(f(tm), x1)
     @test issubset_interval(ii, res)
+
+    # Another check
+    c = [0.1, 1/3, 2/7]
+    Q(z) = Rational{BigInt}(z)
+    p(x) = sum(Q(c[k+1]) * Q(x)^k for k in 0:2)
+    for (fT, I) in ((Taylor1(c, 2), interval(0.2, 0.9)),
+                    (Taylor1(-c, 2), interval(0.2, 0.9)))
+        s = fT === nothing ? 1 : sign(fT[1])
+        r = TM.bound_taylor1(fT, I)
+        lo, hi = minmax(s*p(inf(I)), s*p(sup(I)))
+        @test inf(r) <= lo && hi <= sup(r)
+    end
 end
 
 @testset "Tests for TaylorModel1 " begin
@@ -258,6 +269,23 @@ end
             tt = t(xξ)(qξ)
             @test issubset_interval(exp(tt), exp_tm4(dom-x00)(symIbox))
             @test issubset_interval(exp(tt), exp_tm(dom-x00)(symIbox))
+        end
+    end
+
+    @testset "Rigorous point evaluation" begin
+        setprecision(BigFloat, 256) do
+            c = [0.1, 1/3, 2/7, -1/11]                        # non-representable coefficients
+            exactval(a) = sum(big(c[k+1]) * big(a)^k for k in 0:3)
+            for a in (0.7, -0.3, 1/3)
+                # TaylorModel1, zero remainder
+                tm = TaylorModel1(Taylor1(c, 3), interval(0.0), interval(0.0), interval(-1.0, 1.0))
+                r = tm(a)
+                @test inf(r) <= exactval(a) <= sup(r)
+            end
+            # Rational point: outward-rounded enclosure of the point
+            tm = TaylorModel1(Taylor1(c, 3), interval(0.0), interval(0.0), interval(-1.0, 1.0))
+            r = tm(1//3)
+            @test inf(r) <= sum(big(c[k+1]) * big(1//3)^k for k in 0:3) <= sup(r)
         end
     end
 

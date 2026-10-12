@@ -34,7 +34,8 @@ export remainder, polynomial, domain, expansion_point,
     rpa, fp_rpa, bound_remainder, centered_dom, symmetric_box,
     total_remainder, shift_remainder
 
-export linear_dominated_bounder, quadratic_fast_bounder
+export linear_dominated_bounder, quadratic_fast_bounder,
+    monotonicity_bounder
 
 const TM = TaylorModels
 
@@ -46,6 +47,7 @@ include("promotion.jl")
 include("bounds.jl")
 include("evaluate.jl")
 include("arithmetic.jl")
+include("cauchy_joint.jl")
 include("rpa_functions.jl")
 include("mutfunctions.jl")
 include("integration.jl")
