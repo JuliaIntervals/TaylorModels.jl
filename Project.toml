@@ -1,6 +1,6 @@
 name = "TaylorModels"
 uuid = "314ce334-5f6e-57ae-acf6-00b6e903104a"
-version = "0.13.0"
+version = "0.13.1"
 repo = "https://github.com/JuliaIntervals/TaylorModels.jl.git"
 
 [deps]
@@ -31,8 +31,8 @@ Random = "1"
 RecipesBase = "1"
 Reexport = "1"
 StaticArrays = "1.9"
-TaylorIntegration = "0.18.18"
-TaylorSeries = "0.23"
+TaylorIntegration = "0.18.19"
+TaylorSeries = "0.23.1"
 Test = "1"
 julia = "1.10"
 
