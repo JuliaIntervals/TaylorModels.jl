@@ -302,48 +302,6 @@ function _update_output!(xTM1v::AbstractVector{<:TaylorModel1}, x1N)
 end
 
 
-# The following is used to get an exact, floating number representation,
-# of the step size δt and of the accumulated time
-# Knuth's TwoSum: s + e == a + b exactly
-@inline function _two_sum(a::T, b::T) where {T<:AbstractFloat}
-    s = a + b
-    bb = s - a
-    e = (a - (s - bb)) + (b - bb)
-    return s, e
-end
-
-"""
-    _exact_step(t0, δt, tmax, sign_tstep) -> δt′
-
-Step with `t0 + δt′` exact in floating point and `|δt′| ≤ |δt|`, except that
-a step reaching `tmax` lands exactly on it. `sign_tstep = ±1` (forward/backward).
-"""
-function _exact_step(t0::T, δt::T, tmax::T, sign_tstep::Int) where {T<:AbstractFloat}
-    t1 = t0 + δt
-    sign_tstep*t1 >= sign_tstep*tmax && (t1 = tmax)
-    for _ in 1:8
-        δt1 = t1 - t0
-        s, e = _two_sum(t0, δt1)
-        if s == t1 && iszero(e)                          # t0 + δt1 == t1 exactly
-            if iszero(δt1)                               # request < ½ ulp(t0): one ulp
-                t1 = sign_tstep > 0 ? nextfloat(t0) : prevfloat(t0)
-                return t1 - t0
-            end
-            (t1 == tmax || sign_tstep*δt1 <= sign_tstep*δt) && return δt1
-            t1 = sign_tstep > 0 ? prevfloat(t1) : nextfloat(t1)    # ½-ulp overshoot
-        else
-            # t1 - t0 not representable (t1 not within a factor 2 of t0): take an
-            # exact shorter step; later steps reach tmax exactly (Sterbenz).
-            if sign_tstep*t0 > 0                         # away from 0: at most doubling
-                δt = sign_tstep * min(abs(δt1), abs(t0))
-            elseif sign_tstep*tmax >= 0 && abs(t0) <= abs(δt)   # 0 lies on the way
-                δt = -t0                                 # stop exactly at 0
-            else                                         # toward 0, tmax before 0
-                δt = sign_tstep * min(abs(δt1), abs(t0)) / 2
-            end
-            t1 = t0 + δt
-        end
-    end
-    error("_exact_step: no exact step found (t0 = $t0, δt = $δt)")
-end
-_exact_step(t0::Real, δt::Real, tmax::Real, ::Int) = δt     # exact types (e.g. Rational)
+# Smallest nonzero exact advance, for callers that must make progress
+_ulp_step(t0::T, sg::Int) where {T<:AbstractFloat} =
+    (sg > 0 ? nextfloat(t0) : prevfloat(t0)) - t0
