@@ -349,7 +349,8 @@ function validated_step3!(vB::Val{B}, f!,
     δt = min(δt, sign_tstep*(tmax-t0))
     δt = sign_tstep * δt
     # Representable step: t0 + δt exact in floating point
-    δt = _exact_step(t0, δt, tmax, sign_tstep)
+    δt = TI._exact_step(t0, δt, tmax, sign_tstep)
+    iszero(δt) && (δt = _ulp_step(t0, sign_tstep))
     return δt
 end
 
@@ -462,7 +463,8 @@ function _validation3!(f!,
                 if bool_red
                     reduced_abstol = reduced_abstol/10
                     δt = δt / 2
-                    δt = _exact_step(t[0], δt, tmax, sign_tstep)
+                    δt = TI._exact_step(t[0], δt, tmax, sign_tstep)
+                    iszero(δt) && (δt = _ulp_step(t0, sign_tstep))
                     continue
                 end
                 @warn("Minimum absolute tolerance reached: ",
@@ -499,7 +501,7 @@ function _validation3!(f!,
         #     issatisfied = check_property(t[0]+δt, xvv)
         #     if !issatisfied
         #         # δt = δt/2
-        #         # δt = _exact_step(t[0], δt, tmax, sign_tstep)
+        #         # δt = TI._exact_step(t[0], δt, tmax, sign_tstep)
         #         bool_red = reduced_abstol > minabstol
         #         @info("issatisfied: ", bool_red, δt)
         #         if bool_red

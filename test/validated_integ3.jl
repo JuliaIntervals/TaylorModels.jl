@@ -1,11 +1,10 @@
 # Tests for validated_integ3 and its building blocks.
 #
-#   1. _exact_step            representable time steps
-#   2. picard_lindelof        no aliasing, exact Picard iterates, argument order
-#   3. cache                  the Picard time of the first step is t0
-#   4. monotonicity_bounder   range enclosure (soundness, tightness)
-#   5. qrprecondition!    (⋆) and v ∈ L∘ρ, exact in BigFloat, T ∈ {Float64, Interval}
-#   6. integration            completion, pointwise containment x(t;x0) ∈ Φ_k(τ, σ_k(ξ))
+#   1. picard_lindelof        no aliasing, exact Picard iterates, argument order
+#   2. cache                  the Picard time of the first step is t0
+#   3. monotonicity_bounder   range enclosure (soundness, tightness)
+#   4. qrprecondition!    (⋆) and v ∈ L∘ρ, exact in BigFloat, T ∈ {Float64, Interval}
+#   5. integration            completion, pointwise containment x(t;x0) ∈ Φ_k(τ, σ_k(ξ))
 #                             with exact times, tdrift == 0, tightness
 #
 # The arithmetic of TaylorModel1{TaylorModelN} (products, squares, numbers, integration) is
@@ -256,31 +255,6 @@ function check_tightness_1d(name, sol, fex, X0; maxratio, printinfo=false)
     @test tp.maxratio <= maxratio
 end
 
-# --- exact step ---------------------------------------------------------------
-function check_step(t0, δt, tmax, sgn)
-    δt1 = VI._exact_step(t0, δt, tmax, sgn)
-    t1 = t0 + δt1
-    s, e = VI._two_sum(t0, δt1)
-    @test s == t1 && iszero(e)                       # exact
-    @test t1 == tmax || abs(δt1) <= abs(δt) ||       # conservative, except landing on
-          t1 == (sgn > 0 ? nextfloat(t0) : prevfloat(t0))  # tmax or a sub-ulp request
-    @test sign(δt1) == sgn                           # direction
-    @test sgn * t1 <= sgn * tmax                     # no overshoot
-    return δt1
-end
-
-# Repeated steps with the same requested δt until tmax is reached exactly;
-# returns the number of steps (every step checked with check_step).
-function reach_tmax(t0, δt, tmax, sgn; maxsteps = 64)
-    t, n = t0, 0
-    while t != tmax
-        t += check_step(t, δt, tmax, sgn)
-        n += 1
-        n < maxsteps || error("reach_tmax: tmax not reached")
-    end
-    return n
-end
-
 # --- QR preconditioning ------------------------------------------------------
 # Random v = c + Aξ + h(ξ) + Δ on B (interval coefficients widened by `wid`)
 function random_vTMN(rng, X, A, ::Type{T}; nl = 0.05, remr = 1e-6, wid = 1e-9) where {T}
@@ -345,32 +319,6 @@ rotation(θ) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
 @testset "validated_integ3" begin
     setprecision(BigFloat, 256)
     local printinfo = false
-
-    @testset "_exact_step" begin
-        s, e = VI._two_sum(1.0, 1e-17)
-        @test big(s) + big(e) == big(1.0) + big(1e-17)
-        @test check_step(0.0, 0.1, 10.0, 1) == 0.1                   # t0 = 0
-        check_step(4.0, 0.8802595366450658, 10.0, 1)                 # |t0| ≥ |δt|
-        check_step(10.0, -0.3, 0.0, -1)
-        check_step(1e-3, 0.7, 10.0, 1)                              # 0 < |t0| < |δt|
-        check_step(-1e-3, -0.7, -10.0, -1)
-        @test check_step(7565.0, 8e-14, 8000.0, 1) == eps(7565.0)   # request < ½ ulp(t0)
-        # requested step larger than what is left (TI's estimate is often larger):
-        # the step is clipped and tmax is reached exactly, possibly in a few steps
-        # when tmax - t0 is not representable (tmax not within a factor 2 of t0)
-        @test reach_tmax(0.0, 0.5, 0.7, 1) == 2                     # 0.5, then 0.2 → 0.7
-        @test reach_tmax(4.0, 9.0, 7.3, 1) == 1                     # Sterbenz: one step
-        @test reach_tmax(5.0, -9.0, 0.1, -1) <= 8                   # 0.1 - 5 not representable
-        @test reach_tmax(5.0, -20.0, -3.0, -1) <= 8                 # across 0
-        @test reach_tmax(1e-3, 10.0, 7.3, 1) <= 16                  # 0 < |t0| ≪ |δt|
-        rng = MersenneTwister(2026)
-        for _ in 1:2_000
-            sgn = rand(rng, (-1, 1))
-            t0 = sgn * 10 * rand(rng) * rand(rng, (0.0, 1e-6, 1.0, 1e3))
-            δt = sgn * rand(rng) * rand(rng, (1e-8, 1e-2, 1.0))
-            check_step(t0, δt, t0 + sgn * 100, sgn)
-        end
-    end
 
     @testset "picard_lindelof" begin
         function fb!(dx, x, p, t)                  # autonomous
